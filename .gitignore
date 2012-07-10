@@ -5,3 +5,5 @@ logs
 scripts
 tmp
 .jobscript
+.scripts
+input

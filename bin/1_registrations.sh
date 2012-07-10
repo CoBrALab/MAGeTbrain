@@ -14,25 +14,26 @@ register=$1
 output_root=$2
 
 (
-for atlas in input_atlases/brains/*.mnc input_templates/brains/*.mnc; do
+for atlas in input/atlases/brains/*.mnc input/templates/brains/*.mnc; do
   atlas_stem=$(basename $atlas .mnc)
-  for template in input_templates/brains/*.mnc; do
+  for template in input/templates/brains/*.mnc; do
     template_stem=$(basename $template .mnc)
     output_dir=$output_root/registrations/$atlas_stem/$template_stem
     xfm=$output_dir/nl.xfm
     mkdir -p $output_dir
-    echo $register $atlas $template $xfm
+    [ ! -e $xfm ] && echo $register $atlas $template $xfm
+    
   done
 done 
 
-for template in input_templates/brains/*.mnc; do
+for template in input/templates/brains/*.mnc; do
   template_stem=$(basename $template .mnc)
-  for subject in input_subjects/brains/*.mnc; do
+  for subject in input/subjects/brains/*.mnc; do
     subject_stem=$(basename $subject .mnc)
     output_dir=$output_root/registrations/$atlas_stem/$template_stem
     xfm=$output_dir/nl.xfm
     mkdir -p $output_dir
-    echo $register $template $subject $xfm
+    [ ! -e $xfm ] && $register $template $subject $xfm
   done
 done
 ) > 1_registrations_jobs
