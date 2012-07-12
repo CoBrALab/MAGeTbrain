@@ -39,7 +39,7 @@ for chunk in `seq $START_CHUNK $END_CHUNK`; do
     echo "#PBS -j oe"
     echo "#PBS -o logs"
     echo "#PBS -V"
-    echo "cd $PBS_O_WORKDIR"
+    echo 'cd $PBS_O_WORKDIR'
 
     STARTLINE=$(($chunk*$CHUNK_SIZE+1))
     NUMLINES=$(($CHUNK_SIZE-1))
@@ -51,8 +51,9 @@ for chunk in `seq $START_CHUNK $END_CHUNK`; do
     ) > $script_file
     chmod +x $script_file
 
-    echo qsub $@ $script_file
     if [ -z "$NOP" ]; then
-        echo calling qsub $@ $script_file
+        qsub $@ $script_file
+    else
+        echo qsub $@ $script_file
     fi
 done
