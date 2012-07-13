@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# Registers <atlas> to <target> and outputs the resulting xfm to output.xfm
+# Intermediate XFMs and other files to go `dirname output.xfm`
+#
+# if atlas is in grand/parent/atlas.mnc, then grand/mask/atlas-mask.mnc is
+# checked for existence.  If so, it's used as a mask during non-linear
+# registration. 
+#
+# usage:
+#      register <atlas.mnc> <target.mnc> <output.xfm>
+#   
+atlas=$1
+target=$2
+output_xfm=$3
+
+atlas_stem=$(basename $atlas .mnc)
+atlas_mask=$(dirname $(dirname $atlas))/masks/${atlas_stem}-mask.mnc
+output_dir=$(dirname $output_xfm)
+AT_lin_xfm=$output_dir/ATlin.xfm
+TA_lin_xfm=$output_dir/ATlin_inverse.xfm
+TA_nl_xfm=$output_dir/TAnl.xfm
+AT_nl_xfm=$output_dir/TAnl_inverse.xfm
+atlas_res=$output_dir/linres.mnc
+atlas_res_mask=$output_dir/masklinres.mnc
+
+# LINEAR  
+if [ ! -e $AT_lin_xfm ]; then
+  mincANTS 3 -m PR[$atlas,$target,1,4] \
+      -i 0 \
+      -o $AT_lin_xfm \
+      --number-of-affine-iterations 10000x10000x10000x10000x10000 \
+      --affine-gradient-descent-option 0.5x0.95x1.e-4x1.e-4 \
+      --MI-option 32x16000 
+fi
+
+if [ ! -e $atlas_res ]; then
+  mincresample -like $target -transform $AT_lin_xfm $atlas $atlas_res 
+fi
+
+if [ -e $atlas_mask ]; then
+  mincresample -like $target -transform $AT_lin_xfm $atlas_mask $atlas_res_mask
+  ANTS_MASK_ARGS="-x $atlas_res_mask"
+fi 
+
+# NONLINEAR
+if [ ! -e $TA_nl_xfm ]; then
+  mincANTS 3 -m PR[$target,$atlas_res,1,4] \
+    $ANT_MASK_ARGS \
+    --continue-affine false \
+    --use-Histogram-Matching \
+    -r Gauss[3,0] \
+    -t SyN[0.5] \
+    -o $TA_nl_xfm \
+    -i 100x100x100x20
+fi
+
+if [ ! -e $output_xfm ]; then
+  xfmconcat $AT_lin_xfm $AT_nl_xfm $output_xfm 
+fi
