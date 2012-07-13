@@ -3,16 +3,16 @@
 # Register all atlases to templates, and all templates to subjects
 #
 usage() {
-echo <<EOF
+cat <<EOF
     $0 register_script 
 
     register_script - path to script to do registration (see bin/register.sh) 
-EOF 
+EOF
 }
 
 if [ -z "$1" ]; then
-  usage()
-  exit -1; 
+  usage
+  exit 
 fi 
 
 register=$1
