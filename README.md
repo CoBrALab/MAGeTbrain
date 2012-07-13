@@ -17,7 +17,7 @@ Quick start
    go in brains/ and corresponding labels go in labels/.  Labels should have
    the same name as the MR image but with a postfix of _labels.mnc
 
-3. Run bin/1_register.sh bin/register_2_stage.sh output
+3. Run bin/1_register.sh bin/ANTSregister_2_stage.sh output
 
     This will generate the file 1_register_jobs, which is a list of
     commands to carry out all the necessary registrations. You can submit these
