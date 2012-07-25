@@ -29,6 +29,20 @@ Quick start
     sure that the bin/ folder is in your path when you submit (or in your
     .bashrc)
 
-4. After that stage is done, run bin/2* similarily. 
+4. After that stage is done, run bin/2* similarily.  Jobs in these stages can
+   be run simultaneously.
 
-5. run bin/3*, then bin/4* and so on.
+5. Next, run bin/3_vote_prep.sh and hope you get no errors.  If you do, you
+   likely had failed jobs during the 2b_compute_scores stage.  
+
+6. Lastly, you will want to run (or submit a job to run) all of the voting,
+   e.g.:
+
+        bin/vote.py -xcorr 15 
+
+   This produces voted labels using the cross-correlation similarity metric to
+   choose the top 15 templates to vote from for each subject.  There are other
+   options for various voting regimes.
+
+   This stage takes (wild guess) roughly 30m - 1h per subject.  Voted labels
+   appear in output/fusion/<voting_method>/
