@@ -14,11 +14,11 @@
 template=$1
 output_root=$2
 
-temp_dir=$(mktemp -d)
+PROCESSORS=8
 
+temp_dir=$(mktemp -d)
 template_stem=$(basename $template .mnc)
 
-alias sem="parallel --semaphore"
 shopt -s expand_aliases
 
 # compute mask
@@ -30,10 +30,8 @@ for atlas in input/atlases/brains/*.mnc; do
   xfm=$output_root/registrations/$atlas_stem/$template_stem/nl.xfm
   linxfm=$temp_dir/${atlas_stem}_lin.xfm
   linres=$temp_dir/${atlas_stem}_lin.mnc
-  sem -j8 linxfm $xfm $linxfm "&&" mincresample -quiet -2 -like $template -transform $linxfm $atlas $linres
-done
-
-sem --wait
+  echo linxfm $xfm $linxfm "&&" mincresample -quiet -2 -like $template -transform $linxfm $atlas $linres
+done | tee | parallel -j$PROCESSORS
 
 avg=$temp_dir/avg.mnc 
 mask_1=$temp_dir/mask_.mnc
@@ -45,7 +43,6 @@ mincmorph -successive DDD $mask_1 $mask
 
 # calculate scores over that mask
 for subject in input/subjects/brains/*.mnc; do
-  echo Computing score for $subject
   subject_stem=$(basename $subject .mnc)
 
   score_root_dir=$output_root/scores/$template_stem/$subject_stem
@@ -54,19 +51,24 @@ for subject in input/subjects/brains/*.mnc; do
   xfm=$output_root/registrations/$template_stem/$subject_stem/nl.xfm
   linxfm=$temp_dir/${subject_stem}_invlin.xfm
   linres=$temp_dir/${subject_stem}_invlin.mnc
+
+  # only do this next stem if we need to, and have the transform
+  if [ -e $score_root_dir/xcorr.txt -o ! -e $xfm ]; then
+    continue;
+  fi
+
   script=$(mktemp --tmpdir=$temp_dir)
+ 
   cat <<EOF > $script
 #!/bin/bash
 linxfm $xfm $linxfm  
-mincresample -2 -like $template -invert -transform $linxfm $atlas $linres
+mincresample -2 -like $template -invert -transform $linxfm $subject $linres
 xcorr_vol.sh $linres $template $mask $score_root_dir/xcorr.txt 
 #nmi_vol.sh $linres $template $mask $score_root_dir/nmi.txt
 rm $linxfm $linres $script
 EOF
   chmod +x $script
-  sem -j8 $script
-done
-
-sem --wait
+  echo $script
+done | tee | parallel -j$PROCESSORS
 
 rm -rf $temp_dir

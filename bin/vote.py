@@ -58,18 +58,18 @@ def resample_labels(atlas, template, target, labels_dir, registration_dir, outpu
  
 def parallel(commands, processors = 8):
     "Runs the list of commands through parallel"
-    command = 'parallel --eta --progress -j%i' % processors
+    command = 'parallel -j%i' % processors
     execute(command, input='\n'.join(commands))
 
 def execute(command, input = ""):
     """Spins off a subprocess to run the cgiven command"""
     logger.debug("Running: " + command + " on:\n" + input)
     
-#    proc = subprocess.Popen(command.split(), 
-#                            stdin = subprocess.PIPE, stdout = 2, stderr = 2)
-#    proc.communicate(input)
-#    if proc.returncode != 0: 
-#        raise Exception("Returns %i :: %s" %( proc.returncode, command ))
+    proc = subprocess.Popen(command.split(), 
+                            stdin = subprocess.PIPE, stdout = 2, stderr = 2)
+    proc.communicate(input)
+    if proc.returncode != 0: 
+        raise Exception("Returns %i :: %s" %( proc.returncode, command ))
     
 def mkdirp(*p):
     """Like mkdir -p"""
@@ -113,7 +113,7 @@ def weighted_vote(labels_dir, vote_dir, scores, target, templates, atlases, top_
 
         # STEP 2: select the top_n templates, and all of the labels for them from the atlases
         labels_list = []
-        sorted_templates = sorted(templates, key= lambda x:scores[(x.stem,target.stem)], reverse=True)
+        sorted_templates = sorted(templates, key= lambda x:scores.get((x.stem,target.stem),0), reverse=True)
         for template in sorted_templates[:top_n]:
             labels_list.extend([os.path.join(labels_dir, atlas.stem, template.stem, target.stem, "labels.mnc") for atlas in atlases])
             
