@@ -51,3 +51,22 @@ Quick start
 
    This stage takes (wild guess) roughly 30m - 1h per subject per voting
    method.  Voted labels appear in output/fusion/<voting_method>/
+
+Tips
+----
+
+### PBS: Working with queued/running jobs
+
+Manipulating the job queue is easily done with the help of qstat, qdel, qalter,
+and a bit of command line magic.  Specifically, to get a list of job ids in the
+queue, do this: 
+
+        qstat | cut -f1 -d' '
+
+You can extract only the queued jobs, like so:
+
+        qstat | grep ' Q ' | cut -f1 -d' '
+
+And then change the amount of time walltime allocated:
+    
+        qstat | grep ' Q ' | cut -f1 -d' ' | xargs qalter -l walltime=3:00:00 

@@ -250,7 +250,7 @@ if __name__ == "__main__":
     ## Set up TEMP space
     persistent_temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
     execute("tar xzf output/labels.tar.gz -C " + persistent_temp_dir)
-    xcorr_scores = read_scores(os.path.join(output_dir, "xcorrs.csv"))
+    xcorr_scores = read_scores(os.path.join(output_dir, "xcorr.csv"))
     template_labels_dir = mkdirp(persistent_temp_dir, "labels")    
     score_dir = os.path.join(persistent_temp_dir, "scores") 
 
