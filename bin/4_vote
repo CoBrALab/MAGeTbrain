@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+# Output a script divide up the voting across subjects
+#
+# Usage: 
+#     4_vote <vote.py options>
+#
+for subject in input/subjects/brains/*.mnc; do
+    stem=$(basename $subject .mnc)
+    echo vote.py $@ $stem 
+done > 4_vote

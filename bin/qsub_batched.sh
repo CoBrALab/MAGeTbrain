@@ -25,7 +25,7 @@ shift; shift; shift;
 
 START_CHUNK=0  
 task_list_size=$(cat $TASK_LIST | wc -l)
-END_CHUNK=$(($task_list_size / $CHUNK_SIZE+1))
+END_CHUNK=$(($task_list_size / $CHUNK_SIZE))
 
 echo $END_CHUNK chunks to process. 
 

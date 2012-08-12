@@ -38,19 +38,27 @@ Quick start
         qsub_batched 2b_scoring_jobs 1 6:00:00           # assuming ~30 T1 subjects
 
 5. Next, run bin/3_vote_prep.sh and hope you get no errors.  If you do, you
-   likely had failed jobs during the 2b_compute_scores stage.  Re-run it. 
+   likely had failed jobs during the 2b_compute_scores stage.  
 
-6. Lastly, you will want to run (or submit a job to run) all of the voting.
-   This is done with a single command, e.g.:
+6. Lastly, label fusion.  bin/4_voting produces the jobs to do this.  You have
+   a choice as to which fusion method you want to use: majority vote
+   (--majvote), cross-correlation weighted (--xcorr <top_n>), or normalised
+   mutual information weighted (--nmi <top n>).  See bin/vote.py --help for
+   details, as any of these options can be given to the bin/4_vote script. E.g.
+   to do both majority and x-corr fusion, the task would look this:
 
-        bin/vote.py -xcorr 15 
+        bin/4_vote --xcorr 15 --majvote <subject>
 
-   This produces voted labels using the cross-correlation similarity metric to
-   choose the top 15 templates to vote from for each subject.  There are other
-   options for various voting regimes (run vote.py without options for help).
+   A task is output for each subject.  Each task takes (wild guess) roughly 1h 
+   per subject (say 5min x # atlases x # templates + 15min x # voting methods),
+   and is parallelised (--processes).  So, a safe way to submit these jobs might
+   be: 
 
-   This stage takes (wild guess) roughly 30m - 1h per subject per voting
-   method.  Voted labels appear in output/fusion/<voting_method>/
+        qsub_batched 4_vote 1 3:00:00
+
+   Voted labels appear in output/fusion/<voting_method>/
+
+
 
 Tips
 ----

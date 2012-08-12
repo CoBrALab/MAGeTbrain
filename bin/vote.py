@@ -171,7 +171,7 @@ if __name__ == "__main__":
     logging.basicConfig(format=FORMAT, level=logging.DEBUG)
     
     parser = OptionParser()
-    parser.set_usage("%prog [options]")        
+    parser.set_usage("%prog [options] [<target stem> ...]")        
     parser.add_option("--majvote", dest="majvote",
         action="store_true", default=False,
         help="Do majority voting")
@@ -192,7 +192,8 @@ if __name__ == "__main__":
         action="store_true", 
         help="Short string to use to uniquely identify the results file (default: date & time)")
     options, args = parser.parse_args()
-
+    
+    target_stems  = args[:]
     output_dir        = os.path.abspath(options.output_dir)
     registrations_dir = os.path.join(output_dir, "registrations")
     fusion_dir        = mkdirp(output_dir, "fusion")
@@ -200,7 +201,10 @@ if __name__ == "__main__":
     ## Set up TEMP space
     persistent_temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
     execute("tar xzf output/labels.tar.gz -C " + persistent_temp_dir, dry_run = options.dry_run)
-    xcorr_scores = read_scores(os.path.join(output_dir, "xcorr.csv"))
+    if options.xcorr > 0:
+        xcorr_scores = read_scores(os.path.join(output_dir, "xcorr.csv"))
+    if options.nmi > 0:
+        nmi_scores = read_scores(os.path.join(output_dir, "nmi.csv"))
     template_labels_dir = mkdirp(persistent_temp_dir, "labels")    
 
     # 
@@ -213,8 +217,10 @@ if __name__ == "__main__":
     logger.debug("TEMPLATES:\n\t"+"\n\t".join([i.image for i in templates]))
     logger.debug("-" * 40)
 
-    for target in targets:
-        logger.debug("Generating commands for target: " + target.image)
-        vote(target)
+    
+    for target in targets: 
+        if not target_stems or target.stem in target_stems:
+            logger.debug("Generating commands for target: " + target.image)
+            vote(target)
 
     shutil.rmtree(persistent_temp_dir)

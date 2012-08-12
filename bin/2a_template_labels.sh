@@ -23,6 +23,6 @@ for atlas in input/atlases/brains/*.mnc; do
 
     mkdir -p $gen_labels_dir 
 
-    [ ! -e $gen_labels ] && echo mincresample -2 -near -transform $xfm -like $template $atlas_labels $gen_labels
+    [ ! -e $gen_labels ] && echo mincresample -2 -near -keep -transform $xfm -like $template $atlas_labels $gen_labels
   done 
 done > 2a_template_labels_jobs
