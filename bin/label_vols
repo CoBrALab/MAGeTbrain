@@ -1,0 +1,42 @@
+#!/bin/env python
+#
+# Print the label volumes from all labels a folder
+#
+#   label_vols <dir> [<dir> ...]
+#
+import sys
+import os
+import os.path
+import glob
+import subprocess
+import StringIO
+
+def execute(command, input = "", dry_run = False, stdout = 2):
+    """Spins off a subprocess to run the cgiven command"""
+ 
+      
+    if not dry_run:
+        proc = subprocess.Popen(command.split(), 
+                                stdin = subprocess.PIPE, stdout = stdout, stderr = 2)
+        out, err = proc.communicate(input)
+        if proc.returncode != 0: 
+            raise Exception("Returns %i :: %s" %( proc.returncode, command ))
+        return (out, err)
+
+if __name__ == '__main__': 
+    if len(sys.argv) <= 1: 
+        sys.exit(-1)
+  
+    labels = None
+    for folder in sys.argv[1:]: 
+        files = glob.glob(os.path.join(folder, "*", "*.mnc"))
+        for f in files:
+            if labels is None:
+                o, e = execute("print_all_labels %s" % f, stdout = subprocess.PIPE)
+                labels = [ line.split(" ")[1] for line in o.strip().split("\n") ]
+                print ",".join(["file"] + labels)
+
+            o, e = execute("volume_stats -binvalue %s -volume %s" % \
+                (",".join(labels), f), stdout = subprocess.PIPE)
+            volumes = [ line.split(" ")[2] for line in o.split("\n") if line.startswith("Volume") ] 
+            print ",".join([f] + volumes)

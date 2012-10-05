@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+# register the template to the target, and then vote on 'em
+#
+usage() {
+cat <<EOF
+    $0 subject 
+
+EOF
+}
+
+if [ -z "$1" ]; then
+  usage
+  exit 
+fi 
+
+subject_stem=$1
+
+REG_CMD=ANTSregister.sh
+VOTE_METHOD=--majvote
+
+subject=input/subjects/brains/${subject_stem}.mnc
+output_root=/dev/shm/$subject_stem
+mkdir $output_root
+
+for template in input/templates/brains/*.mnc; do
+  template_stem=$(basename $template .mnc)
+  output_dir=$output_root/registrations/$template_stem/$subject_stem
+  xfm=$output_dir/nl.xfm
+  mkdir -p $output_dir
+  echo $REG_CMD $template $subject $xfm
+done | parallel -j10
+
+vote.py $VOTE_METHOD --registrations_dir $output_root/registrations $subject_stem
