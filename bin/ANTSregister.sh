@@ -15,4 +15,4 @@ mincANTS 3 -m PR[$from_image,$to_image,1,4] \
     -i 100x100x100x20
 
 # clean up
-rm -rf /tmp/* /dev/shm/*
+rm $(dirname $output_xfm)/*inverse*
