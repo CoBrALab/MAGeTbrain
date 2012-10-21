@@ -48,6 +48,7 @@ def dirname(path):
 def resample_labels(atlas, template, target, labels_dir, registration_dir, output_dir, inverse = True):
     """Produces a command that resamples the labels from the atlas-template to target"""
 
+    # TODO: concatenate xfms and resample once (i.e. ditch the template labels). 
     template_labels  = os.path.join(labels_dir, atlas.stem, template.stem, 'labels.mnc')
     target_labels    = os.path.join(mkdirp(output_dir, atlas.stem, template.stem, target.stem), 'labels.mnc')
     nlxfm = os.path.join(registration_dir, template.stem, target.stem, 'nl.xfm')
@@ -101,7 +102,7 @@ def do_vote(voting_templates, target_vote_dir, temp_labels_dir):
     target_labels =  []
     for atlas in atlases:
         for template in voting_templates:
-            labels, cmd = resample_labels(atlas, template, target, template_labels_dir, registrations_dir, temp_labels_dir, inverse=False)
+            labels, cmd = resample_labels(atlas, template, target, template_labels_dir, registrations_dir, temp_labels_dir, inverse=options.invert)
             resample_cmds.append(cmd)
             target_labels.append(labels)
 
@@ -184,6 +185,9 @@ if __name__ == "__main__":
     parser.add_option("--processes", dest="processes",
         default=8, type="int", 
         help="Number of processes to parallelize over.")
+    parser.add_option("--registrations_dir", dest="registrations_dir",
+        default=None, type="string", 
+        help="Directory containing registrations from template library to subject.")
     parser.add_option("--output_dir", dest="output_dir",
         default="output", type="string", 
         help="Path to output folder")
@@ -191,11 +195,14 @@ if __name__ == "__main__":
         default=False,
         action="store_true", 
         help="Short string to use to uniquely identify the results file (default: date & time)")
+    parser.add_option("--invert", dest="invert",
+        action="store_true", default=False,
+        help="Invert the transformations during resampling from the template library.")
     options, args = parser.parse_args()
     
     target_stems  = args[:]
     output_dir        = os.path.abspath(options.output_dir)
-    registrations_dir = os.path.join(output_dir, "registrations")
+    registrations_dir = options.registrations_dir or os.path.join(output_dir, "registrations")
     fusion_dir        = mkdirp(output_dir, "fusion")
     
     ## Set up TEMP space

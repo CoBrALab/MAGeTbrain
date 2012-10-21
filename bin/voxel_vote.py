@@ -75,9 +75,8 @@ if __name__ == "__main__":
     outfile.writeFile()
     outfile.closeVolume()
     
-    execute('mincconvert %s %s.v1' % (outfilename, outfilename))
+    execute('mv %s %s.v1' % (outfilename, outfilename))
     execute('mincconvert -2 -clob -compress 9 %s.v1 %s' % (outfilename, outfilename))
-    execute('rm  %s.v1' % outfilename)
 
     logger.debug("writing output file complete.")
     #outdist.writeFile()

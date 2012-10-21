@@ -13,13 +13,18 @@ logger = logging.getLogger(__name__)
 def execute(command, input = "", dry_run = False):
     """Spins off a subprocess to run the cgiven command"""
     logger.debug("Running: " + command)
-   
+
+    o, e = ("", "")
+ 
     if not dry_run:
         proc = subprocess.Popen(command.split(), 
-                                stdin = subprocess.PIPE, stdout = 2, stderr = 2)
-        proc.communicate(input)
+                                stdin = subprocess.PIPE, stdout = subprocess.PIPE , stderr = subprocess.PIPE)
+        o, e = proc.communicate(input)
+        logger.debug("STDOUT: %s\nRETURN CODE: %i\nSTDERR: %s\n", o, proc.returncode, e)
         if proc.returncode != 0: 
             raise Exception("Returns %i :: %s" %( proc.returncode, command ))
+
+    return (o,e)
 
 def mkdirp(*p):
     """Like mkdir -p"""
@@ -35,7 +40,7 @@ def mkdirp(*p):
 
 if __name__ == "__main__":
     FORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
-    logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+    logging.basicConfig(format=FORMAT, level=logging.INFO)
     
     parser = OptionParser()
     parser.set_usage("""%prog [options] <task_list> <chunk_size> <walltime> 
@@ -85,6 +90,7 @@ if __name__ == "__main__":
         script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
         script.write("TASKS\n") 
         script.close()
-
+        
         execute("chmod +x %s" % scriptfile)
-        execute("qsub %s" % scriptfile, dry_run = options.dry_run)
+        o, e = execute("qsub %s" % scriptfile, dry_run = options.dry_run)
+        print " %s : %s " % (scriptfile, o.strip())
