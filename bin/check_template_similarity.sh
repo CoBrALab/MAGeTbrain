@@ -6,9 +6,12 @@
 #
 # usage: <output_root> 
 #
-output_root=$1
-
-temp_dir=$(mktemp -d)
+#PBS -l nodes=1:ppn=8,walltime=2:00:00
+#PBS -j oe
+#PBS -o logs
+#PBS -V
+cd $PBS_O_WORKDIR
+output_root=output
 
 for template in $output_root/labels/*/*; do
     template_stem=$(basename $template)
@@ -20,12 +23,7 @@ for template in $output_root/labels/*/*; do
     temp_results_dir=$temp_dir/labels/$atlas_stem/$template_stem
     sim_results=$temp_results_dir/similarity.csv
 
-    mkdir -p $temp_results_dir 
+    echo "volume_similarity --csv $template_labels $gen_labels | grep -v 0,0,0$ \
+        | sed -e 's/$/,$template_stem,$atlas_stem/'
+done | parallel -j8 > $output_root/multi_atlas_similarity.csv
 
-    echo "volume_similarity --csv $template_labels $gen_labels | grep '^1,\|^101,' \
-        | sed -e 's/$/,$template_stem,$atlas_stem/' > $sim_results"
-done | parallel -j8
-
-cat $temp_dir/labels/*/*/*.csv > $output_root/multi_atlas_similarity.csv
-
-rm -rf $temp_dir

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import logging
 FORMAT = '%(asctime)-15s %(name)s %(levelname)s: %(message)s'
-logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 logger.debug("Starting imports...")
@@ -77,6 +77,7 @@ if __name__ == "__main__":
     
     execute('mv %s %s.v1' % (outfilename, outfilename))
     execute('mincconvert -2 -clob -compress 9 %s.v1 %s' % (outfilename, outfilename))
+    execute('rm %s.v1' % outfilename)
 
     logger.debug("writing output file complete.")
     #outdist.writeFile()

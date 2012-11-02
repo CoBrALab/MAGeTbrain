@@ -185,6 +185,15 @@ if __name__ == "__main__":
     parser.add_option("--processes", dest="processes",
         default=8, type="int", 
         help="Number of processes to parallelize over.")
+    parser.add_option("--atlas_dir", dest="atlas_dir",
+        default="input/atlases", type="string", 
+        help="Directory containing atlas brains and labels")
+    parser.add_option("--template_dir", dest="template_dir",
+        default="input/templates", type="string", 
+        help="Directory containing template brains and labels")
+    parser.add_option("--subject_dir", dest="subject_dir",
+        default="input/subjects", type="string", 
+        help="Directory containing subject brains and labels")
     parser.add_option("--registrations_dir", dest="registrations_dir",
         default=None, type="string", 
         help="Directory containing registrations from template library to subject.")
@@ -215,9 +224,9 @@ if __name__ == "__main__":
     template_labels_dir = mkdirp(persistent_temp_dir, "labels")    
 
     # 
-    atlases   = get_templates('input/atlases')
-    templates = get_templates('input/templates')
-    targets   = get_templates('input/subjects')
+    atlases   = get_templates(options.atlas_dir)
+    templates = get_templates(options.template_dir)
+    targets   = get_templates(options.subject_dir)
 
     # print state
     logger.debug("ATLASES:\n\t"+"\n\t".join([i.image for i in atlases]))
