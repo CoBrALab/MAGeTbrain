@@ -1,0 +1,34 @@
+#!/usr/bin/env python 
+#
+# Perform MAGeT brain segmentation 
+#
+#
+# commands:
+# start          -- do everything that needs doing
+# register       -- do registrations
+# vote           -- do voting (assuming everything else is done)
+# pick_templates -- pick (randomly) from subjects to make template library
+# check_setup    -- sanity checks on setup
+# 
+# options:
+#  --batch            # which batch system to use: SGE, PBS, NONE, custom
+#  --num_templates
+#  --fake  -n         # dry run
+#  --vote_method      # list of voting methods to use, e.g. maj,xcorr,STAPLE
+#  --retries          # number of times to retry submitting commands to batch
+#  --output_dir
+#  --log_dir
+#  --save_xfms
+#  --processors
+#  --invert_resample  
+#  --registration_cmd 
+#  --resample_cmd
+#
+# future commands:
+#   build_model
+#   morphometry
+#   
+
+import argparse
+if __name__ == '__main__':
+  pass
