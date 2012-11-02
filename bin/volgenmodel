@@ -1,0 +1,769 @@
+#! /usr/bin/env perl
+#
+# generate a nonlinear model
+#
+# Andrew Janke - a.janke@gmail.com
+#
+# Copyright Andrew Janke, The Australian National University.
+# Permission to use, copy, modify, and distribute this software and its
+# documentation for any purpose and without fee is hereby granted,
+# provided that the above copyright notice appear in all copies.  The
+# author and the University make no representations about the
+# suitability of this software for any purpose.  It is provided "as is"
+# without express or implied warranty.
+
+
+$| = 0;
+
+use strict;
+use warnings "all";
+use Getopt::Tabular;
+use File::Basename;
+use File::Temp qw/ tempdir /;
+
+# until I get organised and do this properly
+my $PACKAGE = &basename($0);
+my $VERSION = '1.6.0';
+my $PACKAGE_BUGREPORT = '"Andrew Janke" <a.janke@gmail.com>';
+
+my @default_conf = (
+   {'step' => 16, 'blur_fwhm' => 16, 'iterations' => 4},
+   {'step' =>  8, 'blur_fwhm' =>  8, 'iterations' => 8},
+   {'step' =>  4, 'blur_fwhm' =>  4, 'iterations' => 8},
+   {'step' =>  2, 'blur_fwhm' =>  2, 'iterations' => 4},
+   );
+
+
+my($Help, $Usage, $me, $history);
+my(@opt_table, %opt, @infiles, @args, $tmpdir);
+
+$me = &basename($0);
+%opt = (
+   'verbose' => 0,
+   'clobber' => 0,
+   'fake' => 0,
+   'check' => 1,
+   'clean' => 0,
+   'keep_tmp' => 0,
+   'workdir' => "./$me-work",
+   'batch' => 0,
+   'symmetric' => 0,
+   'normalise' => 1,
+   'pad' => 10,
+   'config_file' => undef,
+   'linmethod' => 'bestlinreg',
+   'init_model' => undef,
+   'output_model' => undef,
+   'output_stdev' => undef,
+   'fit_stages' => 'lin,lin,lin,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3',
+   );
+
+$Help = <<HELP;
+| $me makes a model via lots of processing....
+|
+| To add an additional step, you will need to add another stanza
+|    to the \@conf array;
+|
+| # example configuration file (fit.conf) for $me
+| \@conf = (
+|    {'step'         => 16,
+|     'blur_fwhm'    => 8,
+|     'iterations'   => 3,
+|     },
+|
+|    {'step'         => 8,
+|     'blur_fwhm'    => 4,
+|     'iterations'   => 2,
+|     },
+|
+|    {'step'         => 4,
+|     'blur_fwhm'    => 4,
+|     'iterations'   => 2,
+|     },
+|   );
+|
+|
+| Problems or comments should be sent to: a.janke\@gmail.com
+HELP
+
+$Usage = "Usage: $me [options] <in1.mnc> [<in2.mnc> [...]]\n".
+         "       $me -output_model model.mnc in1.mnc in2.mnc in3.mnc in4.mnc\n".
+         "       $me -help to list options\n\n";
+
+@opt_table = (
+   ["General Options", "section" ],
+   ["-version", "call", 0, \&print_version_info,
+      "print version and exit" ],
+   ["-verbose", "boolean", 0, \$opt{'verbose'},
+      "be verbose" ],
+   ["-clobber", "boolean", 0, \$opt{'clobber'},
+      "clobber existing check files" ],
+   ["-fake", "boolean", 0, \$opt{'fake'},
+      "do a dry run, (echo cmds only)" ],
+   ["-check", "boolean", 0, \$opt{'check'},
+      "generate jpg check files during processing" ],
+   ["-clean", "boolean", 0, \$opt{'clean'},
+      "remove non-critical (resampled + xfmconcat) files during processing" ],
+   ["-workdir", "string", 1, \$opt{workdir},
+      "working directory to use (multiple GB needed)" ],
+   ["-batch", "boolean", 0, \$opt{'batch'},
+      "use a batch system for processing (qbatch)" ],
+
+   ["Fitting Options", "section" ],
+   ["-normalise", "boolean", 0, \$opt{'normalise'},
+      "normalise and threshold the input data before fitting" ],
+   ["-pad", "integer", 1, \$opt{'pad'},
+      "pad the volume by # slices before fitting to avoid edge effects",
+      "<integer>" ],
+   ["-extend", "integer", 1, \$opt{'pad'},
+      "synonym for -pad" ],
+   
+   ["-symmetric", "boolean", 0, \$opt{'symmetric'},
+      "create a symmetric model" ],
+   ["-config_file", "string", 1, \$opt{'config_file'},
+      "file containing the fitting configuration use -help for format",
+      "<fit.conf>" ],
+   ["-linmethod", "string",  1, \$opt{'linmethod'},
+      "method to use for linear fitting [Default: bestlinreg]" ],
+   ["-init_model", "string",  1, \$opt{'init_model'},
+      "initial starting model to use [Default: first input file]" ],
+   ["-output_model", "string",  1, \$opt{'output_model'},
+      "output model name to use [Default: <dir of first infile>/VolModel-<stage>]" ],
+   ["-output_stdev", "string",  1, \$opt{'output_stdev'},
+      "output file name to use for standard deviation image" ],
+   ["-fit_stages", "string", 1, \$opt{'fit_stages'},
+      "comma separated list of stages of fitting to perform" ],
+   );
+
+# get history string
+chomp($history = `date`);
+$history .= '>>>> ' . join(' ', $me, @ARGV);
+
+# store orig command in case running in batch mode
+my @orig_cmd = ($0, @ARGV);
+
+# Check and get arguments
+&Getopt::Tabular::SetHelp($Help, $Usage);
+&GetOptions (\@opt_table, \@ARGV) || exit 1;
+die $Usage if $#ARGV < 0;
+@infiles = @ARGV;
+
+# setup the fit stages
+my @fit_stages = split(',', $opt{'fit_stages'});
+
+# check for infiles and create files array
+print STDOUT "+++ INFILES\n" if $opt{'verbose'};
+my(@dirs, @files, %fileh, $c, %jids);
+$c = 0;
+foreach (@infiles){
+   my($dir, $f, $c_txt);
+
+   $c_txt = sprintf('%04d', $c);
+
+   # check
+   die "$me: Couldn't find file: $_\n" if !-e $_;
+
+   # set up arrays
+   $dirs[$c] = &dirname($_);
+   $files[$c] = "$c_txt-" . &basename($_);
+   $files[$c] =~ s/\.mnc$//;
+   $fileh{$files[$c]} = $c;
+
+   print STDOUT "  | [$c_txt] $dirs[$c] / $files[$c]\n" if $opt{'verbose'};
+   $c++;
+   }
+
+# check for output model
+$opt{'output_model'} = "$dirs[0]/VolModel-ALL.mnc" if !defined($opt{'output_model'});
+if(-e $opt{'output_model'} && !$opt{'clobber'}){
+   die "$me: $opt{'output_model'} exists, use -clobber to overwrite\n\n";
+   }
+
+# make working dir
+&do_cmd('mkdir', $opt{'workdir'}) if !-e $opt{'workdir'};
+
+# save the original command
+open(FH, '>', "$opt{'workdir'}/orig-command.sh");
+print FH "#! /bin/sh\n" .
+         "#\n".
+         "# volgenmodel script\n\n" .
+         join(' ', @orig_cmd) ."\n";
+close(FH);
+&do_cmd('chmod', '+x', "$opt{'workdir'}/orig-command.sh");
+
+# write script to kill processing
+if($opt{'batch'}){
+   open(FH, '>', "$opt{'workdir'}/kill-proc.sh");
+   print FH "#! /bin/sh\n" .
+            "#\n" .
+            "# simple script to kill processing\n\n" .
+            "qdel \'*$$*\'\n";
+   close(FH);
+   &do_cmd('chmod', '+x', "$opt{'workdir'}/kill-proc.sh");
+   }
+
+my(@conf, @fitfiles, @resfiles, $cmodel, $initxfm); 
+
+# set up the @conf array
+if(defined($opt{'config_file'})){
+   my($buf);
+   
+   # read in @conf
+   $buf = `cat $opt{config_file}`;
+
+   # slurp
+   if(eval($buf)){
+      print STDOUT "$me: Read config from $opt{'config_file'}\n" if $opt{'verbose'};
+      }
+   else{
+      die "$me: Error reading config from $opt{'config_file'} (fix it!)\n\n";
+      }
+   }
+else{
+   @conf = @default_conf;
+   }
+
+# sanity check for fit config
+if($fit_stages[-1] > $#conf){
+   die "\n$me: Something is amiss with fit config, requested a " .
+      "fit step ($fit_stages[-1]) beyond what is defined in the " .
+      "fitting protocol (size: $#conf)\n\n";
+   }
+
+
+# do pre-processing
+my($predir, $f, $nrmfile, $chkfile, @cleanfiles);
+
+print STDOUT "+++ pre-processing input data\n";
+
+$predir = "$opt{'workdir'}/00-pre";
+&do_cmd('mkdir', '-p', $predir);
+
+for($f=0; $f<=$#files; $f++){
+   $resfiles[$f] = "$predir/$files[$f].res.mnc";
+   $fitfiles[$f] = "$predir/$files[$f].fit.mnc";
+   $nrmfile = "$predir/$files[$f].nrm.mnc";
+   $chkfile = "$predir/$files[$f].fit.jpg";
+   
+   push(@cleanfiles, $nrmfile);
+   
+   if(&mcomplete($resfiles[$f]) && &mcomplete($fitfiles[$f])){
+      printf STDOUT "   | $resfiles[$f] - exists, skipping\n";
+      }
+   else{
+
+      # centre the volume so that a PAT xfm has a greater chance
+      printf STDOUT "   | $resfiles[$f] - centreing\n";
+      &do_cmd_batch("CEN$$-$f", 'none',
+                    'volcentre', '-clobber',
+                    '-zero_dircos',
+                    $infiles[$f], $resfiles[$f]);
+      
+      # normalise
+      if($opt{'normalise'}){
+         my($step_x, $step_y, $step_z);
+         
+         # get step sizes
+         chomp($step_x = `mincinfo -attvalue xspace:step $infiles[$f]`);
+         chomp($step_y = `mincinfo -attvalue yspace:step $infiles[$f]`);
+         chomp($step_z = `mincinfo -attvalue zspace:step $infiles[$f]`);
+         
+         printf STDOUT "   | $nrmfile - normalising\n";
+         &do_cmd_batch("NRM$$-$f", "CEN$$-$f",
+                       'mincnorm', '-clobber',
+                       '-cutoff', 1.0,
+                       '-threshold',
+                       '-threshold_perc', 0.1,
+                       '-threshold_blur', abs($step_x + $step_y + $step_z),
+                       $resfiles[$f], $nrmfile);
+         }
+      else{
+         &do_cmd_batch("NRM$$-$f", "CEN$$-$f",
+                       'ln', '-s', '-f', &basename($resfiles[$f]), $nrmfile);
+         }
+      
+      # extend/pad
+      if($opt{'pad'} > 0){
+         printf STDOUT "   | $fitfiles[$f] - padding\n";
+         &do_cmd_batch("PAD$$-$f", "NRM$$-$f",
+                       'volpad', '-clobber',
+                       '-distance', $opt{'pad'},
+                       '-smooth',
+                       '-smooth_distance', sprintf('%d', $opt{'pad'}/3),
+                       $nrmfile, $fitfiles[$f]);
+         }
+      else{
+         &do_cmd_batch("PAD$$-$f", "NRM$$-$f",
+                       'ln', '-s', '-f', &basename($nrmfile), $fitfiles[$f]);
+         }
+      
+      # checkfile
+      &do_cmd_batch("cPAD$$-$f", "PAD$$-$f",
+                    'mincpik', '-clobber',
+                    '-triplanar',
+                    '-sagittal_offset', 10,
+                    $fitfiles[$f], $chkfile) if $opt{'check'};
+      }
+   }
+
+# clean up
+&do_cmd_batch("CLN$$-nrm", "PAD$$-*",
+              'rm', '-f', @cleanfiles) if $opt{'clean'};
+
+
+# setup the initial model
+print STDOUT "+++ Setting up the initial model\n";
+if(defined($opt{'init_model'})){
+   $cmodel = $opt{'init_model'};
+   }
+else{
+   # create the initial model from the "first" file
+   $cmodel = "$opt{'workdir'}/00-init-model_blur.mnc";
+   if(&mcomplete($cmodel)){
+      printf STDOUT "   | $cmodel - exists, skipping\n";
+      &do_cmd_batch("BLR$$-init-model", "PAD$$-0", 'true');
+      }
+   else{
+      my($step_x, $step_y, $step_z);
+      
+      # get step sizes
+      chomp($step_x = `mincinfo -attvalue xspace:step $infiles[0]`);
+      chomp($step_y = `mincinfo -attvalue yspace:step $infiles[0]`);
+      chomp($step_z = `mincinfo -attvalue zspace:step $infiles[0]`);
+      
+      printf STDOUT "   | $cmodel - creating\n";
+      &do_cmd_batch("BLR$$-init-model", "PAD$$-0",
+                    'mincblur', '-clobber',
+                    '-3dfwhm', abs($step_x * 4), abs($step_y * 4), abs($step_z * 4),
+                    $fitfiles[0], "$opt{'workdir'}/00-init-model");
+      }
+   }
+
+# create an apropriate identity transformation
+$initxfm = "$opt{'workdir'}/ident-$conf[0]{'step'}.xfm";
+&do_cmd_batch("IDT$$", "BLR$$-init-model",
+              'gennlxfm', '-clobber',
+              '-like', $cmodel,
+              '-step', $conf[0]{'step'},
+              $initxfm);
+
+
+# get last linear stage from fit config
+my($snum, $lastlin, $s, $end_stage);
+$snum = 0;
+$lastlin = '00';
+for($snum = 0; $snum <= $#fit_stages; $snum++){
+   if($fit_stages[$snum] eq 'lin'){
+      $lastlin = sprintf("%02d",$snum);
+      }
+   }
+print STDOUT "+++ Last Linear stage: $lastlin\n";
+
+
+# Foreach end stage in the fitting profile
+print STDOUT "+++ Fitting\n";
+for($snum = 0; $snum <= $#fit_stages; $snum++){
+   my($snum_txt, $end_stage, $f, $cworkdir,
+      $conf_fname, @modxfm, @rsmpl);
+   my($step_x, $step_y, $step_z);
+
+
+   $end_stage = $fit_stages[$snum];
+   $snum_txt = sprintf("%02d", $snum);
+   print STDOUT "  + [Stage: $snum_txt] End stage: $end_stage\n";
+
+   # make subdir in working dir for files
+   $cworkdir = "$opt{'workdir'}/$snum_txt";
+   &do_cmd('mkdir', $cworkdir) if !-e $cworkdir;
+
+   # set up model and xfm names
+   my($avgxfm, $symxfm, $iavgfile, $istdfile, $stage_model, 
+      $iavgfilechk, $istdfilechk, $stage_modelchk);
+   $avgxfm = "$cworkdir/avgxfm.xfm";
+   $iavgfile = "$cworkdir/model.iavg.mnc";
+   $istdfile = "$cworkdir/model.istd.mnc";
+   $stage_model = "$cworkdir/model.avg.mnc";
+   $iavgfilechk = "$cworkdir/model.iavg.jpg";
+   $istdfilechk = "$cworkdir/model.istd.jpg";
+   $stage_modelchk = "$cworkdir/model.avg.jpg";
+
+   # if this stages model exists, skip to the next stage
+   if(&mcomplete($stage_model)){
+      printf STDOUT "   | $stage_model - exists, skipping\n";
+      $cmodel = $stage_model;
+      next;
+      }
+
+   # create the ISO model
+   my($isomodel_base, $modelmaxstep);
+   $isomodel_base = "$cworkdir/fit-model-iso";
+   
+   printf STDOUT "   | $isomodel_base - creating\n";
+   $modelmaxstep = $conf[(($end_stage eq 'lin') ? 0 : $end_stage)]{'step'}/4;
+   print "   -- Model Max step: $modelmaxstep\n";
+   &do_cmd_batch("NRM$$-$snum_txt-model", "BLR$$-init-model",
+                 'mincnorm', '-clobber',
+                 '-cutoff', 1.0,
+                 '-threshold',
+                 '-threshold_perc', 0.1,
+                 '-threshold_blur', 3,
+                 '-threshold_mask', "$isomodel_base.msk.mnc",
+                 $cmodel, "$isomodel_base.nrm.mnc");
+   &do_cmd_batch("ISO$$-$snum_txt-model", "NRM$$-$snum_txt-model",
+                 'voliso', '-clobber',
+                 '-maxstep', $modelmaxstep,
+                 "$isomodel_base.nrm.mnc","$isomodel_base.mnc");
+   &do_cmd_batch("cISO$$-$snum_txt-model", "ISO$$-$snum_txt-model",
+                 'mincpik', '-clobber',
+                 '-triplanar', '-horizontal',
+                 '-scale', 4, '-tilesize', 400,
+                 '-sagittal_offset', 10,
+                 "$isomodel_base.mnc", "$isomodel_base.jpg") if $opt{'check'};
+   
+   # create the isomodel fit mask
+   #chomp($step_x = `mincinfo -attvalue xspace:step $isomodel_base.msk.mnc`);
+   $step_x = 1;
+   &do_cmd_batch("ISB$$-$snum_txt-model", "NRM$$-$snum_txt-model",
+                 'mincblur', '-clobber',
+                 '-fwhm', ($step_x * 15),
+                 "$isomodel_base.msk.mnc", "$isomodel_base.msk");
+   &do_cmd_batch("ISM$$-$snum_txt-model", "ISB$$-$snum_txt-model",
+                 'mincmath', '-clobber',
+                 '-gt', '-const', 0.1,
+                 "$isomodel_base.msk_blur.mnc", "$isomodel_base.fit-msk.mnc");
+   
+   
+   # linear or nonlinear fit
+   if($end_stage eq 'lin'){
+      print STDOUT "---Linear fit---\n";
+      }
+   else{
+      print STDOUT "---Non Linear fit---\n";
+
+      # create nlin fit config
+      if($end_stage ne 'lin'){
+         $conf_fname = "$cworkdir/fit.conf";
+         print STDOUT "    + Creating $conf_fname +\n";
+         
+         open(CONF, ">$conf_fname");
+         print CONF "# $conf_fname -- created by $me\n#\n" .
+                    "# End stage: $end_stage\n" .
+                    "# Stage Num: $snum_txt\n\n";
+         
+         print CONF "\@conf = (\n";
+         foreach $s (0..$end_stage){
+            print CONF "   {'step' => " . $conf[$s]{'step'} .
+               ", 'blur_fwhm' => " . $conf[$s]{'blur_fwhm'} .
+               ", 'iterations' => " . $conf[$s]{'iterations'} . "},\n";
+            }
+         print CONF "   );\n";
+         close(CONF);
+         }
+      }
+
+   # register each file in the input series
+   for($f=0; $f<=$#files; $f++){
+      $modxfm[$f] = "$cworkdir/$files[$f].xfm";
+
+      if(&mcomplete($modxfm[$f])){
+         printf STDOUT "---$modxfm[$f] exists, skipping---\n";
+         &do_cmd_batch("FIT$$-$snum_txt-$f", "ISO$$-$snum_txt-model",
+                       'true');
+         }
+      else{
+         if($end_stage eq 'lin'){
+            &do_cmd_batch("FIT$$-$snum_txt-$f", "ISO$$-$snum_txt-model",
+                          split(/\ /, $opt{'linmethod'}),
+                          '-clobber',
+                          "$isomodel_base.mnc", $fitfiles[$f], $modxfm[$f]);
+            }
+         else{
+            # use the last linear xfm as a starting point
+            my $initcnctxfm = "$cworkdir/init-$files[$f].xfm";
+            &do_cmd_batch("IXF$$-$snum_txt-$f", "ISO$$-$snum_txt-model,IDT$$",
+                          'xfmconcat', '-clobber',
+                          "$opt{'workdir'}/$lastlin/$files[$f].xfm", $initxfm,
+                          $initcnctxfm);
+
+            &do_cmd_batch("FIT$$-$snum_txt-$f", "IXF$$-$snum_txt-$f,ISM$$-$snum_txt-model",
+                          'nlpfit', '-clobber',
+                          '-init_xfm', $initcnctxfm,
+                          '-config', $conf_fname,
+                          '-source_mask', "$isomodel_base.fit-msk.mnc",
+                          "$isomodel_base.mnc", $fitfiles[$f], $modxfm[$f]);
+            }
+         }
+      }
+
+   # average xfms
+   &do_cmd_batch("AXF$$-$snum_txt", "FIT$$-$snum_txt-*",
+                 'xfmavg', '-clobber',
+                 (($end_stage eq 'lin') ? '-ignore_nonlinear' : '-ignore_linear'),
+                 @modxfm, $avgxfm);
+
+   # resample each file in the input series
+   for($f=0; $f<=$#files; $f++){
+      my($chkfile, $invxfm, $resxfm);
+      
+      $invxfm = "$cworkdir/inv-$files[$f].xfm";
+      $resxfm = "$cworkdir/rsmpl-$files[$f].xfm";
+      $rsmpl[$f] = "$cworkdir/rsmpl-$files[$f].mnc";
+      $chkfile = "$cworkdir/rsmpl-$files[$f].jpg";
+
+      if(&mcomplete($rsmpl[$f])){
+         printf STDOUT "   | $rsmpl[$f] - exists, skipping\n";
+         }
+      else{
+         printf STDOUT "   | $rsmpl[$f] - resampling\n";
+
+         # invert model xfm
+         &do_cmd_batch("XIN$$-$snum_txt-$f", "FIT$$-$snum_txt-$f",
+                       'xfminvert', '-clobber', $modxfm[$f], $invxfm);
+         
+         # concat
+         &do_cmd_batch("XCN$$-$snum_txt-$f", "AXF$$-$snum_txt,XIN$$-$snum_txt-$f",
+                       'xfmconcat', '-clobber', $invxfm, $avgxfm, $resxfm);
+
+         # resample
+         &do_cmd_batch("RES$$-$snum_txt-$f", "XCN$$-$snum_txt-$f",
+                       'mincresample', '-clobber',
+                       '-sinc',
+                       '-transformation', $resxfm,
+                       '-like', "$isomodel_base.mnc",
+                       $resfiles[$f], $rsmpl[$f]);
+         &do_cmd_batch("cRES$$-$snum_txt-$f", "RES$$-$snum_txt-$f",
+                       'mincpik', '-clobber',
+                       '-triplanar',
+                       '-sagittal_offset', 10,
+                       $rsmpl[$f], $chkfile) if $opt{'check'};
+         }
+      }
+
+   # create model
+   &do_cmd_batch("IAV$$-$snum_txt", "RES$$-$snum_txt-*",
+                 'mincaverage', '-clobber',
+                 '-float',
+                 '-sdfile', $istdfile,
+                 @rsmpl, $iavgfile);
+   &do_cmd_batch("cIAV$$-$snum_txt", "IAV$$-$snum_txt",
+                 'mincpik', '-clobber',
+                 '-triplanar', '-horizontal',
+                 '-scale', 4, '-tilesize', 400,
+                 '-sagittal_offset', 10,
+                 $iavgfile, $iavgfilechk) if $opt{'check'};
+   &do_cmd_batch("cIAV$$-$snum_txt", "IAV$$-$snum_txt",
+                 'mincpik', '-clobber',
+                 '-triplanar', '-horizontal',
+                 '-scale', 4, '-tilesize', 400,
+                 '-lookup', '-hotmetal',
+                 '-sagittal_offset', 10,
+                 $istdfile, $istdfilechk) if $opt{'check'};
+
+   # do symmetric averaging if required
+   if($opt{'symmetric'}){
+      my (@fit_args, $symfile);
+      
+      $symxfm = "$cworkdir/model.sym.xfm";
+      $symfile = "$cworkdir/model.iavg-short.mnc";
+      
+      # convert double model to short
+      &do_cmd_batch("MTS$$-$snum_txt", "IAV$$-$snum_txt",
+                    'mincreshape', '-clobber',
+                    '-short',
+                    $iavgfile, $symfile);
+      
+      # set up fit args
+      if($end_stage eq 'lin'){
+         @fit_args = ('-linear');
+         }
+      else{
+         @fit_args = ('-nonlinear', '-config_file', $conf_fname);
+         }
+
+      &do_cmd_batch("SYM$$-$snum_txt", "MTS$$-$snum_txt",
+                    'volsymm', '-clobber',
+                    @fit_args,
+                    $symfile, $symxfm, $stage_model);
+      }
+   else{
+      &do_cmd_batch("SYM$$-$snum_txt", "IAV$$-$snum_txt",
+                    'ln', '-s', '-f', &basename($iavgfile), $stage_model);
+      }
+   &do_cmd_batch("cSYM$$-$snum_txt", "SYM$$-$snum_txt",
+                 'mincpik', '-clobber',
+                 '-triplanar', '-horizontal',
+                 '-scale', 4, '-tilesize', 400,
+                 '-sagittal_offset', 10,
+                 $stage_model, $stage_modelchk) if $opt{'check'};
+   
+   # create clean script for resampled and temp xfm files
+   open(CLEAN, ">$cworkdir/clean.sh");
+   print CLEAN "#! /bin/sh\n" .
+               "#\n" .
+               "# clean up for stage $snum_txt\n" .
+               "\n" .
+               "if [ -e $stage_model ]\n" .
+               "then\n" .
+               "   echo \"Removing files\"\n   \n" .
+               "   rm -f $cworkdir/rsmpl-*.mnc\n" .
+               "   rm -f $cworkdir/rsmpl-*.xfm\n" .
+               "   rm -f $cworkdir/inv-*.xfm\n" .
+               "   rm -f $cworkdir/inv-*.mnc\n" .
+               "   rm -f $cworkdir/init-*.xfm\n" .
+               "   rm -f $cworkdir/init-*.mnc\n" .
+               "fi\n";
+   close(CLEAN);
+   &do_cmd('chmod', '+x', "$cworkdir/clean.sh");
+   
+   # run clean script if required
+   if($opt{'clean'}){
+      &do_cmd_batch("CLN$$-$snum_txt", "SYM$$-$snum_txt",
+                    "$cworkdir/clean.sh");
+      }
+   
+   # if on last step, copy model to $opt{'output_model'}
+   if($snum == $#fit_stages){
+      &do_cmd_batch("FNL$$-$snum_txt", "SYM$$-$snum_txt",
+                    'cp', '-i', $stage_model, $opt{'output_model'});
+
+      # add the history string to the output file
+      &do_cmd_batch("HIS$$-$snum_txt", "FNL$$-$snum_txt",
+                    'minc_modify_header',
+                    '-sappend', ":history='$history'",
+                    $opt{'output_model'});
+      
+      # create and output standard deviation file if requested
+      if(defined($opt{'output_stdev'})){
+         if($opt{'symmetric'}){
+            &do_cmd_batch("FNL$$-$snum_txt", "SYM$$-$snum_txt",
+               'volsymm', '-clobber',
+               '-nofit',
+               $istdfile, $symxfm, $opt{'output_stdev'});
+            }
+         else{
+            &do_cmd_batch("FNL$$-$snum_txt", "SYM$$-$snum_txt",
+               'cp', '-f', $istdfile, $opt{'output_stdev'});
+            }
+         
+         # add the history string to the output file
+         &do_cmd_batch("HIS$$-$snum_txt", "FNL$$-$snum_txt",
+                    'minc_modify_header',
+                    '-sappend', ":history='$history'",
+                    $opt{'output_stdev'});
+         }
+      }
+   else{
+      # spaghetti code ALERT!
+      # resubmit ourselves for the next iteration and then exit
+      if($opt{'batch'}){
+         &do_cmd_batch("STG$$-$snum_txt", "SYM$$-$snum_txt", @orig_cmd);
+         exit(0);
+         }
+      }
+   
+   $cmodel = $stage_model;
+   } # end stage loop
+
+
+sub do_cmd {
+   print STDOUT "@_\n" if $opt{'verbose'};
+   if(!$opt{'fake'}){
+      system(@_) == 0 or die;
+      }
+   }
+
+# run a command via batch
+# 1st param: Job Name
+# 2nd param: Depends string
+# remainder: command
+# returns job ID
+sub do_cmd_batch {
+   my($name, $depends, $depends_str, $logdir, $buf, $jid);
+   $name = shift(@_);
+   $depends = shift(@_);
+
+   $logdir = "$opt{'workdir'}/log";
+   &do_cmd('mkdir', '-p', $logdir) if (!-e $logdir);
+   $jid = 0;
+
+   print STDOUT "[$name:$depends] - @_\n" if $opt{'verbose'};
+   if(!$opt{'fake'}){
+
+      if($opt{'batch'}){
+         print '   [B] ';
+         &do_cmd('mkdir', '-p', "$logdir/$$");
+        
+         # gather dependencies
+         my @ds = ();
+         foreach (split/\,/, $depends){
+            if(m/\*/){
+               my($regex) = $_;
+               $regex =~ s/\*/\.\*/g;
+
+               # search for jids with wildcard
+               foreach (sort(keys(%jids))){
+                  if(m/$regex/){
+                     push(@ds, $jids{$_});
+                     }
+                  }
+               }
+            elsif($_ eq 'none'){
+               # nothing
+               }
+            else{
+               # add the JID if it exists
+               push(@ds, $jids{$_}) if defined($jids{$_});
+               }
+            }
+          
+         # generate and submit the script
+         @args = ('qbatch',
+            '--jid',
+            '--queue', 'all.q', 
+            '--script', "$logdir/$$/$name.sh",
+            '--logfile', "$logdir/$$/$name.log",
+            '--name', $name,
+            (($#ds > -1) ? ('--depends', join(',', @ds)) : ()),
+            '--',
+            @_);
+         print join(' ', @args) . "\n" if $opt{'verbose'};
+         
+         use IPC::Open2;
+         my $pid = open2(\*QBATCH_OUT, undef, @args);
+            
+         # close(QBATCH_IN);
+         waitpid($pid, 0);
+
+         while (<QBATCH_OUT>){
+            chomp;
+            # print STDOUT "JID: -$_-\n";
+            $jid = $_;
+            }
+
+         # submit it
+         #chomp($buf = `qsub $logdir/$$/$name.sh`);
+         #($jid) = $buf =~ m/(\d+)/;
+         print STDOUT "JID: $jid -- $name - $depends - " . join(',', @ds) . "\n";
+         
+         $jids{$name} = $jid;
+         }
+      else{
+         &do_cmd(@_);
+         }
+      }
+   }
+
+sub print_version_info {
+   print STDOUT "\n$PACKAGE version $VERSION\n".
+                "Comments to $PACKAGE_BUGREPORT\n\n";
+   exit 0;
+   }
+
+# little function to test if a minc or xfm file is complete (and exists)
+sub mcomplete {
+   my $infile = shift(@_);
+
+   chomp(my $buf = `minccomplete -error_string 1 $infile`);
+
+   return ($buf == 0) ? 1 : 0;
+   }
