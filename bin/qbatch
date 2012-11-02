@@ -58,6 +58,9 @@ if __name__ == "__main__":
     parser.add_option("--logs_dir", dest="logs_dir",
         default="logs", type="string", 
         help="Path to logs folder")
+    parser.add_option("--batch_system", dest="batch_system",
+        default="pbs", type="choice", choices=['pbs','sge'],
+        help="Batch queueing system to use")
     options, args = parser.parse_args()
     
     if len(args) != 3: 
@@ -70,11 +73,21 @@ if __name__ == "__main__":
     task_list      = open(task_list_name).readlines()
     num_jobs       = int(math.ceil(len(task_list) / float(chunk_size)))
 
-    qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime), 
-                    '-j oe',
-                    '-o %s' % options.logs_dir,
-                    '-V'] 
-    
+    if options.batch_system == 'pbs': 
+      qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime), 
+                      '-j oe',
+                      '-o %s' % options.logs_dir,
+                      '-V'] 
+      qsub_option_prefix = '#PBS'
+    elif options.batch_system == 'sge':
+      options.processes=1  # TODO: can we actually set this up properly? 
+      qsub_options = ['-l h_rt=%s' % walltime, 
+                      '-j yes',
+                      '-o %s' % options.logs_dir,
+                      '-V', 
+                      '-cwd'] 
+      qsub_option_prefix = '#$'
+       
     mkdirp('.scripts')
     for chunk in range(num_jobs):
         scriptfile=".scripts/%s_%i.sh" % (task_list_name, chunk)
@@ -83,12 +96,16 @@ if __name__ == "__main__":
         script.write("#!/bin/bash\n")
 
         for opt in qsub_options: 
-            script.write("#PBS %s\n" % opt)
+            script.write("%s %s\n" % (qsub_option_prefix,opt))
 
-        script.write("cd $PBS_O_WORKDIR\n") 
-        script.write("parallel -j%i <<TASKS\n" % options.processes) 
-        script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
-        script.write("TASKS\n") 
+        if options.batch_system == 'pbs':
+            script.write("cd $PBS_O_WORKDIR\n") 
+            script.write("parallel -j%i <<TASKS\n" % options.processes) 
+            script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
+            script.write("TASKS\n") 
+        else:
+            script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
+
         script.close()
         
         execute("chmod +x %s" % scriptfile)
