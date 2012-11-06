@@ -1,0 +1,154 @@
+#! /usr/bin/env perl
+
+# an abbreviated version of mritotal (less options), fitting
+# nonlinearly up to and including level 4b, and using the minctracc
+# parameters optimised by Steve Robbins. Assumes a volume that starts
+# in talairach space.
+
+# Author: Jason Lerch <jason@bic.mni.mcgill.ca>
+# Date: August 2003
+
+# Modifications to remove need for model.
+# Author: Jon Pipitone
+# Date: November, 2012
+
+use strict;
+use FindBin;
+
+use File::Path;
+use MNI::Startup;
+use Getopt::Tabular;
+use MNI::Spawn;
+use MNI::DataDir;
+use MNI::FileUtilities qw(test_file check_output_dirs);
+use File::Temp qw/ tempdir /;
+
+my $Version = "1.6.6";
+my $LongVersion = "version ${Version}: slightly tested perl code. Beware!";
+
+# ======= Global variables =======
+my ($model, $input, $output, $model_basename, $basename, $initTransform);
+my ($help, $usage);
+my @transformArgs;
+
+#intermediate outputs
+my ($model_blur8, $model_blur8_tmp, $model_blur4, $model_blur4_tmp);
+my ($blur8, $blur8_tmp, $blur4, $blur4_tmp);
+my ($out16, $out8, $out4);
+
+# default minctracc parameters
+my $weight = 1;
+my $stiffness = 1;
+my $similarity = 0.3;
+
+# ======= Argument processing ====
+
+$usage = "$ProgramName [options] model.mnc input.mnc output.xfm";
+$help = "Help still to be written";
+
+my @leftOverArgs;
+my @argTbl = 
+    (
+     @DefaultArgs,
+     ["Model Options", "section"],
+     ["-transform", "string", 1, \$initTransform,
+      "initial transform to use. [Default: identity]."],
+     ["-version", "call", undef, \&print_version,
+          "print version and quit"]
+     );
+GetOptions(\@argTbl, \@ARGV, \@leftOverArgs) or die "\n";
+
+$model = shift @leftOverArgs or die "$usage\n";
+$input = shift @leftOverArgs or die "$usage\n";
+$output = shift @leftOverArgs or die "$usage\n";
+
+# create a basename from the model file
+$model_basename = $model;
+$model_basename =~ s|.+/(.+).mnc.*|$1|;
+
+# create a basename from the input file
+$basename = $input;
+$basename =~ s|.+/(.+).mnc.*|$1|;
+
+# register the programmes
+RegisterPrograms(["minctracc", "mincblur"]);
+
+if ($Clobber) {
+    AddDefaultArgs("minctracc", ["-clobber"]);
+    AddDefaultArgs("mincblur", ["-clobber"]);
+}
+
+AddDefaultArgs("minctracc", ["-nonlinear", "corrcoeff"]);
+                           #  "-debug", "-weight", $weight,
+                           #  "-stiffness", $stiffness,
+                           #  "-similarity", $similarity]);
+
+# create necessary tmp directory
+#check_output_dirs($TmpDir);
+$TmpDir = &tempdir( CLEANUP => 1 , DIR=>"/dev/shm" );
+
+# intermediate files
+$model_blur8 = "$TmpDir/${model_basename}_8_blur.mnc";
+$model_blur8_tmp = "$TmpDir/${model_basename}_8";
+$model_blur4 = "$TmpDir/${model_basename}_4_blur.mnc";
+$model_blur4_tmp = "$TmpDir/${model_basename}_4";
+
+$blur8 = "$TmpDir/${basename}_8_blur.mnc";
+$blur8_tmp = "$TmpDir/${basename}_8";
+$blur4 = "$TmpDir/${basename}_4_blur.mnc";
+$blur4_tmp = "$TmpDir/${basename}_4";
+
+$out16 = "$TmpDir/${basename}_16.xfm";
+$out8  = "$TmpDir/${basename}_8.xfm";
+
+# ======= The real work starts here ===
+
+Spawn(["mincblur", "-fwhm", 8, $model, $model_blur8_tmp]);
+Spawn(["mincblur", "-fwhm", 4, $model, $model_blur4_tmp]);
+
+# ensure that the model files actually exist
+my @modelFiles = ($model_blur8_tmp,$model_blur4_tmp);
+
+# blur the target files
+Spawn(["mincblur", "-fwhm", 8, $input, $blur8_tmp]);
+Spawn(["mincblur", "-fwhm", 4, $input, $blur4_tmp]);
+
+# level 16 registration
+if ($initTransform) {
+    push @transformArgs , "-transform";
+    push @transformArgs , $initTransform;
+}
+else {
+    push @transformArgs , "-identity";
+}
+Spawn(["minctracc",
+       "-iterations", 30,
+       "-step", 8, 8, 8,
+       "-sub_lattice", 6,
+       "-lattice_diam", 24, 24, 24,
+       @transformArgs,
+       $blur8, $model_blur8_tmp, $out16]);
+
+# level 8 registration
+Spawn(["minctracc",
+       "-iterations", 30,
+       "-step", 4, 4, 4,
+       "-sub_lattice", 6,
+       "-lattice_diam", 12, 12, 12,
+       "-transformation", $out16,
+       $blur8, $model_blur8_tmp, $out8]);
+
+# level 4 registration
+Spawn(["minctracc",
+       "-iterations", 10,
+       "-step", 2, 2, 2,
+       "-sub_lattice", 6,
+       "-lattice_diam", 6, 6, 6,
+       "-transformation", $out8,
+       $blur4, $model_blur4_tmp, $output]);
+
+rmtree([$TmpDir]);
+
+sub print_version  {
+    die "Program $ProgramName, built from:\n$LongVersion\n";
+}
