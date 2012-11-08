@@ -1,5 +1,8 @@
-#!/bin/env python
-from optparse import OptionParser
+#!/usr/bin/env python
+#
+# Perform label fusion
+# 
+from optparse import OptionParser, OptionGroup
 import re
 import sys
 import shutil
@@ -28,6 +31,15 @@ class Template:
         if not labels and os.path.exists(expected_labels):
             self.labels = expected_labels 
 
+def parse_range(range):
+    """Given a string like "5" or "5:10" convert this to a tuple that gives the range [start,finish)"""
+    try:
+        l = range.split(":")
+        l = len(l) == 2 and l or [range, range]   
+        return (int(l[0]), int(l[1])+1)
+    except: 
+        raise Exception("Improperly formated range '%s'" % range)
+    
 def read_scores(scoresfile):
     """Read the scores from the given file"""
     import csv
@@ -79,7 +91,8 @@ def mkdirp(*p):
     path = os.path.join(*p)
          
     try:
-        os.makedirs(path)
+        if not options.dry_run:   # TODO: fix this, it smells
+            os.makedirs(path)
     except OSError as exc: 
         if exc.errno == errno.EEXIST:
             pass
@@ -125,16 +138,11 @@ def vote(target):
         - resample_cmds
 
     """
-    temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
-    temp_labels_dir = mkdirp(temp_dir, "labels")    
-
-    resample_cmds = []
-    voting_cmds = []
 
     if options.majvote:
         target_vote_dir = mkdirp(fusion_dir, "majvote", target.stem)
         if not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
-            vote_cmd, resamples = do_vote(templates, target_vote_dir, temp_labels_dir)
+            vote_cmd, resamples = do_vote(templates, target_vote_dir, template_labels_dir)
             voting_cmds.append(vote_cmd)
             resample_cmds.extend(resamples)
 
@@ -144,7 +152,7 @@ def vote(target):
             top_n            = options.xcorr
             scores           = xcorr_scores
             sorted_templates = sorted(templates, key= lambda x:scores.get((x.stem,target.stem),0), reverse=True)
-            vote_cmd, resamples = do_vote(sorted_templates[:top_n], target_vote_dir, temp_labels_dir)
+            vote_cmd, resamples = do_vote(sorted_templates[:top_n], target_vote_dir, template_labels_dir)
             voting_cmds.append(vote_cmd)
             resample_cmds.extend(resamples)
 
@@ -154,65 +162,85 @@ def vote(target):
             top_n            = options.nmi
             scores           = nmi_scores
             sorted_templates = sorted(templates, key= lambda x:scores.get((x.stem,target.stem),0), reverse=True)
-            vote_cmd, resamples = do_vote(sorted_templates[:top_n], target_vote_dir, temp_labels_dir)
+            vote_cmd, resamples = do_vote(sorted_templates[:top_n], target_vote_dir, template_labels_dir)
             voting_cmds.append(vote_cmd)
             resample_cmds.extend(resamples)
 
-    logger.info("Resampling labels ...")
-    parallel(set(resample_cmds), options.processes, options.dry_run)
-
-    logger.info("Voting...")
-    parallel(set(voting_cmds), options.processes, options.dry_run)
-
-    logger.info("Cleaning up...")
-    shutil.rmtree(temp_dir)
-    
 if __name__ == "__main__":
     FORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
     logging.basicConfig(format=FORMAT, level=logging.DEBUG)
     
     parser = OptionParser()
     parser.set_usage("%prog [options] [<target stem> ...]")        
-    parser.add_option("--majvote", dest="majvote",
-        action="store_true", default=False,
+
+    # Voting options
+    group = OptionGroup(parser, "Voting Options")
+    group.add_option("--majvote", dest="majvote",
+        action="store_true", default=True,
         help="Do majority voting")
-    parser.add_option("--xcorr", dest="xcorr",
+    group.add_option("--xcorr", dest="xcorr",
         type="int", 
         help="Do XCORR voting with the top n number of templates.")
-    parser.add_option("--nmi", dest="nmi",
+    group.add_option("--nmi", dest="nmi",
         type="int", 
         help="Do NMI voting with the top n number of templates.")
-    parser.add_option("--processes", dest="processes",
-        default=8, type="int", 
-        help="Number of processes to parallelize over.")
-    parser.add_option("--atlas_dir", dest="atlas_dir",
+    parser.add_option_group(group)
+
+    # In/out directory options
+    group = OptionGroup(parser, "Input/output folder options")
+    group.add_option("--fusion_dir", dest="fusion_dir",
+        default="output/fusion", type="string", 
+        help="Parent directory to store voting results.")
+    group.add_option("--output_dir", dest="output_dir",
+        default="output", type="string", 
+        help="Path to output MAGeT output folder.")
+    group.add_option("--atlas_dir", dest="atlas_dir",
         default="input/atlases", type="string", 
         help="Directory containing atlas brains and labels")
-    parser.add_option("--template_dir", dest="template_dir",
+    group.add_option("--template_dir", dest="template_dir",
         default="input/templates", type="string", 
         help="Directory containing template brains and labels")
-    parser.add_option("--subject_dir", dest="subject_dir",
+    group.add_option("--subject_dir", dest="subject_dir",
         default="input/subjects", type="string", 
         help="Directory containing subject brains and labels")
-    parser.add_option("--registrations_dir", dest="registrations_dir",
+    group.add_option("--registrations_dir", dest="registrations_dir",
         default=None, type="string", 
         help="Directory containing registrations from template library to subject.")
-    parser.add_option("--output_dir", dest="output_dir",
-        default="output", type="string", 
-        help="Path to output folder")
-    parser.add_option("-n", dest="dry_run",
+    parser.add_option_group(group)
+    
+    # Validation parameters
+    group = OptionGroup(parser, "Sub-sampling Options", 
+            "For efficiency, atlas and template libraries are shuffled only"
+            "once upon startup.")
+    group.add_option("--random_subsampling", dest="random_subsampling",
+        default=False, action="store_true",
+        help="Should the atlas and template sets be chosen at random.")
+    group.add_option("--num_atlases", dest="num_atlases",
+        default=None,
+        type="string", help="Number of atlases to randomly select.  Use lower:upper to specify a range.")
+    group.add_option("--num_templates", dest="num_templates",
+        default=None, type="string", 
+        help="Number of templates to randomly select. Use lower:upper to specify a range.")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "Execution Options")
+    group.add_option("-n", dest="dry_run",
         default=False,
         action="store_true", 
-        help="Short string to use to uniquely identify the results file (default: date & time)")
-    parser.add_option("--invert", dest="invert",
+        help="Do a dry run (nothing is executed).")
+    group.add_option("--processes", dest="processes",
+        default=8, type="int", 
+        help="Number of processes to parallelize over.")
+    group.add_option("--invert", dest="invert",
         action="store_true", default=False,
         help="Invert the transformations during resampling from the template library.")
+    parser.add_option_group(group)
     options, args = parser.parse_args()
     
-    target_stems  = args[:]
+    target_stems      = args[:]
     output_dir        = os.path.abspath(options.output_dir)
     registrations_dir = options.registrations_dir or os.path.join(output_dir, "registrations")
-    fusion_dir        = mkdirp(output_dir, "fusion")
+    base_fusion_dir   = mkdirp(options.fusion_dir)
     
     ## Set up TEMP space
     persistent_temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
@@ -223,20 +251,52 @@ if __name__ == "__main__":
         nmi_scores = read_scores(os.path.join(output_dir, "nmi.csv"))
     template_labels_dir = mkdirp(persistent_temp_dir, "labels")    
 
-    # 
-    atlases   = get_templates(options.atlas_dir)
-    templates = get_templates(options.template_dir)
-    targets   = get_templates(options.subject_dir)
+    #
+    # Select atlas and template library entries
+    #
+    all_atlases   = get_templates(options.atlas_dir)
+    all_templates = get_templates(options.template_dir)
+    targets       = get_templates(options.subject_dir)
+    options.num_templates = options.num_templates or str(len(all_templates))
+    options.num_atlases   = options.num_atlases or str(len(all_atlases))
 
-    # print state
-    logger.debug("ATLASES:\n\t"+"\n\t".join([i.image for i in atlases]))
-    logger.debug("TEMPLATES:\n\t"+"\n\t".join([i.image for i in templates]))
-    logger.debug("-" * 40)
+    if options.random_subsampling:
+        random.shuffle(all_atlases)
+        random.shuffle(all_templates)
 
-    
-    for target in targets: 
-        if not target_stems or target.stem in target_stems:
-            logger.debug("Generating commands for target: " + target.image)
-            vote(target)
+    #
+    # Vote
+    #
+    resample_cmds = []
+    voting_cmds = []
 
+    for num_atlases in range(*parse_range(options.num_atlases)):
+        for num_templates in range(*parse_range(options.num_templates)):
+            fusion_dir = mkdirp(base_fusion_dir, "%i_atlases_%i_templates" %(num_atlases, num_templates))
+        
+            atlases   = all_atlases[:num_atlases]
+            templates = all_templates[:num_templates]
+
+            # print state
+            logger.debug("ATLASES:\n\t"+"\n\t".join([i.image for i in atlases]))
+            logger.debug("TEMPLATES:\n\t"+"\n\t".join([i.image for i in templates]))
+            logger.debug("-" * 40)
+
+            for target in targets: 
+                if not target_stems or target.stem in target_stems:
+                    vote(target)   # global variables FTW
+
+    resample_cmds = set(resample_cmds)
+    voting_cmds   = set(voting_cmds) 
+
+    logger.info("Running %i resamplings, %i voting comands", \
+        len(resample_cmds), len(voting_cmds))
+
+    logger.info("Resampling labels ...")
+    parallel(set(resample_cmds), options.processes, options.dry_run)
+
+    logger.info("Voting...")
+    parallel(set(voting_cmds), options.processes, options.dry_run)
+
+    logger.info("Cleaning up...")
     shutil.rmtree(persistent_temp_dir)

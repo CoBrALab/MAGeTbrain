@@ -127,7 +127,7 @@ Spawn(["minctracc",
        "-sub_lattice", 6,
        "-lattice_diam", 24, 24, 24,
        @transformArgs,
-       $blur8, $model_blur8_tmp, $out16]);
+       $blur8, $model_blur8, $out16]);
 
 # level 8 registration
 Spawn(["minctracc",
@@ -136,7 +136,7 @@ Spawn(["minctracc",
        "-sub_lattice", 6,
        "-lattice_diam", 12, 12, 12,
        "-transformation", $out16,
-       $blur8, $model_blur8_tmp, $out8]);
+       $blur8, $model_blur8, $out8]);
 
 # level 4 registration
 Spawn(["minctracc",
@@ -145,7 +145,7 @@ Spawn(["minctracc",
        "-sub_lattice", 6,
        "-lattice_diam", 6, 6, 6,
        "-transformation", $out8,
-       $blur4, $model_blur4_tmp, $output]);
+       $blur4, $model_blur4, $output]);
 
 rmtree([$TmpDir]);
 
