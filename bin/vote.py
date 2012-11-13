@@ -109,6 +109,18 @@ def compare_similarity(image_path, expected_labels_path, computed_labels_path, o
         "validation_v%i.csv" % validation, [expected_labels_path, computed_labels_path])
     return (validation_output_file, cmd)
         
+def do_multiatlas_vote(target_vote_dir, temp_labels_dir):
+    target_labels = [os.path.join(temp_labels_dir,atlas.stem,target.stem,'labels.mnc') for atlas in atlases]
+
+
+    if len(target_labels) == 1:  #TODO: HACKADOODLEDOOOO
+        cmd = "cp"
+    else:
+        cmd = "voxel_vote.py"
+
+    vote_cmd, labels = command(cmd, target_vote_dir, "labels.mnc", target_labels)
+    return (vote_cmd, [])
+
 def do_vote(voting_templates, target_vote_dir, temp_labels_dir):
     """Helper function for vote() """
     resample_cmds = []
@@ -142,7 +154,10 @@ def vote(target):
     if options.majvote:
         target_vote_dir = mkdirp(fusion_dir, "majvote", target.stem)
         if not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
-            vote_cmd, resamples = do_vote(templates, target_vote_dir, template_labels_dir)
+            if options.multiatlas:
+                vote_cmd, resamples = do_multiatlas_vote(target_vote_dir, template_labels_dir)
+            else:
+                vote_cmd, resamples = do_vote(templates, target_vote_dir, template_labels_dir)
             voting_cmds.append(vote_cmd)
             resample_cmds.extend(resamples)
 
@@ -215,6 +230,9 @@ if __name__ == "__main__":
     group.add_option("--random_subsampling", dest="random_subsampling",
         default=False, action="store_true",
         help="Should the atlas and template sets be chosen at random.")
+    group.add_option("--multiatlas", dest="multiatlas",
+        default=False, action="store_true",
+        help="Should we only do multiatlas voting (on just template library subjects)? Majority vote only.")
     group.add_option("--num_atlases", dest="num_atlases",
         default=None,
         type="string", help="Number of atlases to randomly select.  Use lower:upper to specify a range.")
@@ -256,7 +274,12 @@ if __name__ == "__main__":
     #
     all_atlases   = get_templates(options.atlas_dir)
     all_templates = get_templates(options.template_dir)
-    targets       = get_templates(options.subject_dir)
+    if options.multiatlas: 
+        targets = all_templates
+    else: 
+        targets       = get_templates(options.subject_dir)
+     
+
     options.num_templates = options.num_templates or str(len(all_templates))
     options.num_atlases   = options.num_atlases or str(len(all_atlases))
 
@@ -270,14 +293,16 @@ if __name__ == "__main__":
     resample_cmds = []
     voting_cmds = []
 
+    fusion_dir = base_fusion_dir
+
     for num_atlases in range(*parse_range(options.num_atlases)):
         for num_templates in range(*parse_range(options.num_templates)):
-            fusion_dir = mkdirp(base_fusion_dir, "%i_atlases_%i_templates" %(num_atlases, num_templates))
+            if options.random_subsampling:
+                fusion_dir = mkdirp(base_fusion_dir, "%i_atlases_%i_templates" %(num_atlases, num_templates))
         
             atlases   = all_atlases[:num_atlases]
             templates = all_templates[:num_templates]
 
-            # print state
             logger.debug("ATLASES:\n\t"+"\n\t".join([i.image for i in atlases]))
             logger.debug("TEMPLATES:\n\t"+"\n\t".join([i.image for i in templates]))
             logger.debug("-" * 40)
