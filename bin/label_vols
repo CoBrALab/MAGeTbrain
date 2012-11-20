@@ -28,15 +28,13 @@ if __name__ == '__main__':
         sys.exit(-1)
   
     labels = None
-    for folder in sys.argv[1:]: 
-        files = glob.glob(os.path.join(folder, "*", "*.mnc"))
-        for f in files:
-            if labels is None:
-                o, e = execute("print_all_labels %s" % f, stdout = subprocess.PIPE)
-                labels = [ line.split(" ")[1] for line in o.strip().split("\n") ]
-                print ",".join(["file"] + labels)
+    for f in sys.argv[1:]:
+        if labels is None:
+            o, e = execute("print_all_labels %s" % f, stdout = subprocess.PIPE)
+            labels = [ line.split(" ")[1] for line in o.strip().split("\n") ]
+            print ",".join(["file"] + labels)
 
-            o, e = execute("volume_stats -binvalue %s -volume %s" % \
-                (",".join(labels), f), stdout = subprocess.PIPE)
-            volumes = [ line.split(" ")[2] for line in o.split("\n") if line.startswith("Volume") ] 
-            print ",".join([f] + volumes)
+        o, e = execute("volume_stats -binvalue %s -volume %s" % \
+            (",".join(labels), f), stdout = subprocess.PIPE)
+        volumes = [ line.split(" ")[2] for line in o.split("\n") if line.startswith("Volume") ] 
+        print ",".join([f] + volumes)
