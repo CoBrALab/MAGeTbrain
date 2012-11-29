@@ -5,6 +5,34 @@ Given a set of labelled MR images (atlases) and unlabelled images (subjects),
 MAGeT produces a set of labels using a multi-atlas voting procedure based on a
 template library made up of images from the subject set. 
 
+For the impatient (Really quick start) 
+--------------------------------------
+
+    git clone http://pipitone.github.com/MAGeTbrain
+    cd MAGeTbrain
+    export PATH=$PWD/bin:$PATH
+    mkdir -p input/{atlases,subjects,templates}/{brains,labels} logs
+    # 
+    # put MR images in /brains folders, labels in /labels
+    #
+    bin/1_register.sh ANTSregister_2_stage.sh 
+    grep atlases 1_register_jobs > register_atlases
+    qbatch 1_register_jobs 4 10:00:00
+    #
+    # wait for these to complete. 
+    #
+    2a_template_labels.sh 
+    qbatch 2a_template_labels_jobs 64 1:00:00  
+    #
+    # wait for these to complete. 
+    #
+    4_vote
+    sed s/vote.py/regvote/g 4_vote > 4_regvote
+    qbatch 4_regvote 1 10:00:00 
+    #
+    # check output/fusion/majvote for labels
+    # re-run any stage to generate commands for missing steps
+
 Quick start
 -----------
 
@@ -29,6 +57,16 @@ Quick start
     (that is 4 tasks per job submitted, running for 10h in total).  You must be
     sure that the bin/ folder is in your path when you submit (or in your
     .bashrc)
+
+    Note, you might only choose to run registrations between the Atlases and
+    the template library images, and then later perform label fusion by doing
+    the template-library-to-subject registraions at the time of voting in temp
+    space. This saves lots of disk space.  To do this, just run: 
+
+        grep atlases 1_register_jobs > register_atlases
+
+    and qbatch the commands there.  Then, see the note in step 6 on how to run
+    the label fusion with registrations. 
 
 4. After that stage is done, run bin/2* similarily.  Jobs in these stages can
    be run simultaneously.  Here is an example of how you might submit these
@@ -63,6 +101,14 @@ Quick start
    subsampling of the current atlas and template libraries when voting. This
    can be used to profile or validate the performance of MAGeT on subject set
    with known labels. 
+
+   If you chose to only do the atlas-to-template registrations in the first
+   step, then edit the 4_vote file and replace calls to vote.py with the
+   special script 'regvote'.  This script takes no options, just a subject stem
+   name, as it is hard coded to do majority voting.  Because each job does a
+   pile of registrations, you will need to allocate much more time per job...
+   say, 10 hours at least. 
+
 
 Tips
 ----
