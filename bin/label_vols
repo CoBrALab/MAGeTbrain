@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 #
 # Print the label volumes from all labels a folder
 #
@@ -24,17 +24,23 @@ def execute(command, input = "", dry_run = False, stdout = 2):
         return (out, err)
 
 if __name__ == '__main__': 
-    if len(sys.argv) <= 1: 
-        sys.exit(-1)
+    filenames = sys.argv[1:]
+
+    if len(sys.argv) == 1: 
+        filenames =  sys.stdin 
   
     labels = None
-    for f in sys.argv[1:]:
-        if labels is None:
-            o, e = execute("print_all_labels %s" % f, stdout = subprocess.PIPE)
-            labels = [ line.split(" ")[1] for line in o.strip().split("\n") ]
-            print ",".join(["file"] + labels)
+    for f in filenames:
+        f = f.strip()
+        try: 
+            if labels is None:
+                o, e = execute("print_all_labels %s" % f, stdout = subprocess.PIPE)
+                labels = [ line.split(" ")[1] for line in o.strip().split("\n") ]
+                print ",".join(["file"] + labels)
 
-        o, e = execute("volume_stats -binvalue %s -volume %s" % \
-            (",".join(labels), f), stdout = subprocess.PIPE)
-        volumes = [ line.split(" ")[2] for line in o.split("\n") if line.startswith("Volume") ] 
-        print ",".join([f] + volumes)
+            o, e = execute("volume_stats -binvalue %s -volume %s" % \
+                (",".join(labels), f), stdout = subprocess.PIPE)
+            volumes = [ line.split(" ")[2] for line in o.split("\n") if line.startswith("Volume") ] 
+            print ",".join([f] + volumes)
+        except: 
+            pass
