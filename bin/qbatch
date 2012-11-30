@@ -66,11 +66,16 @@ if __name__ == "__main__":
     if len(args) != 3: 
         parser.error("Unexpected number of arguments.")
 
-
     task_list_name = args[0]
     chunk_size     = int(args[1]) 
     walltime       = args[2]
-    task_list      = open(task_list_name).readlines()
+
+    if task_list_name  == '-':
+        task_list_name = 'STDIN'
+        task_list      =  sys.stdin.readlines()
+    else: 
+        task_list  = open(task_list_name).readlines()
+
     num_jobs       = int(math.ceil(len(task_list) / float(chunk_size)))
 
     if options.batch_system == 'pbs': 
