@@ -54,22 +54,50 @@ def get_templates(path):
     corresponding labels."""
     return [Template(i) for i in glob.glob(os.path.join(path, 'brains', "*.mnc"))]
 
+def get_saved_xfm(from_stem, to_stem): 
+    """returns a path to xfm file for the regstration from image to image in
+       the output registrations folder. returns None if the file doesn't exist."""
+    xfm = os.path.join(registrations_dir, from_stem, to_stem, 'nl.xfm')
+    if not os.path.exists(xfm): 
+        xfm = None
+    return xfm 
+
+def get_xfm(from_stem, to_stem): 
+    """Returns a path to the xfm file for the registration from image to image
+       whether it is in the saved output folder or in a temporary folder.."""
+    xfm = get_saved_xfm(from_stem, to_stem)
+    if not xfm: 
+        assert options.do_subject_registrations is not None,  \
+            "XFM from %s to %s does not exist, and option to generate before voting not given" # % (from_stem, to stem)
+
+        xfm = os.path.join(tmp_registrations_dir, from_stem, to_stem, 'nl.xfm')
+    return xfm  
+
 def dirname(path):
     return os.path.split(path)[0];
    
-def resample_labels(atlas, template, target, labels_dir, registration_dir, output_dir, inverse = True):
+def resample_labels(atlas, template, target, labels_dir, output_dir, inverse = True):
     """Produces a command that resamples the labels from the atlas-template to target"""
 
     # TODO: concatenate xfms and resample once (i.e. ditch the template labels). 
     template_labels  = os.path.join(labels_dir, atlas.stem, template.stem, 'labels.mnc')
     target_labels    = os.path.join(mkdirp(output_dir, atlas.stem, template.stem, target.stem), 'labels.mnc')
-    nlxfm = os.path.join(registration_dir, template.stem, target.stem, 'nl.xfm')
+    nlxfm            = get_xfm(template.stem, target.stem) 
     invert = inverse and '-invert' or ''
 
     cmd = "mincresample -2 -near -byte -keep -transform %s -like %s %s %s %s" % \
         (nlxfm, target.image, invert, template_labels, target_labels)
     return (target_labels, cmd)      
- 
+
+def register_subject(subject): 
+    """Register all of the templates to the subject, unless the registration already exists"""
+    for template in templates: 
+        if not get_saved_xfm(template.stem, target.stem):
+            xfm = get_xfm(template.stem, target.stem)
+            mkdirp(os.path.basename(xfm))
+            cmd = " ".join([options.do_subject_registrations, template.image, subject.image, xfm])
+            registration_cmds.append(cmd) 
+
 def parallel(commands, processors = 8, dry_run = False):
     "Runs the list of commands through parallel"
     command = 'parallel -j%i' % processors
@@ -127,11 +155,11 @@ def do_vote(voting_templates, target_vote_dir, temp_labels_dir):
     target_labels =  []
     for atlas in atlases:
         for template in voting_templates:
-            labels, cmd = resample_labels(atlas, template, target, template_labels_dir, registrations_dir, temp_labels_dir, inverse=options.invert)
+            labels, cmd = resample_labels(atlas, template, target, template_labels_dir, temp_labels_dir, inverse=options.invert)
             resample_cmds.append(cmd)
             target_labels.append(labels)
 
-    vote_cmd, labels = command("voxel_vote.py", target_vote_dir, "labels.mnc", target_labels)
+    vote_cmd, labels = command("voxel_vote.py", target_vote_dir, "labels.mnc", target_labels, args = (options.clobber and ["--clobber"] or []) )
     return (vote_cmd, resample_cmds)
     
    
@@ -153,7 +181,7 @@ def vote(target):
 
     if options.majvote:
         target_vote_dir = mkdirp(fusion_dir, "majvote", target.stem)
-        if not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
+        if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
             if options.multiatlas:
                 vote_cmd, resamples = do_multiatlas_vote(target_vote_dir, template_labels_dir)
             else:
@@ -163,7 +191,7 @@ def vote(target):
 
     if options.xcorr:
         target_vote_dir = mkdirp(fusion_dir, "xcorr", target.stem)
-        if not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
+        if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
             top_n            = options.xcorr
             scores           = xcorr_scores
             sorted_templates = sorted(templates, key= lambda x:scores.get((x.stem,target.stem),0), reverse=True)
@@ -173,7 +201,7 @@ def vote(target):
 
     if options.nmi:
         target_vote_dir = mkdirp(fusion_dir, "nmi", target.stem)
-        if not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
+        if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
             top_n            = options.nmi
             scores           = nmi_scores
             sorted_templates = sorted(templates, key= lambda x:scores.get((x.stem,target.stem),0), reverse=True)
@@ -252,6 +280,13 @@ if __name__ == "__main__":
     group.add_option("--invert", dest="invert",
         action="store_true", default=False,
         help="Invert the transformations during resampling from the template library.")
+    group.add_option("--do_subject_registrations", dest="do_subject_registrations",
+        default=None, type="string",
+        help="A registration script to used to do template-subject registrations before voting (in temp space).")
+    group.add_option("--clobber", dest="clobber",
+        default=False, action="store_true",
+        help="Overwrite output label(s)")
+    
     parser.add_option_group(group)
     options, args = parser.parse_args()
     
@@ -259,9 +294,11 @@ if __name__ == "__main__":
     output_dir        = os.path.abspath(options.output_dir)
     registrations_dir = options.registrations_dir or os.path.join(output_dir, "registrations")
     base_fusion_dir   = mkdirp(options.fusion_dir)
-    
+
     ## Set up TEMP space
     persistent_temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
+    tmp_registrations_dir = mkdirp(persistent_temp_dir, "registrations")
+
     execute("tar xzf output/labels.tar.gz -C " + persistent_temp_dir, dry_run = options.dry_run)
     if options.xcorr > 0:
         xcorr_scores = read_scores(os.path.join(output_dir, "xcorr.csv"))
@@ -277,9 +314,8 @@ if __name__ == "__main__":
     if options.multiatlas: 
         targets = all_templates
     else: 
-        targets       = get_templates(options.subject_dir)
+        targets = get_templates(options.subject_dir)
      
-
     options.num_templates = options.num_templates or str(len(all_templates))
     options.num_atlases   = options.num_atlases or str(len(all_atlases))
 
@@ -290,11 +326,11 @@ if __name__ == "__main__":
     #
     # Vote
     #
-    resample_cmds = []
-    voting_cmds = []
+    registration_cmds = []
+    resample_cmds     = []
+    voting_cmds       = []
 
     fusion_dir = base_fusion_dir
-
     for num_atlases in range(*parse_range(options.num_atlases)):
         for num_templates in range(*parse_range(options.num_templates)):
             if options.random_subsampling:
@@ -309,13 +345,19 @@ if __name__ == "__main__":
 
             for target in targets: 
                 if not target_stems or target.stem in target_stems:
-                    vote(target)   # global variables FTW
+                    if options.do_subject_registrations:
+                        register_subject(target)
+                    vote(target)                      # global variables FTW
 
-    resample_cmds = set(resample_cmds)
-    voting_cmds   = set(voting_cmds) 
+    registration_cmds = set(registration_cmds)
+    resample_cmds     = set(resample_cmds)
+    voting_cmds       = set(voting_cmds) 
 
-    logger.info("Running %i resamplings, %i voting comands", \
-        len(resample_cmds), len(voting_cmds))
+    logger.info("Running %i registrations, %i resamplings, %i voting comands", \
+        len(registration_cmds), len(resample_cmds), len(voting_cmds))
+
+    logger.info("Registering subjects ...")
+    parallel(set(registration_cmds), options.processes, options.dry_run)
 
     logger.info("Resampling labels ...")
     parallel(set(resample_cmds), options.processes, options.dry_run)

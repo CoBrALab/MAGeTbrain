@@ -26,9 +26,8 @@ For the impatient (Really quick start)
     #
     # wait for these to complete. 
     #
-    4_vote
-    sed s/vote.py/regvote/g 4_vote > 4_regvote
-    qbatch 4_regvote 1 10:00:00 
+    4_vote --majvote --do_subject_registrations ANTSregister.sh 
+    qbatch 4_vote 1 10:00:00 
     #
     # check output/fusion/majvote for labels
     # re-run any stage to generate commands for missing steps
@@ -60,8 +59,8 @@ Quick start
 
     Note, you might only choose to run registrations between the Atlases and
     the template library images, and then later perform label fusion by doing
-    the template-library-to-subject registraions at the time of voting in temp
-    space. This saves lots of disk space.  To do this, just run: 
+    the subject registraions at the time of voting in temp space. This saves
+    lots of disk space.  To do this, just run: 
 
         grep atlases 1_register_jobs > register_atlases
 
@@ -103,11 +102,18 @@ Quick start
    with known labels. 
 
    If you chose to only do the atlas-to-template registrations in the first
-   step, then edit the 4_vote file and replace calls to vote.py with the
-   special script 'regvote'.  This script takes no options, just a subject stem
-   name, as it is hard coded to do majority voting.  Because each job does a
-   pile of registrations, you will need to allocate much more time per job...
-   say, 10 hours at least. 
+   step, then supply a registration script with the --do_subject_registrations
+   option, like so: 
+
+        4_vote --majvote --do_subject_registrations ANTSregister.sh 
+   
+   That script will be used to register each template library image to each
+   subject before doing label propagation and voting.  The transformations
+   produced here are kept in temporary space (/dev/shm) so be sure you have
+   enough of that, and because each job does a pile of registrations, you will
+   need to allocate much more time per job...  for example, with standard 1.5T
+   images, a template library of 20 images, and an 8 core machine,  give
+   yourself around 6 hours. 
 
 
 Tips
