@@ -153,7 +153,7 @@ def multiatlas_vote(target_vote_dir, temp_labels_dir, xcorr = None, nmi = None):
     target_labels = [os.path.join(temp_labels_dir,atlas.stem,target.stem,'labels.mnc') for atlas in atlas_pool]
 
 
-    if len(target_labels) == 1:  #TODO: HACKADOODLEDOOOO
+    if len(target_labels) == 1: 
         cmd = "cp"
     else:
         cmd = "voxel_vote.py"
@@ -171,7 +171,12 @@ def mb_vote(voting_templates, target_vote_dir, temp_labels_dir):
             resample_cmds.append(cmd)
             target_labels.append(labels)
 
-    vote_cmd, labels = command("voxel_vote.py", target_vote_dir, "labels.mnc", target_labels, args = (options.clobber and ["--clobber"] or []) )
+    if len(target_labels) == 1:  
+        cmd = "cp"
+    else:
+        cmd = "voxel_vote.py"
+
+    vote_cmd, labels = command(cmd, target_vote_dir, "labels.mnc", target_labels)
     return (vote_cmd, resample_cmds)
     
 
