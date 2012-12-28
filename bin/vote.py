@@ -3,6 +3,7 @@
 # Perform label fusion
 # 
 from optparse import OptionParser, OptionGroup
+import socket
 import re
 import sys
 import shutil
@@ -353,7 +354,7 @@ if __name__ == "__main__":
     if options.nmi > 0:
         nmi_scores = read_scores(os.path.join(output_dir, "nmi.csv"))
     template_labels_dir = mkdirp(persistent_temp_dir, "labels")    
-    timestamp = datetime.now().strftime("%Y-%m-%d.%H-%M-%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d.%H-%M-%S") + "-" + socket.gethostname()
 
     # output of voted labels 
     if options.tar_output:
@@ -435,6 +436,7 @@ if __name__ == "__main__":
                          %(num_atlases, num_templates, top_n))
             logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
             logger.debug("templates: "+", ".join([i.stem for i in templates]))
+            for target in targets: 
                 nmi_vote(target, n = top_n)
     
     # Multi-atlas voting 
