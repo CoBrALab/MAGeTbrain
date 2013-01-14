@@ -94,6 +94,9 @@ if __name__ == "__main__":
       qsub_option_prefix = '#$'
        
     mkdirp('.scripts')
+    if not options.dry_run:
+        mkdirp(options.logs_dir)
+
     for chunk in range(num_jobs):
         scriptfile=".scripts/%s_%i.sh" % (task_list_name, chunk)
         script = open(scriptfile, "w") 
