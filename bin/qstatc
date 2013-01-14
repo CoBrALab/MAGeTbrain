@@ -2,4 +2,5 @@
 # 
 # Prints the number of jobs in each state in the queue
 #
-qstat | awk 'NR > 2 { print $5 }' | sort | uniq -c
+filter=${1:-"."}
+qstat | grep $filter | awk 'NR > 2 { print $5 }' | sort | uniq -c
