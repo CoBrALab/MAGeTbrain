@@ -85,10 +85,20 @@ def dirname(path):
 def resample_labels(atlas, template, target, labels_dir, output_dir, inverse = True):
     """Produces a command that resamples the labels from the atlas-template to target"""
 
-    # TODO: concatenate xfms and resample once (i.e. ditch the template labels). 
-    template_labels  = os.path.join(labels_dir, atlas.stem, template.stem, 'labels.mnc')
-    target_labels    = os.path.join(mkdirp(output_dir, atlas.stem, template.stem, target.stem), 'labels.mnc')
-    nlxfm            = get_xfm(template.stem, target.stem) 
+    if options.resample_tmpl_labels:
+        template_labels = os.path.join(labels_dir, atlas.stem, template.stem, 'labels.mnc')
+        nlxfm           = get_xfm(template.stem, target.stem) 
+    else:
+        template_labels = atlas.labels
+        at_xfm = get_xfm(atlas.stem, template.stem)
+        ts_xfm = get_xfm(template.stem, target.stem)
+        nlxfm  = os.path.join(mkdirp(tmp_registrations_dir, atlas.stem, target.stem), 'nl.xfm')
+        xfmjoin_cmds.append("xfmjoin %%s %s %s" % (at_xfm, ts_xfm, nlxfm))
+         
+
+    target_labels = os.path.join(mkdirp(output_dir, atlas.stem, template.stem, target.stem), 'labels.mnc')
+
+    # FIXME: will this work in the join case?
     invert = inverse and '-invert' or ''
 
     cmd = "mincresample -2 -near -byte -keep -transform %s -like %s %s %s %s" % \
@@ -336,6 +346,12 @@ if __name__ == "__main__":
     group.add_option("--do_subject_registrations", dest="do_subject_registrations",
         default=None, type="string",
         help="A registration script to used to do template-subject registrations before voting (in temp space).")
+    group.add_option("--resample_template_labels", dest="resample_tmpl_labels",
+        default=False, action="store_true",
+        help="Expects output/labels.tar.gz containing template library labels, "
+             "rather than resampling at runtime directly from the atlases.  We expect "
+             "invoking this option will lead to degraded performance because resampling "
+             "errors are double.")
     group.add_option("--clobber", dest="clobber",
         default=False, action="store_true",
         help="Overwrite output label(s)")
@@ -348,18 +364,20 @@ if __name__ == "__main__":
     target_stems      = args[:]
     output_dir        = os.path.abspath(options.output_dir)
     registrations_dir = options.registrations_dir or os.path.join(output_dir, "registrations")
+    registratiosn_dir = os.path.abspath(registrations_dir)
 
     ## Set up TEMP space
     persistent_temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
     tmp_registrations_dir = mkdirp(persistent_temp_dir, "registrations")
 
-    execute("tar xzf output/labels.tar.gz -C " + persistent_temp_dir, dry_run = options.dry_run)
+    if options.resample_tmpl_labels:
+        execute("tar xzf output/labels.tar.gz -C " + persistent_temp_dir, dry_run = options.dry_run)
     if options.xcorr > 0:
         xcorr_scores = read_scores(os.path.join(output_dir, "xcorr.csv"))
     if options.nmi > 0:
         nmi_scores = read_scores(os.path.join(output_dir, "nmi.csv"))
     template_labels_dir = mkdirp(persistent_temp_dir, "labels")    
-    timestamp = datetime.now().strftime("%Y-%m-%d.%H-%M-%S") + "-" + socket.gethostname()
+    timestamp = datetime.now().strftime("%Y-%m-%d.%H-%M-%S") + "-" + socket.gethostname() + "_" + "_".join(target_stems)
 
     # output of voted labels 
     if options.tar_output:
@@ -398,6 +416,7 @@ if __name__ == "__main__":
     # Vote
     #
     registration_cmds = []
+    xfmjoin_cmds      = []
     resample_cmds     = []
     voting_cmds       = []
 
@@ -480,17 +499,26 @@ if __name__ == "__main__":
     #
     # Execute commands
     # 
-    resample_cmds = set(resample_cmds)
-    voting_cmds   = set(voting_cmds) 
+    registration_cmds = set(registration_cmds)
+    xfmjoin_cmds      = set(xfmjoin_cmds)
+    resample_cmds     = set(resample_cmds)
+    voting_cmds       = set(voting_cmds) 
 
-    logger.info("Registering subjects ...")
-    parallel(set(registration_cmds), options.processes, options.dry_run)
+    if registration_cmds:
+        logger.info("Registering subjects ...")
+        parallel(set(registration_cmds), options.processes, options.dry_run)
 
-    logger.info("Resampling labels ...")
-    parallel(set(resample_cmds), options.processes, options.dry_run)
+    if xfmjoin_cmds:
+        logger.info("Joining XFMs...")
+        parallel(set(xfmjoin_cmds), options.processes, options.dry_run)
+   
+    if resample_cmds: 
+        logger.info("Resampling labels ...")
+        parallel(set(resample_cmds), options.processes, options.dry_run)
 
-    logger.info("Voting...")
-    parallel(set(voting_cmds), options.processes, options.dry_run)
+    if voting_cmds:
+        logger.info("Voting...")
+        parallel(set(voting_cmds), options.processes, options.dry_run)
 
 
     if options.tar_output:
