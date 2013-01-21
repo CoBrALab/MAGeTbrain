@@ -60,23 +60,20 @@ def get_templates(path):
     corresponding labels."""
     return [Template(i) for i in glob.glob(os.path.join(path, 'brains', "*.mnc"))]
 
-def get_saved_xfm(from_stem, to_stem): 
-    """returns a path to xfm file for the regstration from image to image in
-       the output registrations folder. returns None if the file doesn't exist."""
-    xfm = os.path.join(registrations_dir, from_stem, to_stem, 'nl.xfm')
-    if not os.path.exists(xfm): 
-        xfm = None
-    return xfm 
 
+def _get_xfm(from_stem, to_stem, root_dir = None):
+    if root_dir == None:
+        root_dir = registrations_dir
+    return os.path.join(registrations_dir, from_stem, to_stem, 'nl.xfm')
+    
 def get_xfm(from_stem, to_stem): 
     """Returns a path to the xfm file for the registration from image to image
        whether it is in the saved output folder or in a temporary folder.."""
-    xfm = get_saved_xfm(from_stem, to_stem)
-    if not xfm: 
+    xfm = _get_xfm(from_stem, to_stem)
+    if not os.path.exists(xfm): 
         assert options.do_subject_registrations is not None,  \
-            "XFM from %s to %s does not exist, and option to generate before voting not given" # % (from_stem, to stem)
-
-        xfm = os.path.join(tmp_registrations_dir, from_stem, to_stem, 'nl.xfm')
+            "XFM from %s to %s does not exist, and option to generate before voting not given" 
+        xfm = _get_xfm(from_stem, to_stem, root_dir = tmp_registrations_dir)
     return xfm  
 
 def dirname(path):
@@ -87,13 +84,13 @@ def resample_labels(atlas, template, target, labels_dir, output_dir, inverse = T
 
     if options.resample_tmpl_labels:
         template_labels = os.path.join(labels_dir, atlas.stem, template.stem, 'labels.mnc')
-        nlxfm           = get_xfm(template.stem, target.stem) 
+        nlxfm           = _get_xfm(template.stem, target.stem) 
     else:
         template_labels = atlas.labels
-        at_xfm = get_xfm(atlas.stem, template.stem)
-        ts_xfm = get_xfm(template.stem, target.stem)
+        at_xfm = _get_xfm(atlas.stem, template.stem)
+        ts_xfm = _get_xfm(template.stem, target.stem)
         nlxfm  = os.path.join(mkdirp(tmp_registrations_dir, atlas.stem, target.stem), 'nl.xfm')
-        xfmjoin_cmds.append("xfmjoin %%s %s %s" % (at_xfm, ts_xfm, nlxfm))
+        xfmjoin_cmds.append("xfmjoin %s %s %s" % (at_xfm, ts_xfm, nlxfm))
          
 
     target_labels = os.path.join(mkdirp(output_dir, atlas.stem, template.stem, target.stem), 'labels.mnc')
@@ -108,7 +105,7 @@ def resample_labels(atlas, template, target, labels_dir, output_dir, inverse = T
 def register_subject(subject): 
     """Register all of the templates to the subject, unless the registration already exists"""
     for template in templates: 
-        if not get_saved_xfm(template.stem, target.stem):
+        if not os.path.exists(_get_xfm(template.stem, target.stem)):
             xfm = get_xfm(template.stem, target.stem)
             mkdirp(os.path.basename(xfm))
             cmd = " ".join([options.do_subject_registrations, template.image, subject.image, xfm])
@@ -370,7 +367,7 @@ if __name__ == "__main__":
     persistent_temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
     tmp_registrations_dir = mkdirp(persistent_temp_dir, "registrations")
 
-    if options.resample_tmpl_labels:
+    if options.resample_tmpl_labels or options.multiatlas or options.multiatlas_xcorr or options.multiatlas_nmi:
         execute("tar xzf output/labels.tar.gz -C " + persistent_temp_dir, dry_run = options.dry_run)
     if options.xcorr > 0:
         xcorr_scores = read_scores(os.path.join(output_dir, "xcorr.csv"))
