@@ -25,11 +25,12 @@ class Template:
     def __init__(self, image, labels = None):
         """Represents an MR image (labels, potentially)."""
         image_path      = os.path.realpath(image)
-        self.stem       = os.path.basename(os.path.splitext(image_path)[0])
+        self.stem       = os.path.basename(os.path.splitext(image)[0])
         self.image      = image
         self.labels = labels
 
-        expected_labels = os.path.join(dirname(dirname(image_path)), 'labels', self.stem + "_labels.mnc")
+        expected_labels = os.path.join(dirname(dirname(image)), 'labels', self.stem + "_labels.mnc")
+
         if not labels and os.path.exists(expected_labels):
             self.labels = expected_labels 
 
