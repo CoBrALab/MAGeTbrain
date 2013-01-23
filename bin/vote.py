@@ -90,7 +90,7 @@ def resample_labels(atlas, template, target, labels_dir, output_dir, inverse = T
         template_labels = atlas.labels
         at_xfm = _get_xfm(atlas.stem, template.stem)
         ts_xfm = _get_xfm(template.stem, target.stem)
-        nlxfm  = os.path.join(mkdirp(tmp_registrations_dir, atlas.stem, target.stem), 'nl.xfm')
+        nlxfm  = os.path.join(mkdirp(tmp_registrations_dir, atlas.stem, template.stem, target.stem), 'nl.xfm')
         xfmjoin_cmds.append("xfmjoin %s %s %s" % (at_xfm, ts_xfm, nlxfm))
          
 
