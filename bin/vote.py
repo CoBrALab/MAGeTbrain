@@ -467,7 +467,7 @@ if __name__ == "__main__":
         targets = [ x for x in templates if not target_stems or x.stem in target_stems ] 
         for num_atlases in range(*parse_range(options.num_atlases)):
             logger.debug("Majority voting with %i atlases"%(num_atlases))
-            fusion_dir = mkdirp(base_fusion_dir, "multiatlas", "%i_atlases_1_templates" % num_atlases)
+            fusion_dir = mkdirp(base_fusion_dir, "ma", "majvote", "%i_atlases_1_templates_0_topn" % num_atlases)
             atlases   = all_atlases[:num_atlases]
             for target in targets:
                 majvote(target, multiatlas=True)
