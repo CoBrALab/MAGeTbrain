@@ -302,7 +302,10 @@ if __name__ == "__main__":
         help="Directory containing registrations from template library to subject.")
     group.add_option("--tar_output", dest="tar_output", 
         default=False, action="store_true", 
-        help="all output is tar'd into a single file placed in fusion_dir")
+        help="all fusion output is tar'd into a single file placed in fusion_dir")
+    group.add_option("--tar_everything", dest="tar_everything", 
+        default=False, action="store_true", 
+        help="all intermediate files are tar'd into a single file placed in output_dir")
     parser.add_option_group(group)
     
     # Validation options 
@@ -523,8 +526,13 @@ if __name__ == "__main__":
         logger.info("Tar up output...")
         tarfile = joinp(options.fusion_dir, timestamp + ".tar")
         execute("tar -C %s -cvf %s %s" % 
-            (persistent_temp_dir, tarfile, basename(base_fusion_dir)), dry_run =
-            options.dry_run)
+            (persistent_temp_dir, tarfile, basename(base_fusion_dir)), 
+            dry_run = options.dry_run)
+    if options.tar_everything:
+        logger.info("Tar up all intermediate files")
+        tarfile = joinp(options.output_dir, timestamp + "_everything.tar")
+        execute("tar -cvf %s %s" % (tarfile, persistent_temp_dir), 
+            dry_run = options.dry_run)
 
     logger.info("Cleaning up...")
     shutil.rmtree(persistent_temp_dir)
