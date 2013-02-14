@@ -505,34 +505,39 @@ if __name__ == "__main__":
     resample_cmds     = set(resample_cmds)
     voting_cmds       = set(voting_cmds) 
 
-    if registration_cmds:
-        logger.info("Registering subjects ...")
-        parallel(set(registration_cmds), options.processes, options.dry_run)
+    try: 
+        if registration_cmds:
+            logger.info("Registering subjects ...")
+            parallel(set(registration_cmds), options.processes, options.dry_run)
 
-    if xfmjoin_cmds:
-        logger.info("Joining XFMs...")
-        parallel(set(xfmjoin_cmds), options.processes, options.dry_run)
-   
-    if resample_cmds: 
-        logger.info("Resampling labels ...")
-        parallel(set(resample_cmds), options.processes, options.dry_run)
+        if xfmjoin_cmds:
+            logger.info("Joining XFMs...")
+            parallel(set(xfmjoin_cmds), options.processes, options.dry_run)
+       
+        if resample_cmds: 
+            logger.info("Resampling labels ...")
+            parallel(set(resample_cmds), options.processes, options.dry_run)
 
-    if voting_cmds:
-        logger.info("Voting...")
-        parallel(set(voting_cmds), options.processes, options.dry_run)
+        if voting_cmds:
+            logger.info("Voting...")
+            parallel(set(voting_cmds), options.processes, options.dry_run)
 
 
-    if options.tar_output:
-        logger.info("Tar up output...")
-        tarfile = joinp(options.fusion_dir, timestamp + ".tar")
-        execute("tar -C %s -cvf %s %s" % 
-            (persistent_temp_dir, tarfile, basename(base_fusion_dir)), 
-            dry_run = options.dry_run)
-    if options.tar_everything:
-        logger.info("Tar up all intermediate files")
-        tarfile = joinp(options.output_dir, timestamp + "_everything.tar")
-        execute("tar -cvf %s %s" % (tarfile, persistent_temp_dir), 
-            dry_run = options.dry_run)
+        if options.tar_output:
+            logger.info("Tar up output...")
+            tarfile = joinp(options.fusion_dir, timestamp + ".tar")
+            execute("tar -C %s -cvf %s %s" % 
+                (persistent_temp_dir, tarfile, basename(base_fusion_dir)), 
+                dry_run = options.dry_run)
+    finally:
+        try:
+            if options.tar_everything:
+                logger.info("Tar up all intermediate files")
+                tarfile = joinp(options.output_dir, timestamp + "_everything.tar")
+                execute("tar -cvf %s %s" % (tarfile, persistent_temp_dir), 
+                    dry_run = options.dry_run)
+        except: 
+            pass
 
     logger.info("Cleaning up...")
     shutil.rmtree(persistent_temp_dir)
