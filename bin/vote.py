@@ -373,7 +373,7 @@ if __name__ == "__main__":
     target_stems      = args[:]
     output_dir        = os.path.abspath(options.output_dir)
     registrations_dir = options.registrations_dir or os.path.join(output_dir, "registrations")
-    registratiosn_dir = os.path.abspath(registrations_dir)
+    registrations_dir = os.path.abspath(registrations_dir)
 
     ## Set up TEMP space
     persistent_temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
