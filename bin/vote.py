@@ -103,7 +103,7 @@ def resample_labels(atlas, template, target, labels_dir, output_dir, inverse = T
         (nlxfm, target.image, invert, template_labels, target_labels)
     return (target_labels, cmd)      
 
-def register_subject(subject): 
+def register_subject(subject, templates): 
     """Register all of the templates to the subject, unless the registration already exists"""
     for template in templates: 
         if not os.path.exists(_get_xfm(template.stem, target.stem)):
@@ -152,11 +152,15 @@ def compare_similarity(image_path, expected_labels_path, computed_labels_path, o
     return (validation_output_file, cmd)
         
 def multiatlas_vote(target_vote_dir, temp_labels_dir, xcorr = None, nmi = None):
+
     atlas_pool = atlases
     if xcorr:
         atlas_pool = top_n_templates(target, atlases, xcorr_scores, xcorr)
     if nmi:
         atlas_pool = top_n_templates(target, atlases, nmi_scores, nmi)
+
+    if options.do_subject_registrations:
+        register_subject(target, atlas_pool)
         
     target_labels = [os.path.join(temp_labels_dir,atlas.stem,target.stem,'labels.mnc') for atlas in atlas_pool]
 
@@ -171,6 +175,10 @@ def multiatlas_vote(target_vote_dir, temp_labels_dir, xcorr = None, nmi = None):
 
 def mb_vote(voting_templates, target_vote_dir, temp_labels_dir):
     """Helper function for vote() """
+
+    if options.do_subject_registrations:
+      register_subject(target, voting_templates)
+
     resample_cmds = []
     target_labels =  []
     for atlas in atlases:
