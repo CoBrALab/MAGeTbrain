@@ -1,12 +1,10 @@
-Multiple Automatically Generated Templates brain segmentation algorithm
-=======
+# Multiple Automatically Generated Templates brain segmentation algorithm
 
 Given a set of labelled MR images (atlases) and unlabelled images (subjects),
 MAGeT produces a set of labels using a multi-atlas voting procedure based on a
 template library made up of images from the subject set. 
 
-For the impatient (Really quick start) 
---------------------------------------
+## For the impatient (Really quick start) 
 
     git clone http://pipitone.github.com/MAGeTbrain
     cd MAGeTbrain
@@ -26,8 +24,7 @@ For the impatient (Really quick start)
     # check output/fusion/majvote for labels
     # re-run any stage to generate commands for missing steps
 
-Quick start
------------
+## Quick start
 
 0. Check out a copy of this repository somewhere handy,
     
@@ -86,8 +83,7 @@ Quick start
    folders. This can be used to profile or validate the performance of MAGeT on
    subject set with known labels. 
 
-Tips
-----
+## Tips
 
 ### PBS: Working with queued/running jobs
 
@@ -107,3 +103,6 @@ And then change the amount of time walltime allocated:
 
 Also consider the script `qstatc` which gives a short summary of the number of
 jobs in the queue for each queue state. 
+
+---
+    http://tinysong.com/y9lO
