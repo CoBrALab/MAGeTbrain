@@ -108,7 +108,7 @@ def register_subject(subject, templates):
     for template in templates: 
         if not os.path.exists(_get_xfm(template.stem, target.stem)):
             xfm = get_xfm(template.stem, target.stem)
-            mkdirp(os.path.basename(xfm))
+            mkdirp(os.path.dirname(xfm))
             cmd = " ".join([options.do_subject_registrations, template.image, subject.image, xfm])
             registration_cmds.append(cmd) 
 
@@ -131,7 +131,7 @@ def execute(command, input = "", dry_run = False):
 def mkdirp(*p):
     """Like mkdir -p"""
     path = os.path.join(*p)
-         
+    logger.debug("mkdirp(%s)" %path)
     try:
         if not options.dry_run:   # TODO: fix this, it smells
             os.makedirs(path)
