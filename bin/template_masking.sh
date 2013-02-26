@@ -2,14 +2,7 @@
 #
 # Generates template masks before template-to-subject registration
 #
-# # Usage: template output_dir  
-#
-# For both we go about this same way: 
-# 1. Create a generous mask around the label area for each template
-# 2. Calculate the NMI/XCORR scores between the template and subject 
-#
-# Masks are computed by linearly registering the templates to the atlases,
-# VOTING the resampled labels to get rough field for potential label targets,
+# Masks are computed by VOTING the resampled atlas-to-template labels to get rough field for potential label targets,
 # and expanding that masked area somewhat for good measure.
 
 template=$1
