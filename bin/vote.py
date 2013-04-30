@@ -80,8 +80,17 @@ def get_xfm(from_stem, to_stem):
 def dirname(path):
     return os.path.split(path)[0];
    
-def resample_labels(atlas, template, target, labels_dir, output_dir, inverse = True):
+def propate_labels(atlas, target, output_dir):
+    """Produces a command that resamples the labels from an atlas to a target"""
+    nlxfm  = _get_xfm(atlas.stem, target.stem) 
+    target_labels = os.path.join(mkdirp(output_dir, atlas.stem, target.stem), 'labels.mnc')
+    cmd = "mincresample -2 -near -byte -keep -transform %s -like %s %s %s" % \
+        (nlxfm, target.image, atlas.labels, target_labels)
+    return (target_labels, cmd)      
+
+def resample_labels(atlas, template, target, labels_dir, output_dir):
     """Produces a command that resamples the labels from the atlas-template to target"""
+    target_labels = os.path.join(mkdirp(output_dir, atlas.stem, target.stem), 'labels.mnc')
 
     if options.resample_tmpl_labels:
         template_labels = os.path.join(labels_dir, atlas.stem, template.stem, 'labels.mnc')
@@ -92,15 +101,11 @@ def resample_labels(atlas, template, target, labels_dir, output_dir, inverse = T
         ts_xfm = _get_xfm(template.stem, target.stem)
         nlxfm  = os.path.join(mkdirp(tmp_registrations_dir, atlas.stem, template.stem, target.stem), 'nl.xfm')
         xfmjoin_cmds.append("xfmjoin %s %s %s" % (at_xfm, ts_xfm, nlxfm))
-         
 
     target_labels = os.path.join(mkdirp(output_dir, atlas.stem, template.stem, target.stem), 'labels.mnc')
 
-    # FIXME: will this work in the join case?
-    invert = inverse and '-invert' or ''
-
-    cmd = "mincresample -2 -near -byte -keep -transform %s -like %s %s %s %s" % \
-        (nlxfm, target.image, invert, template_labels, target_labels)
+    cmd = "mincresample -2 -near -byte -keep -transform %s -like %s %s %s" % \
+        (nlxfm, target.image, template_labels, target_labels)
     return (target_labels, cmd)      
 
 def register_subject(subject, templates): 
@@ -161,9 +166,13 @@ def multiatlas_vote(target_vote_dir, temp_labels_dir, xcorr = None, nmi = None):
 
     if options.do_subject_registrations:
         register_subject(target, atlas_pool)
-        
-    target_labels = [os.path.join(temp_labels_dir,atlas.stem,target.stem,'labels.mnc') for atlas in atlas_pool]
-
+    
+      
+    target_labels = []
+    for atlas in atlas_pool:
+        labels, cmd = propate_labels(atlas, target, temp_labels_dir)
+        resample_cmds.append(cmd)
+        target_labels.append(labels)
 
     if len(target_labels) == 1: 
         cmd = "cp"
@@ -183,7 +192,7 @@ def mb_vote(voting_templates, target_vote_dir, temp_labels_dir):
     target_labels =  []
     for atlas in atlases:
         for template in voting_templates:
-            labels, cmd = resample_labels(atlas, template, target, template_labels_dir, temp_labels_dir, inverse=options.invert)
+            labels, cmd = resample_labels(atlas, template, target, template_labels_dir, temp_labels_dir)
             resample_cmds.append(cmd)
             target_labels.append(labels)
 
@@ -343,9 +352,6 @@ if __name__ == "__main__":
     group.add_option("--processes", dest="processes",
         default=8, type="int", 
         help="Number of processes to parallelize over.")
-    group.add_option("--invert", dest="invert",
-        action="store_true", default=False,
-        help="Invert the transformations during resampling from the template library.")
     group.add_option("--do_subject_registrations", dest="do_subject_registrations",
         default=None, type="string",
         help="A registration script to used to do template-subject registrations before voting (in temp space).")
