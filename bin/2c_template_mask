@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -o xtrace
+set -e 
+
+mkdir -p input/templates/masks
+for template in input/templates/brains/*.mnc; do
+    template_stem=$(basename $template .mnc)
+    tmpdir=$(mktemp --tmpdir=/dev/shm -d)
+
+#    for mask in input/atlases/masks/*.mnc; do
+#        atlas_stem=$(basename $mask -mask.mnc)
+#        xfm=output/registrations/$atlas_stem/$template_stem/nl.xfm 
+#        [ ! -e $xfm ] && continue
+#        rsmpld_mask=$tmpdir/${atlas_stem}.mnc
+#        mincresample -2 -near -keep -like $template \
+#            -transform $xfm $mask $rsmpld_mask
+#    done
+
+    mincaverage output/registrations/*/$template_stem/masklinres.mnc \
+        $tmpdir/average.mnc
+    minccalc -expression 'A[0]>0' $tmpdir/average.mnc \
+        input/templates/masks/${template_stem}-mask.mnc -clob
+    rm -rf $tmpdir
+done
