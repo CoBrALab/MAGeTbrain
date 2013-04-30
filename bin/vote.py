@@ -223,47 +223,44 @@ def majvote(target, multiatlas = False):
 
     """
 
-    if options.majvote or multiatlas:
-        target_vote_dir = mkdirp(fusion_dir, "majvote", target.stem)
-        if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
-            if multiatlas:
-                vote_cmd, resamples = multiatlas_vote(target_vote_dir, template_labels_dir)
-            else:
-                vote_cmd, resamples = mb_vote(templates, target_vote_dir, template_labels_dir)
-            voting_cmds.append(vote_cmd)
-            resample_cmds.extend(resamples)
+    target_vote_dir = mkdirp(fusion_dir, "majvote", target.stem)
+    if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
+        if multiatlas:
+            vote_cmd, resamples = multiatlas_vote(target_vote_dir, template_labels_dir)
+        else:
+            vote_cmd, resamples = mb_vote(templates, target_vote_dir, template_labels_dir)
+        voting_cmds.append(vote_cmd)
+        resample_cmds.extend(resamples)
 
 def xcorr_vote(target, n, multiatlas = False):
-    if options.xcorr:
-        target_vote_dir = mkdirp(fusion_dir, "xcorr", target.stem)
-        if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
-            if multiatlas:
-                vote_cmd, resamples = multiatlas_vote(
-                                        target_vote_dir,
-                                        template_labels_dir, 
-                                        xcorr = n)
-            else:
-                relevant_templates  = top_n_templates(target, templates, xcorr_scores, n)
-                vote_cmd, resamples = mb_vote(relevant_templates, target_vote_dir, template_labels_dir)
+    target_vote_dir = mkdirp(fusion_dir, "xcorr", target.stem)
+    if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
+        if multiatlas:
+            vote_cmd, resamples = multiatlas_vote(
+                                    target_vote_dir,
+                                    template_labels_dir, 
+                                    xcorr = n)
+        else:
+            relevant_templates  = top_n_templates(target, templates, xcorr_scores, n)
+            vote_cmd, resamples = mb_vote(relevant_templates, target_vote_dir, template_labels_dir)
 
-            voting_cmds.append(vote_cmd)
-            resample_cmds.extend(resamples)
+        voting_cmds.append(vote_cmd)
+        resample_cmds.extend(resamples)
 
 def nmi_vote(target, n, multiatlas = False):
-    if options.nmi:
-        target_vote_dir = mkdirp(fusion_dir, "nmi", target.stem)
-        if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
-            if multiatlas:
-                vote_cmd, resamples = multiatlas_vote(
-                                        target_vote_dir,
-                                        template_labels_dir, 
-                                        nmi = n)
-            else:
-                relevant_templates  = top_n_templates(target, templates, nmi_scores, n)
-                vote_cmd, resamples = mb_vote(relevant_templates, target_vote_dir, template_labels_dir)
+    target_vote_dir = mkdirp(fusion_dir, "nmi", target.stem)
+    if options.clobber or not os.path.exists(joinp(target_vote_dir, 'labels.mnc')):
+        if multiatlas:
+            vote_cmd, resamples = multiatlas_vote(
+                                    target_vote_dir,
+                                    template_labels_dir, 
+                                    nmi = n)
+        else:
+            relevant_templates  = top_n_templates(target, templates, nmi_scores, n)
+            vote_cmd, resamples = mb_vote(relevant_templates, target_vote_dir, template_labels_dir)
 
-            voting_cmds.append(vote_cmd)
-            resample_cmds.extend(resamples)
+        voting_cmds.append(vote_cmd)
+        resample_cmds.extend(resamples)
 
 if __name__ == "__main__":
     FORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
@@ -275,11 +272,8 @@ if __name__ == "__main__":
     # Voting options
     group = OptionGroup(parser, "Voting Options")
     group.add_option("--majvote", dest="majvote",
-        action="store_true", default=True,
+        action="store_true", default=False,
         help="Do majority voting")
-    group.add_option("--nomajvote", dest="majvote",
-        action="store_false", 
-        help="Do not do majority voting")
     group.add_option("--xcorr", dest="xcorr",
         type="string", default=None,
         help="Do XCORR voting with the top n number of templates.")
@@ -409,6 +403,9 @@ if __name__ == "__main__":
         random.shuffle(all_atlases)
         random.shuffle(all_templates)
 
+    # filter for targets specified on the command line
+    targets = [ x for x in all_subjects if not target_stems or x.stem in target_stems ] 
+
 
     #
     # Dump execution memo
@@ -419,6 +416,7 @@ if __name__ == "__main__":
         memo.write(" ".join(sys.argv) + "\n\n")
         memo.write("atlases: %s\n" % ", ".join([x.stem for x in all_atlases]))
         memo.write("templates: %s\n" % ", ".join([x.stem for x in all_templates]))
+        memo.write("targets: %s\n" % ", ".join([x.stem for x in targets]))
         memo.close()
 
     #
@@ -430,52 +428,57 @@ if __name__ == "__main__":
     voting_cmds       = []
 
     # MAGeT voting 
-    # filter for targets specified on the command line
-    targets = [ x for x in all_subjects if not target_stems or x.stem in target_stems ] 
     for num_atlases in range(*parse_range(options.num_atlases)):
-        for num_templates in range(*parse_range(options.num_templates)):
-            fusion_dir = mkdirp(base_fusion_dir, "mb", "majvote")
-            if options.random_subsampling:
-                fusion_dir = mkdirp(fusion_dir, "%i_atlases_%i_templates" 
-                                    %(num_atlases, num_templates))
-        
-            atlases   = all_atlases[:num_atlases]
-            templates = all_templates[:num_templates]
+        if options.majvote:
+            for num_templates in range(*parse_range(options.num_templates)):
+                fusion_dir = mkdirp(base_fusion_dir, "mb", "majvote")
+                if options.random_subsampling:
+                    fusion_dir = mkdirp(fusion_dir, "%i_atlases_%i_templates" 
+                                        %(num_atlases, num_templates))
+            
+                atlases   = all_atlases[:num_atlases]
+                templates = all_templates[:num_templates]
 
-            logger.debug("MAGeT Majority vote with %i atlases and %i templates: "%(num_atlases, num_templates))
-            logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
-            logger.debug("templates: "+", ".join([i.stem for i in templates]))
+                logger.debug("MAGeT Majority vote with %i atlases and %i templates: "%(num_atlases, num_templates))
+                logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
+                logger.debug("templates: "+", ".join([i.stem for i in templates]))
+                logger.debug("targets: "+", ".join([i.stem for i in targets]))
 
-            for target in targets: 
-                majvote(target)   # global variables FTW
+                for target in targets: 
+                    majvote(target)   # global variables FTW
 
-        for top_n in range(*parse_range(options.xcorr)):
-            fusion_dir = mkdirp(base_fusion_dir, "mb", "xcorr", 
-                                "%i_atlases_%i_templates_%i_topn" 
-                                %(num_atlases, num_templates, top_n))
+        if options.xcorr:
+            for top_n in range(*parse_range(options.xcorr)):
+                fusion_dir = mkdirp(base_fusion_dir, "mb", "xcorr", 
+                                    "%i_atlases_%i_templates_%i_topn" 
+                                    %(num_atlases, num_templates, top_n))
 
-            logger.debug("MAGeT XCORR vote with %i atlases and %i templates, top n = %i: "
-                         %(num_atlases, num_templates, top_n))
-            logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
-            logger.debug("templates: "+", ".join([i.stem for i in templates]))
-            for target in targets: 
-                xcorr_vote(target, n = top_n)   
+                logger.debug("MAGeT XCORR vote with %i atlases and %i templates, top n = %i: "
+                             %(num_atlases, num_templates, top_n))
+                logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
+                logger.debug("templates: "+", ".join([i.stem for i in templates]))
+                logger.debug("targets: "+", ".join([i.stem for i in targets]))
 
-        for top_n in range(*parse_range(options.nmi)):
-            fusion_dir = mkdirp(base_fusion_dir, "mb", "nmi", 
-                                "%i_atlases_%i_templates_%i_topn" 
-                                %(num_atlases, num_templates, top_n))
-            logger.debug("MAGeT NMI vote with %i atlases and %i templates, top n = %i: "
-                         %(num_atlases, num_templates, top_n))
-            logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
-            logger.debug("templates: "+", ".join([i.stem for i in templates]))
-            for target in targets: 
-                nmi_vote(target, n = top_n)
+                for target in targets: 
+                    xcorr_vote(target, n = top_n)   
+        if options.nmi:
+            for top_n in range(*parse_range(options.nmi)):
+                fusion_dir = mkdirp(base_fusion_dir, "mb", "nmi", 
+                                    "%i_atlases_%i_templates_%i_topn" 
+                                    %(num_atlases, num_templates, top_n))
+                logger.debug("MAGeT NMI vote with %i atlases and %i templates, top n = %i: "
+                             %(num_atlases, num_templates, top_n))
+                logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
+                logger.debug("templates: "+", ".join([i.stem for i in templates]))
+                logger.debug("targets: "+", ".join([i.stem for i in targets]))
+
+                for target in targets: 
+                    nmi_vote(target, n = top_n)
     
     # Multi-atlas voting 
+    templates = all_templates
+    targets = [ x for x in templates if not target_stems or x.stem in target_stems ] 
     if options.multiatlas: 
-        templates = all_templates
-        targets = [ x for x in templates if not target_stems or x.stem in target_stems ] 
         for num_atlases in range(*parse_range(options.num_atlases)):
             logger.debug("Majority voting with %i atlases"%(num_atlases))
             fusion_dir = mkdirp(base_fusion_dir, "ma", "majvote", "%i_atlases_1_templates_0_topn" % num_atlases)
@@ -483,6 +486,7 @@ if __name__ == "__main__":
             for target in targets:
                 majvote(target, multiatlas=True)
         
+    if options.multiatlas_xcorr: 
         for top_n in range(*parse_range(options.multiatlas_xcorr)):
             fusion_dir = mkdirp(base_fusion_dir, "multiatlas", "xcorr", 
                                 "%i_atlases_%i_templates_%i_topn" 
@@ -490,9 +494,11 @@ if __name__ == "__main__":
             logger.debug("Multiatlas XCORR vote with %i atlases, top n = %i: "
                          %(num_atlases, top_n))
             logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
+            logger.debug("targets: "+", ".join([i.stem for i in targets]))
             for target in targets: 
                 xcorr_vote(target, n = top_n, multiatlas=True)   
 
+    if options.multiatlas_nmi: 
         for top_n in range(*parse_range(options.multiatlas_nmi)):
             fusion_dir = mkdirp(base_fusion_dir, "multiatlas", "nmi", 
                                 "%i_atlases_%i_templates_%i_topn" 
@@ -500,6 +506,7 @@ if __name__ == "__main__":
             logger.debug("Multiatlas NMI vote with %i atlases, top n = %i: "
                          %(num_atlases, top_n))
             logger.debug("atlases: "+", ".join([i.stem for i in atlases]))
+            logger.debug("targets: "+", ".join([i.stem for i in targets]))
             for target in targets: 
                 nmi_vote(target, n = top_n, multiatlas=True)   
 
