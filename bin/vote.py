@@ -379,7 +379,7 @@ if __name__ == "__main__":
     persistent_temp_dir   = tempfile.mkdtemp(dir='/dev/shm/')
     tmp_registrations_dir = mkdirp(persistent_temp_dir, "registrations")
 
-    if options.resample_tmpl_labels or options.multiatlas or options.multiatlas_xcorr or options.multiatlas_nmi:
+    if options.resample_tmpl_labels:
         execute("tar xzf output/labels.tar.gz -C " + persistent_temp_dir, dry_run = options.dry_run)
     if options.xcorr > 0:
         xcorr_scores = read_scores(os.path.join(output_dir, "xcorr.csv"))
