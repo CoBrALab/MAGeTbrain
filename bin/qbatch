@@ -7,6 +7,7 @@ import sys
 import os.path
 import subprocess
 import errno
+import fnmatch 
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,8 @@ if __name__ == "__main__":
     parser.add_option("--processes", dest="processes",
         default=8, type="int", 
         help="Number of processes to parallelize over.")
+    parser.add_option("--afterok_pattern", dest="afterok_pattern", 
+        type="string", help="Existing jobs matching the given pattern as dependencies.")
     parser.add_option("--output_dir", dest="output_dir",
         default="output", type="string", 
         help="Path to output folder")
@@ -90,6 +93,17 @@ if __name__ == "__main__":
                       '-o %s' % options.logs_dir,
                       '-V'] 
       qsub_option_prefix = '#PBS'
+
+      if options.afterok_pattern: 
+        o, e = execute('qstat')
+        matching_jobids = []
+        for row in o.strip().split("\n")[2:]:
+          jobid, name, user, time, status, queue = row.split()
+          if fnmatch.fnmatch(name, options.afterok_pattern):
+            matching_jobids.append(jobid)        
+        if matching_jobids:
+            qsub_options.append('-W afterok:' + ':'.join(matching_jobids))
+      
     elif options.batch_system == 'sge':
       options.processes=1  # TODO: can we actually set this up properly? 
       qsub_options = ['-l h_rt=%s' % walltime, 
