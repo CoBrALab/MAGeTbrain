@@ -1,5 +1,9 @@
 #!/bin/bash
 #
+# This is the default registration script for MAGeT brain. 
+#
+# Currently, it operates on MINC files only.
+#
 # Registers <atlas> to <target> and outputs the resulting xfm to output.xfm
 # Intermediate XFMs and other files to go `dirname output.xfm`
 #
