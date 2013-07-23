@@ -3,12 +3,45 @@
 # Perform MAGeT brain segmentation 
 #
 #
+import glob
+import os
+import os.path
+import argparse
+import ConfigParser
+import sys
+import logging
+
+DEFAULT_SECTION = "Defaults"  # Name of defaults section in config file.
+                              # This section gets explicitly loaded always,
+                              # unlike the ConfigParser's DEFAULT section which
+                              # only supplies default values to be used in other
+                              # sections. 
+
+class SpecialFormatter(logging.Formatter):
+  FORMATS = {logging.DEBUG :"DBG: %(module)s: %(lineno)d: %(message)s",
+  logging.ERROR : "ERROR: %(message)s",
+  logging.INFO : "%(message)s",
+  'DEFAULT' : "%(levelname)s: %(message)s"}
+
+  def format(self, record):
+    self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
+    return logging.Formatter.format(self, record)
+
+hdlr = logging.StreamHandler(sys.stderr)
+hdlr.setFormatter(SpecialFormatter())
+logging.root.addHandler(hdlr)
+logging.root.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+
 # commands:
-# start          -- do everything that needs doing
-# register       -- do registrations
-# vote           -- do voting (assuming everything else is done)
-# pick_templates -- pick (randomly) from subjects to make template library
-# check_setup    -- sanity checks on setup
+# init                     - create a folder for a MAGeT brain run
+# status                   - what is uncomplete in the pipeline
+# check                    - do some sanity checks on inputs 
+# run                      - do everything that needs doing, picking up where
+#                            left off
+# run register_atlases     - do atlas-template registrations
+# run vote                 - do voting 
+# pick_templates <size>    - randomly make template library from subjects
 # 
 # options:
 #  --batch            # which batch system to use: SGE, PBS, NONE, custom
@@ -24,65 +57,136 @@
 #  --registration_cmd 
 #  --resample_cmd
 #
-# future commands:
-#   build_model
-#   morphometry
-#   
 
-from optparse import OptionParser
-import glob
-import os
-import os.path
+def main(): 
+  """Main driver."""
+  # load options from config file 
+  # argparse/ConfigParse integration approach via: 
+  # http://blog.vwelch.com/2011/04/combining-configparser-and-argparse.html
+  conf_parser = argparse.ArgumentParser(add_help = False)
+  conf_parser.add_argument("-c", "--conf_file",
+            help = "Specify config file (defaults to ~/.magetbrainrc)", 
+            metavar="FILE")
+  args, remaining_argv = conf_parser.parse_known_args()
+  defaults = load_config(args.conf_file)
 
-class Template:
-    def __init__(self, image, labels = None):
-        """Represents an MR image (labels, potentially)."""
-        image_path      = os.path.realpath(image)
-        self.stem       = os.path.basename(os.path.splitext(image_path)[0])
-        self.image      = image
-        self.labels     = labels
+  # load options from the command line
+  parser = argparse.ArgumentParser(
+            parents = [conf_parser],
+            description = 
+           "Multiple Automatically Generated Templates Brain Segmentation")
+  parser.set_defaults(**defaults)
 
-        expected_labels = os.path.join(dirname(dirname(image_path)), 'labels', self.stem + "_labels.mnc")
-        if not labels and os.path.exists(expected_labels):
-            self.labels = expected_labels 
 
-def get_templates(path):
+  # In/out directory options
+  group = parser.add_argument_group(title="Input/output folder options")
+  group.add_argument("--output_dir", default="output", 
+    type=os.path.abspath, 
+    help="Top-level folder for all output")
+  group.add_argument("--input_dir",   default="input", 
+    type=os.path.abspath, 
+    help="Directory containing atlas, template and subject libraries")
+
+  # subcommands
+  subparsers = parser.add_subparsers(help='command')
+
+  # run : run the stages in the MAGeT pipeline
+  parser_run = subparsers.add_parser('run', help='run MAGeT brain')
+  parser_run.add_argument('stage', choices=['basic',
+                                            'register_atlases', 
+                                            'vote'],
+                                   nargs='?', # makes stage optional
+                                   default = 'basic',
+                                   help="stage to run")
+  parser_run.set_defaults(func=command_run)
+
+  # Registration options
+  group = parser_run.add_argument_group(title="Registration")
+  group.add_argument("--register_cmd", default="mb_register", 
+    metavar='CMD',
+    help="Command to register two images and output a transform. "
+         "This command needs to accept the source image, target image "
+         "and output transformation file as arguments, in this order.")
+           
+  # Voting options
+  group = parser_run.add_argument_group(title="Registration options")
+  group.add_argument("--majvote", default=False,
+    action="store_true", 
+    help="Do majority voting")
+  group.add_argument("--xcorr",  default=None,
+    type=int, metavar='N',
+    help="Do cross-correlation voting with the top N templates.")
+  group.add_argument("--nmi", default=None,
+    type=int, metavar='N',
+    help="Do normalised mutual information voting with the top N templates.")
+
+  group = parser_run.add_argument_group(title="Execution options")
+  group.add_argument("-n", dest="dry_run", default=False,
+    action="store_true", 
+    help="Dry run. Show what would happen.")
+  group.add_argument("--processes", default=8, 
+    type=int, metavar='N',
+    help="Number of processes to parallelize over.")
+  group.add_argument("--clobber", default=False, 
+      action="store_true",
+      help="Overwrite output if it exists")
+
+  # init : prepare a folder for use by the pipeline
+  parser_init = subparsers.add_parser('init', help='initialise folder')
+  parser_init.add_argument('folder', default='.', nargs='?')
+  parser_init.set_defaults(func=command_init)
+
+  args = parser.parse_args(remaining_argv)
+  args.func(args)
+
+def load_config(config_file):
+  if config_file:
+    assert os.path.exists(config_file)  #TODO: friendly message
+  else:
+    config_file = os.path.expanduser("~/.magetbrainrc")
+
+  if not os.path.exists(config_file):
+    return {}
+
+  options = {}
+  config = ConfigParser.SafeConfigParser()
+  config.read([config_file])
+
+  if config.has_section(DEFAULT_SECTION):
+    options.update(config.items(DEFAULT_SECTION))
+
+  return options
+
+def command_run(args): 
+  """Entry point from the command line to start the MAGeT pipeline"""
+  print "run", args
+
+def command_init(args): 
+  """Entry point from the command line to init a folder for MAGeT brain"""
+  print "init", args
+
+
+#### Guts
+class Template: 
+  """Represents an MR image with labels, optionally"""
+  def __init__(self, image, labels = None):
+    image_path      = os.path.realpath(image)
+    self.stem       = os.path.basename(os.path.splitext(image_path)[0])
+    self.image      = image
+    self.labels     = labels
+
+    expected_labels = os.path.join(dirname(dirname(image_path)), 'labels', self.stem + "_labels.mnc")
+    if not labels and os.path.exists(expected_labels):
+      self.labels = expected_labels 
+
+
+  def get_templates(path):
     """return a list of MR image Templates from the given path.  Expect to find
     a child folder named brains/ containing MR images, and labels/ containing
     corresponding labels."""
     return [Template(i) for i in glob.glob(os.path.join(path, 'brains', "*.mnc"))]
 
 
-def queue():
-    # queue template library registrations
-    # queue voting 
-    pass
 
 if __name__ == '__main__':
-    parser = OptionParser()
-    parser.set_usage("%prog [options] <command>")        
-    parser.add_option("--output_dir", dest="output_dir",
-        default="output", type="string", 
-        help="Path to output folder")
-    parser.add_option("--registrations_dir", dest="registrations_dir",
-        default="regisstrations", type="string", 
-        help="Directory containing registrations from template library to subject.")
-    parser.add_option("-n", dest="dry_run",
-        default=False,
-        action="store_true", 
-        help="Dry run.")
-    parser.add_option("--invert_resample", dest="invert_resample",
-        action="store_true", default=False,
-        help="Invert the transformations during resampling.")
-    options, args = parser.parse_args()
-
-    assert len(args) > 0, "Expects a command."
-    command = args[0]
-
-    output_dir        = os.path.abspath(options.output_dir)
-    registrations_dir = os.path.join(output_dir, "registrations")
-
-    if command == "register": 
-        pass
-    elif command == "start":
-        pass
+    main()
