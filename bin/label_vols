@@ -12,7 +12,7 @@ import subprocess
 import StringIO
 
 def execute(command, input = "", dry_run = False, stdout = 2):
-    """Spins off a subprocess to run the cgiven command"""
+    """Spins off a subprocess to run the given command"""
  
       
     if not dry_run:
