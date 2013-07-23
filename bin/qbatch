@@ -102,7 +102,7 @@ if __name__ == "__main__":
           if fnmatch.fnmatch(name, options.afterok_pattern):
             matching_jobids.append(jobid)        
         if matching_jobids:
-            qsub_options.append('-W afterok:' + ':'.join(matching_jobids))
+            qsub_options.append('-W depends=afterok:' + ':'.join(matching_jobids))
       
     elif options.batch_system == 'sge':
       options.processes=1  # TODO: can we actually set this up properly? 
