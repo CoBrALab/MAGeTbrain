@@ -9,7 +9,12 @@ import os.path
 import argparse
 import ConfigParser
 import sys
+import errno
 import logging
+import tempfile
+import random
+import string
+from os.path import join, exists, basename, dirname
 
 DEFAULT_SECTION = "Defaults"  # Name of defaults section in config file.
                               # This section gets explicitly loaded always,
@@ -17,11 +22,34 @@ DEFAULT_SECTION = "Defaults"  # Name of defaults section in config file.
                               # only supplies default values to be used in other
                               # sections. 
 
+# Stages
+STAGE_NONE      = 'NONE'         # not a stage
+STAGE_REG_ATLAS = 'mb_atlas'     # register all atlases to templates
+STAGE_REG_TEMPL = 'mb_tmpl'      # register all templates to subjects
+STAGE_XFM_JOIN  = 'mb_join'      # register all templates to subjects
+STAGE_RESAMPLE  = 'mb_lbl'       # resample all atlas labels to subject space
+STAGE_VOTE      = 'mb_vote'      # vote
+
+# info about each stage to help with queuing jobs. This could be turned into
+# classes that have the smarts to operate on the queues themselves.
+# Until then, this is dictionary containing: 
+#   stage -> (max_processors_per_node, walltime)
+# The order also matters, as later stages may depend on earlier stages only.
+stage_queue_hints = {  
+    STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
+    STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
+    STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
+    STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
+    STAGE_VOTE:      {'procs':    1, 'walltime': '4:00:00'}}
+
+# file/folder defaults
+XFM = "nl.xfm"
+
 class SpecialFormatter(logging.Formatter):
-  FORMATS = {logging.DEBUG :"DBG: %(module)s: %(lineno)d: %(message)s",
-  logging.ERROR : "ERROR: %(message)s",
-  logging.INFO : "%(message)s",
-  'DEFAULT' : "%(levelname)s: %(message)s"}
+  FORMATS = {logging.DEBUG :"DBG: MOD %(module)s: LINE %(lineno)d: %(message)s",
+             logging.ERROR : "ERROR: %(message)s",
+             logging.INFO : "%(message)s",
+             'DEFAULT' : "%(levelname)s: %(message)s"}
 
   def format(self, record):
     self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
@@ -30,7 +58,7 @@ class SpecialFormatter(logging.Formatter):
 hdlr = logging.StreamHandler(sys.stderr)
 hdlr.setFormatter(SpecialFormatter())
 logging.root.addHandler(hdlr)
-logging.root.setLevel(logging.INFO)
+logging.root.setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # commands:
@@ -39,7 +67,7 @@ logger = logging.getLogger(__name__)
 # check                    - do some sanity checks on inputs 
 # run                      - do everything that needs doing, picking up where
 #                            left off
-# run register_atlases     - do atlas-template registrations
+# run register             - do atlas-template registrations
 # run vote                 - do voting 
 # pick_templates <size>    - randomly make template library from subjects
 # 
@@ -91,14 +119,21 @@ def main():
   subparsers = parser.add_subparsers(help='command')
 
   # run : run the stages in the MAGeT pipeline
+  ############################################
   parser_run = subparsers.add_parser('run', help='run MAGeT brain')
-  parser_run.add_argument('stage', choices=['basic',
-                                            'register_atlases', 
+  parser_run.add_argument('stage', choices=['vanilla',
+                                            'register', 
                                             'vote'],
                                    nargs='?', # makes stage optional
-                                   default = 'basic',
+                                   default = 'vanilla',
                                    help="stage to run")
   parser_run.set_defaults(func=command_run)
+
+  # subject selection options
+  group = parser_run.add_argument_group(title="Subject selection")
+  group.add_argument("-s", "--subject", default=None,
+      metavar="ID", 
+      help="Subject ID (no file extension) to operate on")
 
   # Registration options
   group = parser_run.add_argument_group(title="Registration")
@@ -120,11 +155,15 @@ def main():
     type=int, metavar='N',
     help="Do normalised mutual information voting with the top N templates.")
 
+  # Execution options
   group = parser_run.add_argument_group(title="Execution options")
+  group.add_argument('-q', '--queue', choices=['parallel', 'qbatch'],
+                                   default = 'parallel',
+                                   help="Queueing method to use")
   group.add_argument("-n", dest="dry_run", default=False,
     action="store_true", 
     help="Dry run. Show what would happen.")
-  group.add_argument("--processes", default=8, 
+  group.add_argument("-j", "--processes", default=8, 
     type=int, metavar='N',
     help="Number of processes to parallelize over.")
   group.add_argument("--clobber", default=False, 
@@ -132,12 +171,13 @@ def main():
       help="Overwrite output if it exists")
 
   # init : prepare a folder for use by the pipeline
+  #################################################
   parser_init = subparsers.add_parser('init', help='initialise folder')
   parser_init.add_argument('folder', default='.', nargs='?')
   parser_init.set_defaults(func=command_init)
 
-  args = parser.parse_args(remaining_argv)
-  args.func(args)
+  options = parser.parse_args(remaining_argv)
+  options.func(options)
 
 def load_config(config_file):
   if config_file:
@@ -157,14 +197,308 @@ def load_config(config_file):
 
   return options
 
-def command_run(args): 
+
+def command_run(options): 
   """Entry point from the command line to start the MAGeT pipeline"""
-  print "run", args
+  atlases   = Template.get_templates(join(options.input_dir, 'atlases'))
+  templates = Template.get_templates(join(options.input_dir, 'templates'))
+  subjects  = Template.get_templates(join(options.input_dir, 'subjects'))
 
-def command_init(args): 
+  if options.subject: 
+    subjects = [s for s in subjects if s.stem == options.subject]
+   
+  logger.info('{0} atlases, {1} templates, {2} subjects found'.format(
+    len(atlases), len(templates), len(subjects)))
+  assert len(atlases) > 0
+  assert len(templates) > 0
+  assert len(subjects) > 0
+    
+  # TODO set up queue
+  
+  if options.queue == "qbatch": 
+    queue = QBatchCommandQueue(processors=options.processes)
+  elif options.queue == "parallel":
+    queue = ParallelCommandQueue(processors=options.processes)
+  else:
+    queue = CommandQueue()
+  queue.set_dry_run(options.dry_run)
+
+  # we could be running one of many different stages depending on what is
+  # specified on the command line. 
+  # 
+  #   vanilla  - run the basic MAGeT brain pipeline
+  #   register - run the register stage (atlas to template)
+  #   vote     - vote on subjects
+  #
+  # Depending on the stage chosen, and configuration options, we might submit
+  # jobs to a queue or simply run jobs locally. 
+  # 
+  # Additionally, we may even submit jobs that re-run the pipeline (or specific
+  # stages of it).
+  #
+  # The plan: 
+  # run atlas registration jobs
+  # all following jobs depend on these jobs being completed
+  # CASE: we're submitting jobs to a batch queue
+    # for each subject, submit a voting job to the queue that runs locally
+  # CASE: we're running locally
+    # for each subject, run each stage in sequence  
+  # CASE: we're submitting jobs to a non-batching queue 
+    # for each subject, submit jobs from stage in sequence, depending on the
+    # former stages
+  # IN ALL CASES (optional): 
+    # on error, re-run ourselves at least n times to handle any errors
+    # that are due to flakey filesystems, etc..
+
+  p = MAGeTBrainPipeline(options, atlases, templates, subjects)
+  p.set_queue(queue) 
+
+
+  if options.stage == "register": 
+    p.stage_register_atlases() 
+  if options.stage == "vote": 
+    if options.subject:
+      p.stage_register_templates()
+      p.stage_vote()
+
+  if options.stage == "vanilla":
+    p.stage_register_atlases() 
+    opts = vars(options)
+    for subject in subjects:
+      opts['subject'] = subject.stem
+
+      # HACK the command line to run the voting stage next
+      commandline = ' '.join(sys.argv)
+      commandline = commandline.replace('vanilla', '')
+      commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
+      if ' -q ' in commandline:
+        commandline = commandline.replace('-q qbatch', '-q parallel')
+      else:
+        commandline = commandline + ' -q parallel'
+  
+      p.queue.append_commands(STAGE_VOTE, [commandline])
+
+  print p.queue
+  p.run()
+ 
+def command_init(options): 
   """Entry point from the command line to init a folder for MAGeT brain"""
-  print "init", args
+  print "init", options
 
+
+### Pipeline construction
+class CommandQueue(object):
+  def __init__(self): 
+    self.commands = {}  # stage -> [command, ...]
+    self.dry_run = False 
+
+  def set_dry_run(self, state): 
+    self.dry_run = state
+
+  def append_commands(self, stage, commands):
+    command_list = self.commands.get(stage, [])
+    command_list.extend(commands)
+    self.commands[stage] = command_list
+
+  def run(self, stages = []):
+    """Runs the given stages, in order, or all if none are supplied"""
+    if not stages: 
+      stages = self.commands.keys()
+
+    for stage in [s for s in stages if s in self.commands.keys()]:
+      for command in self.commands[stage]:
+        self.execute(command)
+
+  def __str__(self): 
+    __str = 'Pipeline:\n'
+    for stage, commands in self.commands.items():
+      __str += 'STAGE: {0}\n'.format(stage)
+      __str += '  '+'\n  '.join(commands)
+    return __str
+
+  def execute(self, command, input = ""):
+    """Spins off a subprocess to run the cgiven command"""
+    if input:
+      logger.debug("exec: {0}\n\t{1}".format(command, input.replace('\n','\n\t')))
+    else:
+      logger.debug("exec: " + command) 
+
+    if self.dry_run: 
+      return
+    proc = subprocess.Popen(command.split(), 
+             stdin = subprocess.PIPE, stdout = 2, stderr = 2)
+    proc.communicate(input)
+    if proc.returncode != 0: 
+      raise Exception("Returns %i :: %s" %( proc.returncode, command ))
+
+class ParallelCommandQueue(CommandQueue):
+  def __init__(self, processors = 8): 
+    CommandQueue.__init__(self)
+    self.processors = processors
+
+  def run(self, stages):
+    if not stages: 
+      stages = self.commands.keys()
+
+    previous_stage = STAGE_NONE
+    for stage in [s for s in stages if s in self.commands.keys()]:
+      self.parallel(self.commands[stage])
+      previous_stage = stage
+
+  def parallel(self, commands):
+    "Runs the list of commands through parallel"
+    command = 'parallel -j%i' % self.processors
+    self.execute(command, input='\n'.join(commands))
+
+class QBatchCommandQueue(CommandQueue):
+  def __init__(self, processors = 8): 
+    CommandQueue.__init__(self)
+    self.processors = processors
+
+  def run(self, stages):
+    if not stages: 
+      stages = self.commands.keys()
+
+    previous_stage = STAGE_NONE
+    for stage in [s for s in stages if s in self.commands.keys()]:
+      unique_stage = "{0}_{1}".format(stage, 
+          ''.join([random.choice(string.letters) for i in xrange(4)]))
+      walltime   = stage_queue_hints[stage]['walltime']
+      processors = stage_queue_hints[stage]['procs']
+      self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"_*",
+          walltime=walltime, processors = processors)  
+      previous_stage = unique_stage
+
+  def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None):
+    logger.info('running {0} commands after stage {1}'.format(len(commands), afterok))
+    
+    opt_name    = batch_name and '-N {0}'.format(batch_name) or ''
+    opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
+    batchsize   = min(self.processors, processors)
+    self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
+        input='\n'.join(commands))
+    #os.remove(cmdfilename)
+    
+### MAGeT Brain Stages
+######################
+class MAGeTBrainPipeline(object):
+  def __init__(self, options, atlases, templates, subjects): 
+    self.options = options
+    self.atlases = atlases
+    self.templates = templates
+    self.subjects = subjects
+    self.temp_dir = tempfile.mkdtemp()
+
+  def set_queue(self, queue): 
+    self.queue = queue
+
+  def run(self):
+    self.queue.run(stages=[STAGE_REG_ATLAS, STAGE_REG_TEMPL, STAGE_XFM_JOIN,
+      STAGE_RESAMPLE, STAGE_VOTE])
+
+  def subject_vote_stages(self, subjects):
+    """Run the subject-specific voting stages on the given subjects"""
+    assert isinstance(subjects, list)
+    all_subjects = self.subjects
+    self.subjects = subjects
+    self.stage_vote()
+    self.subjects = all_subjects
+
+  def stage_register_atlases(self):
+    """Register atlases to templates"""
+    commands = []
+    for atlas in self.atlases: 
+      for template in self.templates: 
+        reg_dir, transform_file = self.xfm_path(self.options.output_dir, atlas, template)
+        reg_cmd = self.register_images(self.options.register_cmd, atlas, template, transform_file)
+        if reg_cmd: 
+          mkdirp(reg_dir)
+          commands.append(reg_cmd)
+    self.queue.append_commands(STAGE_REG_ATLAS, commands) 
+    return len(commands) == 0
+
+  def stage_register_templates(self):
+    """Register all templates to subjects"""
+    commands = []
+    for template in self.templates:
+      for subject in self.subjects: 
+        reg_dir, transform_file = self.xfm_path(self.options.output_dir, template, subject)
+        reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
+        if reg_cmd: 
+          mkdirp(reg_dir)
+          commands.append(reg_cmd)
+    self.queue.append_commands(STAGE_REG_TEMPL, commands) 
+    return len(commands) == 0
+
+  def stage_vote(self): 
+    output_dir = join(self.options.output_dir, 'fusion', 'majority_vote')
+    mkdirp(output_dir)
+    for subject in self.subjects:
+      candidate_labels = []
+      for atlas in self.atlases: 
+        for template in self.templates:
+          stems = [atlas.stem, template.stem, subject.stem]
+          label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
+          self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems)
+          candidate_labels.append(label)
+      command = 'voxel_vote.py {0} {1}'.format(
+          ' '.join(candidate_labels),
+          join(output_dir, subject.stem + "_labels.mnc"))
+      self.queue.append_commands(STAGE_VOTE, [command])
+
+  def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
+    """resample a label via transforms from images stem_1 ... stem_n"""
+    assert len(stems) > 1
+    xfms = []
+    for s, t in zip(stems[:-1],stems[1:]):
+      _, xfm = self.xfm_path(xfmbasedir, s, t)
+      xfms.append(xfm)
+    joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
+    self.queue.append_commands(STAGE_XFM_JOIN, 
+        ['xfmjoin {0} {1}'.format(' '.join(xfms), joined_xfm)]) 
+    self.queue.append_commands(STAGE_RESAMPLE, 
+        [' '.join(['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
+
+  def xfm_path(self, basedir, source, target, check_reg_dir = False):
+    """Returns the XFM path for registration of between to images
+
+       Expects that source and target are Template instances, and provides the
+       output directory and transform path rooted at basedir.
+
+       If check_reg_dir is set, then the registration directory is checked to
+       see if a transform exists there and that path is returned.  If the
+       transform doesn't exist in the registration directory, then a path
+       rooted at basedir is used. 
+    """
+    source = isinstance(source, Template) and source.stem or source
+    target = isinstance(target, Template) and target.stem or target
+    reg_dir = join(basedir, source, target)
+    transform_file = join(reg_dir, 'nl.xfm')
+    return (reg_dir, transform_file)
+
+  def register_images(self, cmd, source, target, output):
+    """Emits a command to register source to target if transform doesn't exist"""
+    if exists(output):  #TODO check complete
+      return
+    return ' '.join([cmd, source.image, target.image, output])
+
+### utility functions
+def mkdirp(*p):
+  """Like mkdir -p"""
+  path = join(*p)
+  try:
+    os.makedirs(path)
+  except OSError as exc: 
+    if exc.errno == errno.EEXIST:
+      pass
+    else: raise
+  return path
+
+
+def execute(cmd,*args):
+  wholecommand = ' '.join(map(str, [cmd] + list(args)))
+  logger.debug(wholecommand)
+  #return subprocess.check_output(wholecommand, shell=True, cwd=os.cwd(), universal_newlines=True)
 
 #### Guts
 class Template: 
@@ -179,12 +513,12 @@ class Template:
     if not labels and os.path.exists(expected_labels):
       self.labels = expected_labels 
 
-
-  def get_templates(path):
+  @classmethod
+  def get_templates(cls, path):
     """return a list of MR image Templates from the given path.  Expect to find
     a child folder named brains/ containing MR images, and labels/ containing
     corresponding labels."""
-    return [Template(i) for i in glob.glob(os.path.join(path, 'brains', "*.mnc"))]
+    return [Template(i) for i in glob.glob(join(path, 'brains', "*.mnc"))]
 
 
 
