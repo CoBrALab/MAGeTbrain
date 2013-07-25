@@ -14,6 +14,7 @@ import logging
 import tempfile
 import random
 import string
+import subprocess
 from os.path import join, exists, basename, dirname
 
 DEFAULT_SECTION = "Defaults"  # Name of defaults section in config file.
@@ -256,12 +257,11 @@ def command_run(options):
 
   if options.stage == "register": 
     p.stage_register_atlases() 
-  if options.stage == "vote": 
-    if options.subject:
-      p.stage_register_templates()
-      p.stage_vote()
+  if options.stage == "vote" or (options.stage == 'vanilla' and options.queue == 'parallel'): 
+    p.stage_register_templates()
+    p.stage_vote()
 
-  if options.stage == "vanilla":
+  if options.stage == "vanilla" and options.queue == 'qbatch':
     p.stage_register_atlases() 
     opts = vars(options)
     for subject in subjects:
@@ -278,7 +278,6 @@ def command_run(options):
   
       p.queue.append_commands(STAGE_VOTE, [commandline])
 
-  print p.queue
   p.run()
  
 def command_init(options): 
