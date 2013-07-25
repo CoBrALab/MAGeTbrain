@@ -131,9 +131,10 @@ if __name__ == "__main__":
             script.write("cd $PBS_O_WORKDIR\n") 
             script.write("parallel -j%i <<TASKS\n" % options.processes) 
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
-            script.write("TASKS\n") 
+            script.write("\nTASKS\n") 
         else:
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
+            script.write("\n")
 
         script.close()
         
