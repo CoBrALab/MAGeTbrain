@@ -180,6 +180,13 @@ def main():
   parser_init.add_argument('folder', default='.', nargs='?')
   parser_init.set_defaults(func=command_init)
 
+  # check : sanity checks on inputs and MAGeT run-state
+  #####################################################
+  parser_check = subparsers.add_parser('check', 
+    help='Run sanity checks on inputs and configuration')
+  parser_check.add_argument('folder', default='.', nargs='?')
+  parser_check.set_defaults(func=command_check)
+
   options = parser.parse_args(remaining_argv)
   options.func(options)
 
@@ -293,6 +300,70 @@ def command_init(options):
   mkdirp(options.folder, 'input', 'templates', 'brains')
   mkdirp(options.folder, 'input', 'subjects', 'brains')
 
+def command_check(options): 
+  """Entry point from the command line to init a folder for MAGeT brain"""
+  projectdir = options.folder
+
+  # check that input folders exist
+  error_if_dne(options.input_dir, 
+    "The root input folder: {0} does not exist.")
+  error_if_dne(join(options.input_dir, 'atlases'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'atlases', 'brains'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'atlases', 'labels'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'templates'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'templates', 'brains'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'subjects'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'subjects', 'brains'), 
+    "{0} folder does not exist.")
+
+  # check that atlases exist, and have labels
+  atlas_dir = join(options.input_dir, 'atlases')
+  atlases   = Template.get_templates(atlas_dir)
+  if len(atlases) == 0: 
+    error("No atlases found in input folder {0}".format(atlas_dir))
+  if len(atlases) % 2 == 0: 
+    warning("{0} atlases found. Use an odd number for best results".format(
+        len(atlases)))
+  for a in atlases: 
+    if not a.labels: 
+      error("Labels for atlas image {0} not found".format(a.image))
+    
+  # check that templates and subjects exist
+  templates_dir = join(options.input_dir, 'templates')
+  templates     = Template.get_templates(templates_dir)
+  if len(templates) == 0: 
+    error("No templates found in input folder {0}".format(templates_dir))
+  if len(templates) % 2 == 0: 
+    warning("{0} templates found. Use an odd number for best results".format(
+        len(templates)))
+
+  subjects_dir = join(options.input_dir, 'subjects')
+  subjects     = Template.get_templates(subjects_dir)
+  if len(subjects) == 0: 
+    error("No subjects found in input folder {0}".format(subjects_dir))
+  if len(subjects) % 2 == 0: 
+    warning("{0} subjects found. Use an odd number for best results".format(
+        len(subjects)))
+
+
+def error_if_dne(path, message, errno = 1):
+  if not exists(path): 
+    error(message.format(path), errno)
+
+def error(message, errno = 1):
+  """Print the error message and exit"""
+  logger.error(message)
+  sys.exit(errno) 
+
+def warning(message):
+  """Print the warning message"""
+  logger.info("WARNING: {0}".format(message))
 
 ### Pipeline construction
 class CommandQueue(object):
