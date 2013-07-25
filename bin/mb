@@ -288,7 +288,10 @@ def command_run(options):
  
 def command_init(options): 
   """Entry point from the command line to init a folder for MAGeT brain"""
-  print "init", options
+  mkdirp(options.folder, 'input', 'atlases', 'brains')
+  mkdirp(options.folder, 'input', 'atlases', 'labels')
+  mkdirp(options.folder, 'input', 'templates', 'brains')
+  mkdirp(options.folder, 'input', 'subjects', 'brains')
 
 
 ### Pipeline construction
