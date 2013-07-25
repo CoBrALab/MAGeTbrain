@@ -270,6 +270,9 @@ def command_run(options):
     p.stage_register_atlases() 
 
     for subject in subjects:
+      _, label = p.fused_label_path(subject) 
+      if exists(label):
+        continue
       # HACK the command line to run the voting stage next
       commandline = ' '.join(sys.argv)
       commandline = commandline.replace('vanilla', '')
@@ -438,9 +441,9 @@ class MAGeTBrainPipeline(object):
   def stage_vote(self): 
     """
         Assumes all registrations are complete. """
-    output_dir = join(self.options.output_dir, 'fusion', 'majority_vote')
-    mkdirp(output_dir)
     for subject in self.subjects:
+      output_dir, fused_lbl = self.fused_label_path(subject)
+      mkdirp(output_dir)
       candidate_labels = []
       for atlas in self.atlases: 
         for template in self.templates:
@@ -449,8 +452,7 @@ class MAGeTBrainPipeline(object):
           self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems)
           candidate_labels.append(label)
       command = 'voxel_vote.py {0} {1}'.format(
-          ' '.join(candidate_labels),
-          join(output_dir, subject.stem + "_labels.mnc"))
+          ' '.join(candidate_labels), fused_lbl)
       self.queue.append_commands(STAGE_VOTE, [command])
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
@@ -471,6 +473,11 @@ class MAGeTBrainPipeline(object):
         ['xfmjoin {0} {1}'.format(' '.join(xfms), joined_xfm)]) 
     self.queue.append_commands(STAGE_RESAMPLE, 
         [' '.join(['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
+
+  def fused_label_path(self, subject):
+    output_dir = join(self.options.output_dir, 'fusion', 'majority_vote')
+    lbl = join(output_dir, subject.stem + "_labels.mnc")
+    return (output_dir, lbl)
 
   def xfm_path(self, source, target, basedir = None, check_reg_dir = False):
     """Returns the XFM path for registration of between to images
