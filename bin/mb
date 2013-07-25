@@ -162,7 +162,7 @@ def main():
   # Execution options
   group = parser_run.add_argument_group(title="Execution options")
   group.add_argument('-q', '--queue', choices=['parallel', 'qbatch'],
-                                   default = 'parallel',
+                                   default = 'qbatch',
                                    help="Queueing method to use")
   group.add_argument("-n", dest="dry_run", default=False,
     action="store_true", 
@@ -261,15 +261,15 @@ def command_run(options):
   if options.stage == "register": 
     p.stage_register_atlases() 
   if options.stage == "vote" or (options.stage == 'vanilla' and options.queue == 'parallel'): 
+    #TODO assumes all atlases have been registered, but we should check here
+    #that that's so.
     p.stage_register_templates()
     p.stage_vote()
 
   if options.stage == "vanilla" and options.queue == 'qbatch':
     p.stage_register_atlases() 
-    opts = vars(options)
-    for subject in subjects:
-      opts['subject'] = subject.stem
 
+    for subject in subjects:
       # HACK the command line to run the voting stage next
       commandline = ' '.join(sys.argv)
       commandline = commandline.replace('vanilla', '')
@@ -344,8 +344,9 @@ class ParallelCommandQueue(CommandQueue):
 
     previous_stage = STAGE_NONE
     for stage in [s for s in stages if s in self.commands.keys()]:
-      self.parallel(self.commands[stage])
-      previous_stage = stage
+      if self.commands[stage]:
+        self.parallel(self.commands[stage])
+        previous_stage = stage
 
   def parallel(self, commands):
     "Runs the list of commands through parallel"
@@ -363,13 +364,14 @@ class QBatchCommandQueue(CommandQueue):
 
     previous_stage = STAGE_NONE
     for stage in [s for s in stages if s in self.commands.keys()]:
-      unique_stage = "{0}_{1}".format(stage, 
-          ''.join([random.choice(string.letters) for i in xrange(4)]))
-      walltime   = stage_queue_hints[stage]['walltime']
-      processors = stage_queue_hints[stage]['procs']
-      self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
-          walltime=walltime, processors = processors)  
-      previous_stage = unique_stage
+      if self.commands[stage]:
+        unique_stage = "{0}_{1}".format(stage, 
+            ''.join([random.choice(string.letters) for i in xrange(4)]))
+        walltime   = stage_queue_hints[stage]['walltime']
+        processors = stage_queue_hints[stage]['procs']
+        self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
+            walltime=walltime, processors = processors)  
+        previous_stage = unique_stage
 
   def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None):
     logger.info('running {0} commands after stage {1}'.format(len(commands), afterok))
@@ -411,12 +413,13 @@ class MAGeTBrainPipeline(object):
     commands = []
     for atlas in self.atlases: 
       for template in self.templates: 
-        reg_dir, transform_file = self.xfm_path(self.options.reg_dir, atlas, template)
+        reg_dir, transform_file = self.xfm_path(atlas, template)
         reg_cmd = self.register_images(self.options.register_cmd, atlas, template, transform_file)
         if reg_cmd: 
           mkdirp(reg_dir)
           commands.append(reg_cmd)
-    self.queue.append_commands(STAGE_REG_ATLAS, commands) 
+    if commands:
+      self.queue.append_commands(STAGE_REG_ATLAS, commands) 
     return len(commands) == 0
 
   def stage_register_templates(self):
@@ -424,7 +427,7 @@ class MAGeTBrainPipeline(object):
     commands = []
     for template in self.templates:
       for subject in self.subjects: 
-        reg_dir, transform_file = self.xfm_path(self.options.reg_dir, template, subject)
+        reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
         reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
         if reg_cmd: 
           mkdirp(reg_dir)
@@ -433,6 +436,8 @@ class MAGeTBrainPipeline(object):
     return len(commands) == 0
 
   def stage_vote(self): 
+    """
+        Assumes all registrations are complete. """
     output_dir = join(self.options.output_dir, 'fusion', 'majority_vote')
     mkdirp(output_dir)
     for subject in self.subjects:
@@ -449,11 +454,17 @@ class MAGeTBrainPipeline(object):
       self.queue.append_commands(STAGE_VOTE, [command])
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
-    """resample a label via transforms from images stem_1 ... stem_n"""
+    """resample a label via transforms from images stem_1 ... stem_n
+
+       Looks for transforms in the registration directory, and if not found,
+       then looks in the temporary directory. TODO: this leads to the quirk
+       that if atlas-template transforms haven't been generated, then we assume
+       they're in the temp dir but don't check that they exist. Perhaps the
+       check should happen earlier on. """
     assert len(stems) > 1
     xfms = []
     for s, t in zip(stems[:-1],stems[1:]):
-      _, xfm = self.xfm_path(xfmbasedir, s, t)
+      _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     self.queue.append_commands(STAGE_XFM_JOIN, 
@@ -461,27 +472,38 @@ class MAGeTBrainPipeline(object):
     self.queue.append_commands(STAGE_RESAMPLE, 
         [' '.join(['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
 
-  def xfm_path(self, basedir, source, target, check_reg_dir = False):
+  def xfm_path(self, source, target, basedir = None, check_reg_dir = False):
     """Returns the XFM path for registration of between to images
 
        Expects that source and target are Template instances, and provides the
-       output directory and transform path rooted at basedir.
+       output directory and transform path rooted at basedir. basedir defaults 
+       to the default registration directory (output/registration).
 
        If check_reg_dir is set, then the registration directory is checked to
        see if a transform exists there and that path is returned.  If the
        transform doesn't exist in the registration directory, then a path
        rooted at basedir is used. 
     """
+
     source = isinstance(source, Template) and source.stem or source
     target = isinstance(target, Template) and target.stem or target
+
+    if check_reg_dir: 
+        reg_dir, xfm = self.xfm_path(source, target)
+        if exists(xfm):                
+            return (reg_dir, xfm)
+
+    if basedir == None: 
+        basedir = self.options.reg_dir
+
     reg_dir = join(basedir, source, target)
-    transform_file = join(reg_dir, 'nl.xfm')
-    return (reg_dir, transform_file)
+    xfm = join(reg_dir, XFM)
+    return (reg_dir, xfm)
 
   def register_images(self, cmd, source, target, output):
     """Emits a command to register source to target if transform doesn't exist"""
     if exists(output):  #TODO check complete
-      return
+      return None
     return ' '.join([cmd, source.image, target.image, output])
 
 ### utility functions
