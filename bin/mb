@@ -115,6 +115,9 @@ def main():
   group.add_argument("--input_dir",   default="input", 
     type=os.path.abspath, 
     help="Directory containing atlas, template and subject libraries")
+  group.add_argument("--reg_dir",   default="output/registrations", 
+    type=os.path.abspath, 
+    help="Directory containing registrations")
 
   # subcommands
   subparsers = parser.add_subparsers(help='command')
@@ -364,7 +367,7 @@ class QBatchCommandQueue(CommandQueue):
           ''.join([random.choice(string.letters) for i in xrange(4)]))
       walltime   = stage_queue_hints[stage]['walltime']
       processors = stage_queue_hints[stage]['procs']
-      self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"_*",
+      self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
           walltime=walltime, processors = processors)  
       previous_stage = unique_stage
 
@@ -408,7 +411,7 @@ class MAGeTBrainPipeline(object):
     commands = []
     for atlas in self.atlases: 
       for template in self.templates: 
-        reg_dir, transform_file = self.xfm_path(self.options.output_dir, atlas, template)
+        reg_dir, transform_file = self.xfm_path(self.options.reg_dir, atlas, template)
         reg_cmd = self.register_images(self.options.register_cmd, atlas, template, transform_file)
         if reg_cmd: 
           mkdirp(reg_dir)
@@ -421,7 +424,7 @@ class MAGeTBrainPipeline(object):
     commands = []
     for template in self.templates:
       for subject in self.subjects: 
-        reg_dir, transform_file = self.xfm_path(self.options.output_dir, template, subject)
+        reg_dir, transform_file = self.xfm_path(self.options.reg_dir, template, subject)
         reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
         if reg_cmd: 
           mkdirp(reg_dir)
