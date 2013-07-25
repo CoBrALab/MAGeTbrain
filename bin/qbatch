@@ -99,6 +99,8 @@ if __name__ == "__main__":
         o, e = execute(r"""pbs_jobnames""")
         matching_jobids = []
         for row in o.strip().split("\n"):
+          if not row.strip(): # skip empty lines
+            continue
           jobid, name = row.split()
           if fnmatch.fnmatch(name, options.afterok_pattern):
             matching_jobids.append(jobid)        
