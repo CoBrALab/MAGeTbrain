@@ -37,11 +37,19 @@ STAGE_VOTE      = 'mb_vote'      # vote
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
 stage_queue_hints = {  
-    STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
-    STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
-    STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
-    STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
-    STAGE_VOTE:      {'procs':    1, 'walltime': '4:00:00'}}
+  STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
+  STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
+  STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
+  STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
+  STAGE_VOTE:      {'procs':    1, 'walltime': '4:00:00'}}
+
+# stage descriptions
+stage_description = {
+  STAGE_REG_ATLAS: 'Atlas-to-template registration', 
+  STAGE_REG_TEMPL: 'Template-to-subject registration',
+  STAGE_XFM_JOIN:  'Atlas-to-subject transform creating',
+  STAGE_RESAMPLE:  'Atlas-to-subject label propogation', 
+  STAGE_VOTE:      'Subject label fusion'}
 
 # file/folder defaults
 XFM = "nl.xfm"
@@ -187,6 +195,18 @@ def main():
   parser_check.add_argument('folder', default='.', nargs='?')
   parser_check.set_defaults(func=command_check)
 
+  # status : output status of each stage
+  #####################################################
+  parser_status = subparsers.add_parser('status', 
+    help='Run sanity statuss on inputs and configuration')
+  parser_status.add_argument('folder', default='.', nargs='?')
+  parser_status.add_argument_group(title="Subject selection")
+  parser_status.add_argument("-s", "--subject", default=None,
+      metavar="ID", 
+      help="Subject ID (no file extension) to operate on")
+  parser_status.set_defaults(func=command_status)
+  parser_status.set_defaults(register_cmd='')
+
   options = parser.parse_args(remaining_argv)
   options.func(options)
 
@@ -208,9 +228,7 @@ def load_config(config_file):
 
   return options
 
-
-def command_run(options): 
-  """Entry point from the command line to start the MAGeT pipeline"""
+def get_inputs(options):
   atlases   = Template.get_templates(join(options.input_dir, 'atlases'))
   templates = Template.get_templates(join(options.input_dir, 'templates'))
   subjects  = Template.get_templates(join(options.input_dir, 'subjects'))
@@ -220,12 +238,16 @@ def command_run(options):
    
   logger.info('{0} atlases, {1} templates, {2} subjects found'.format(
     len(atlases), len(templates), len(subjects)))
-  assert len(atlases) > 0
-  assert len(templates) > 0
-  assert len(subjects) > 0
+
+  return (atlases, templates, subjects)
+
+def command_run(options): 
+  """Entry point from the command line to start the MAGeT pipeline"""
     
-  # TODO set up queue
-  
+  # Run through sanity checks
+  command_check(options)
+  atlases, templates, subjects = get_inputs(options)
+
   if options.queue == "qbatch": 
     queue = QBatchCommandQueue(processors=options.processes)
   elif options.queue == "parallel":
@@ -261,7 +283,7 @@ def command_run(options):
     # on error, re-run ourselves at least n times to handle any errors
     # that are due to flakey filesystems, etc..
 
-  p = MAGeTBrainPipeline(options, atlases, templates, subjects)
+  p = MAGeTBrain(options, atlases, templates, subjects)
   p.set_queue(queue) 
 
 
@@ -351,6 +373,22 @@ def command_check(options):
     warning("{0} subjects found. Use an odd number for best results".format(
         len(subjects)))
 
+def command_status(options): 
+  """Entry point from the command line to status command"""
+
+  command_check(options)
+  atlases, templates, subjects = get_inputs(options)
+
+  p = MAGeTBrain(options, atlases, templates, subjects)
+  p.set_queue(CommandQueue()) 
+  p.queue.set_dry_run(True)
+  p.stage_register_atlases() 
+  p.stage_register_templates()
+  p.stage_vote()
+  
+  for stage in p._get_stage_order(): 
+    logger.info("{0} commands left to run in stage {1}: {2}".format(
+      len(p.queue.commands[stage]), stage, stage_description[stage]))
 
 def error_if_dne(path, message, errno = 1):
   if not exists(path): 
@@ -363,7 +401,7 @@ def error(message, errno = 1):
 
 def warning(message):
   """Print the warning message"""
-  logger.info("WARNING: {0}".format(message))
+  logger.warn(message)
 
 ### Pipeline construction
 class CommandQueue(object):
@@ -462,7 +500,7 @@ class QBatchCommandQueue(CommandQueue):
     
 ### MAGeT Brain Stages
 ######################
-class MAGeTBrainPipeline(object):
+class MAGeTBrain(object):
   def __init__(self, options, atlases, templates, subjects): 
     self.options = options
     self.atlases = atlases
@@ -474,8 +512,7 @@ class MAGeTBrainPipeline(object):
     self.queue = queue
 
   def run(self):
-    self.queue.run(stages=[STAGE_REG_ATLAS, STAGE_REG_TEMPL, STAGE_XFM_JOIN,
-      STAGE_RESAMPLE, STAGE_VOTE])
+    self.queue.run(stages=self._get_stage_order())
 
   def subject_vote_stages(self, subjects):
     """Run the subject-specific voting stages on the given subjects"""
@@ -586,6 +623,10 @@ class MAGeTBrainPipeline(object):
     if exists(output):  #TODO check complete
       return None
     return ' '.join([cmd, source.image, target.image, output])
+
+  def _get_stage_order(self):
+    return [STAGE_REG_ATLAS, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
+        STAGE_VOTE]
 
 ### utility functions
 def mkdirp(*p):
