@@ -5,6 +5,7 @@ import math
 import logging
 import sys
 import os.path
+from os.path import basename
 import subprocess
 import errno
 import fnmatch 
@@ -95,14 +96,14 @@ if __name__ == "__main__":
       qsub_option_prefix = '#PBS'
 
       if options.afterok_pattern: 
-        o, e = execute('qstat')
+        o, e = execute(r"""pbs_jobnames""")
         matching_jobids = []
-        for row in o.strip().split("\n")[2:]:
-          jobid, name, user, time, status, queue = row.split()
+        for row in o.strip().split("\n"):
+          jobid, name = row.split()
           if fnmatch.fnmatch(name, options.afterok_pattern):
             matching_jobids.append(jobid)        
         if matching_jobids:
-            qsub_options.append('-W depends=afterok:' + ':'.join(matching_jobids))
+            qsub_options.append('-W depend=afterok:' + ':'.join(matching_jobids))
       
     elif options.batch_system == 'sge':
       options.processes=1  # TODO: can we actually set this up properly? 
@@ -118,7 +119,7 @@ if __name__ == "__main__":
         mkdirp(options.logs_dir)
 
     for chunk in range(num_jobs):
-        scriptfile=".scripts/%s_%i.sh" % (task_list_name, chunk)
+        scriptfile=".scripts/%s_%i.sh" % (basename(task_list_name), chunk)
         script = open(scriptfile, "w") 
     
         script.write("#!/bin/bash\n")
@@ -138,4 +139,4 @@ if __name__ == "__main__":
         
         execute("chmod +x %s" % scriptfile)
         o, e = execute("qsub %s" % scriptfile, dry_run = options.dry_run)
-        print " %s : %s " % (scriptfile, o.strip())
+        print "Submitting {0} (jobid: {1})".format(scriptfile, o.strip())
