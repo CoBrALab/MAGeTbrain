@@ -139,6 +139,7 @@ def main():
                                    nargs='?', # makes stage optional
                                    default = 'vanilla',
                                    help="stage to run")
+  parser_run.add_argument('folder', default='.', nargs='?')
   parser_run.set_defaults(func=command_run)
 
   # subject selection options
