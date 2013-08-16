@@ -9,7 +9,9 @@ template library made up of images from the subject set.
     git clone http://pipitone.github.com/MAGeTbrain
     cd MAGeTbrain
     export PATH=$PWD/bin:$PATH
-    mkdir -p input/{atlases,subjects,templates}/{brains,labels} logs
+    
+    # create basic folder structure
+    mb init
      
     # put MR images in /brains folders, labels in /labels
     
@@ -26,7 +28,7 @@ template library made up of images from the subject set.
 
 1. Add the `bin` folder to your path. Create a new folder for your project and, 
 
-        mkdir input/{atlases,subjects,templates}/brains logs 
+        mb init
 
 2. Copy/link your atlases, templates, subjects into `input/atlases`,
    `input/templates`, and `input/subjects`, respectively.  As per always, MR

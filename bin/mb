@@ -370,9 +370,6 @@ def command_check(options):
   subjects     = Template.get_templates(subjects_dir)
   if len(subjects) == 0: 
     error("No subjects found in input folder {0}".format(subjects_dir))
-  if len(subjects) % 2 == 0: 
-    warning("{0} subjects found. Use an odd number for best results".format(
-        len(subjects)))
 
 def command_status(options): 
   """Entry point from the command line to status command"""
