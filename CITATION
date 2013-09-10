@@ -1,0 +1,25 @@
+To cite MAGeT-Brain in publications, please use:
+
+Jon Pipitone, Min Tae Park, Julie Winterburn, Tristram A. Lett, Jason P. Lerch, Jens C. Pruessner , Martin Lepage, Aristotle N. Voineskos, M. Mallar Chakravarty and the ADNI. (2013). Bootstrapping Multi-atlas Segmentation Using Multiple Automatically Generated Templates for the Segmentation of the Whole Hippocampus and Subfields. NeuroImage, Submitted.
+
+or 
+
+Mallar Chakravarty, M., Steadman, P., van Eede, M. C., Calcott, R. D., Gu, V., Shaw, P., Raznahan, A., et al. (2012). Performing label-fusion-based segmentation using multiple automatically generated templates. Human brain mapping, 00(September 2011), 1–20.
+
+
+A BibTeX entry for LaTeX users is 
+
+@article{,
+  author = {Chakravarty, M. Mallar and Steadman, Patrick and van Eede, Matthijs C and Calcott, Rebecca D and Gu, Victoria and Shaw, Philip and Raznahan, Armin and {Louis Collins}, D and Lerch, Jason P},
+  doi = {10.1002/hbm.22092},
+  issn = {1097-0193},
+  journal = {Human brain mapping},
+  pmid = {22611030},
+  title = {Performing label-fusion-based segmentation using multiple automatically generated templates.},
+  url = {http://www.ncbi.nlm.nih.gov/pubmed/22611030},
+  year = {2012}
+  month = may,
+  volume = {00},
+  number = {September 2011},
+  pages = {1--20},
+}
