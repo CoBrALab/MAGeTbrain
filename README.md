@@ -2,7 +2,7 @@
 
 Given a set of labelled MR images (atlases) and unlabelled images (subjects),
 MAGeT produces a set of labels using a multi-atlas voting procedure based on a
-template library made up of images from the subject set. 
+template library made up of images from the subject set.  
 
 ## For the impatient (Really quick start) 
 

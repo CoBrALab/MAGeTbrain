@@ -102,37 +102,47 @@ def main():
   # http://blog.vwelch.com/2011/04/combining-configparser-and-argparse.html
   conf_parser = argparse.ArgumentParser(add_help = False)
   conf_parser.add_argument("-c", "--conf_file",
-            help = "Specify config file (defaults to ~/.magetbrainrc)", 
-            metavar="FILE")
+            help = "Config file (defaults to ~/.magetbrainrc)", 
+            metavar="")
   args, remaining_argv = conf_parser.parse_known_args()
   defaults = load_config(args.conf_file)
 
+  class DefaultHelpParser(argparse.ArgumentParser):
+      def error(self, message):
+          sys.stderr.write('error: %s\n' % message)
+          self.print_help()
+          sys.exit(2)
+
   # load options from the command line
-  parser = argparse.ArgumentParser(
-            parents = [conf_parser],
-            description = 
-           "Multiple Automatically Generated Templates Brain Segmentation")
+  parser = DefaultHelpParser(
+            parents = [conf_parser])
   parser.set_defaults(**defaults)
 
 
   # In/out directory options
-  group = parser.add_argument_group(title="Input/output folder options")
+  group = parser.add_argument_group(title="Folder options")
   group.add_argument("--output_dir", default="output", 
-    type=os.path.abspath, 
+    type=os.path.abspath, metavar='', 
     help="Top-level folder for all output")
   group.add_argument("--input_dir",   default="input", 
-    type=os.path.abspath, 
+    type=os.path.abspath, metavar='', 
     help="Directory containing atlas, template and subject libraries")
   group.add_argument("--reg_dir",   default="output/registrations", 
-    type=os.path.abspath, 
+    type=os.path.abspath, metavar='',
     help="Directory containing registrations")
 
   # subcommands
-  subparsers = parser.add_subparsers(help='command')
+  subparsers = parser.add_subparsers(title='Commands', metavar='')
+
+  # init : prepare a folder for use by the pipeline
+  #################################################
+  parser_init = subparsers.add_parser('init', help='Create an empty MAGeT brain folder structure')
+  parser_init.add_argument('folder', default='.', nargs='?')
+  parser_init.set_defaults(func=command_init)
 
   # run : run the stages in the MAGeT pipeline
   ############################################
-  parser_run = subparsers.add_parser('run', help='run MAGeT brain')
+  parser_run = subparsers.add_parser('run', help='Start the MAGeT brain pipeline')
   parser_run.add_argument('stage', choices=['vanilla',
                                             'register', 
                                             'vote'],
@@ -183,28 +193,22 @@ def main():
       action="store_true",
       help="Overwrite output if it exists")
 
-  # init : prepare a folder for use by the pipeline
-  #################################################
-  parser_init = subparsers.add_parser('init', help='initialise folder')
-  parser_init.add_argument('folder', default='.', nargs='?')
-  parser_init.set_defaults(func=command_init)
-
   # check : sanity checks on inputs and MAGeT run-state
   #####################################################
   parser_check = subparsers.add_parser('check', 
-    help='Run sanity checks on inputs and configuration')
+    help='Run sanity checks on the inputs and configuration')
   parser_check.add_argument('folder', default='.', nargs='?')
   parser_check.set_defaults(func=command_check)
 
   # status : output status of each stage
   #####################################################
   parser_status = subparsers.add_parser('status', 
-    help='Run sanity statuss on inputs and configuration')
+    help='Show status of completed work')
   parser_status.add_argument('folder', default='.', nargs='?')
   parser_status.add_argument_group(title="Subject selection")
   parser_status.add_argument("-s", "--subject", default=None,
-      metavar="ID", 
-      help="Subject ID (no file extension) to operate on")
+    metavar="ID", 
+    help="Subject ID (no file extension) to operate on")
   parser_status.set_defaults(func=command_status)
   parser_status.set_defaults(register_cmd='')
 
