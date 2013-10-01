@@ -1,24 +1,21 @@
 # Multiple Automatically Generated Templates brain segmentation algorithm
 
-Given a set of labelled MR images (atlases) and unlabelled images (subjects),
-MAGeT produces a set of labels using a multi-atlas voting procedure based on a
-template library made up of images from the subject set.  
+Given a set of labelled MR images (atlases) and unlabelled images (subjects), MAGeT produces a segmentation for each subject using a multi-atlas voting procedure based on a template library made up of images from the subject set.  
+
+Here is a schematic comparing 'traditional' multi-atlas segmentation, and MAGeT brain segmentation: 
+
+![Multi-atlas and MAGeT brain operation schematic](doc/MA-MAGeTBrain-Schematic.png "Schematic")
+
+The major difference between algorithms is that, in MAGeT brain, segmentations from each atlas (typically manually delineated) are propogated via image registration to a subset of the subject images (known as the 'template library') before being propogated to each subject image and fused. It is our hypothesis that by propogating labels to a template library, we are able to make use of the neuroanatomical variability of the subjects in order to 'fine tune' each individual subject's segmentation. 
 
 ## For the impatient (Really quick start) 
 
     git clone http://pipitone.github.com/MAGeTbrain
-    cd MAGeTbrain
-    export PATH=$PWD/bin:$PATH
-    
-    # create basic folder structure
-    mb init
-     
-    # put MR images in /brains folders, labels in /labels
-    
-    # if you are running on scinet, simply run 
+    export PATH=$PWD/MAGeTBrain/bin:$PATH
+    mb init segmentation
+    # populate the segmentation/input folder
+    mb check
     mb run
-
-    # check output/fusion/majority_vote for labels
 
 ## Quick start
 
