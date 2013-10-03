@@ -45,11 +45,11 @@ stage_queue_hints = {
 
 # stage descriptions
 stage_description = {
-  STAGE_REG_ATLAS: 'Atlas-to-template registration', 
-  STAGE_REG_TEMPL: 'Template-to-subject registration',
-  STAGE_XFM_JOIN:  'Atlas-to-subject transform creating',
-  STAGE_RESAMPLE:  'Atlas-to-subject label propogation', 
-  STAGE_VOTE:      'Subject label fusion'}
+  STAGE_REG_ATLAS: 'Registering atlases to templates', 
+  STAGE_REG_TEMPL: 'Registering templates to subjects',
+  STAGE_XFM_JOIN:  'Merging transforms',
+  STAGE_RESAMPLE:  'Propogate labels from atlases to subjects', 
+  STAGE_VOTE:      'Fusing labels'}
 
 # file/folder defaults
 XFM = "nl.xfm"
@@ -97,27 +97,13 @@ logger = logging.getLogger(__name__)
 
 def main(): 
   """Main driver."""
-  # load options from config file 
-  # argparse/ConfigParse integration approach via: 
-  # http://blog.vwelch.com/2011/04/combining-configparser-and-argparse.html
-  conf_parser = argparse.ArgumentParser(add_help = False)
-  conf_parser.add_argument("-c", "--conf_file",
-            help = "Config file (defaults to ~/.magetbrainrc)", 
-            metavar="")
-  args, remaining_argv = conf_parser.parse_known_args()
-  defaults = load_config(args.conf_file)
-
   class DefaultHelpParser(argparse.ArgumentParser):
       def error(self, message):
           sys.stderr.write('error: %s\n' % message)
           self.print_help()
           sys.exit(2)
 
-  # load options from the command line
-  parser = DefaultHelpParser(
-            parents = [conf_parser])
-  parser.set_defaults(**defaults)
-
+  parser = DefaultHelpParser()
 
   # In/out directory options
   group = parser.add_argument_group(title="Folder options")
@@ -212,26 +198,8 @@ def main():
   parser_status.set_defaults(func=command_status)
   parser_status.set_defaults(register_cmd='')
 
-  options = parser.parse_args(remaining_argv)
+  options = parser.parse_args()
   options.func(options)
-
-def load_config(config_file):
-  if config_file:
-    assert os.path.exists(config_file)  #TODO: friendly message
-  else:
-    config_file = os.path.expanduser("~/.magetbrainrc")
-
-  if not os.path.exists(config_file):
-    return {}
-
-  options = {}
-  config = ConfigParser.SafeConfigParser()
-  config.read([config_file])
-
-  if config.has_section(DEFAULT_SECTION):
-    options.update(config.items(DEFAULT_SECTION))
-
-  return options
 
 def get_inputs(options):
   atlases   = Template.get_templates(join(options.input_dir, 'atlases'))
@@ -534,8 +502,7 @@ class MAGeTBrain(object):
         if reg_cmd: 
           mkdirp(reg_dir)
           commands.append(reg_cmd)
-    if commands:
-      self.queue.append_commands(STAGE_REG_ATLAS, commands) 
+    self.queue.append_commands(STAGE_REG_ATLAS, commands) 
     return len(commands) == 0
 
   def stage_register_templates(self):
