@@ -41,7 +41,7 @@ stage_queue_hints = {
   STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
   STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
   STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
-  STAGE_VOTE:      {'procs':    1, 'walltime': '4:00:00'}}
+  STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'}}
 
 # stage descriptions
 stage_description = {
@@ -116,6 +116,9 @@ def main():
   group.add_argument("--reg_dir",   default="output/registrations", 
     type=os.path.abspath, metavar='',
     help="Directory containing registrations")
+  group.add_argument("--save",   default=False, 
+    action="store_true", 
+    help="Save intermediate files (e.g. template-subject registrations, candidate labels)")
 
   # subcommands
   subparsers = parser.add_subparsers(title='Commands', metavar='')
@@ -270,7 +273,6 @@ def command_run(options):
 
   if options.stage == "vanilla" and options.queue == 'qbatch':
     p.stage_register_atlases() 
-
     for subject in subjects:
       _, label = p.fused_label_path(subject) 
       if exists(label):
@@ -356,7 +358,7 @@ def command_status(options):
   p.stage_register_templates()
   p.stage_vote()
   
-  for stage in p._get_stage_order(): 
+  for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} commands left to run in stage {1}: {2}".format(
       len(p.queue.commands[stage]), stage, stage_description[stage]))
 
@@ -476,7 +478,11 @@ class MAGeTBrain(object):
     self.atlases = atlases
     self.templates = templates
     self.subjects = subjects
-    self.temp_dir = tempfile.mkdtemp()
+
+    if options.save: 
+        self.temp_dir = join(options.output_dir, 'intermediate')
+    else:
+        self.temp_dir = tempfile.mkdtemp()
 
   def set_queue(self, queue): 
     self.queue = queue
