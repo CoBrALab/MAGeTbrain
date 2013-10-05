@@ -14,6 +14,7 @@ import tempfile
 import random
 import string
 import subprocess
+import shutil
 from os.path import join, exists, basename, dirname
 
 # Stages
@@ -184,6 +185,16 @@ def main():
   parser_status.set_defaults(func=command_status)
   parser_status.set_defaults(register_cmd='')
 
+  # import : import atlases into the current project
+  #####################################################
+  parser_import = subparsers.add_parser('import', 
+    help='Import an atlas into the current project')
+  parser_import.add_argument('-l', '--link', default=False, 
+    action='store_true', help="Symlink, rather than, copy files.")
+  parser_import.add_argument('image')
+  parser_import.add_argument('label_file')
+  parser_import.set_defaults(func=command_import)
+
   options = parser.parse_args()
   options.func(options)
 
@@ -341,6 +352,26 @@ def command_status(options):
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
       len(p.queue.commands[stage]), stage_description[stage]))
+
+def command_import(options): 
+  """Entry point for the import command"""
+  atlases_brains = join(options.input_dir, 'atlases', 'brains')
+  atlases_labels = join(options.input_dir, 'atlases', 'labels')
+
+  error_if_dne(atlases_brains, "Folder {0} does not exist")
+  error_if_dne(atlases_labels, "Folder {0} does not exist")
+  error_if_dne(options.image, "Image {0} does not exist")
+  error_if_dne(options.label_file, "Label file {0} does not exist")
+  template = Template(options.image, options.label_file)
+  dest_image  = join(atlases_brains, '{0}.mnc'.format(template.stem))
+  dest_labels = join(atlases_labels, '{0}_labels.mnc'.format(template.stem))
+
+  if options.link:
+    os.symlink(os.path.abspath(options.image), dest_image)
+    os.symlink(os.path.abspath(options.label_file), dest_labels)
+  else:
+    shutil.copyfile(options.image, dest_image)
+    shutil.copyfile(options.label_file, dest_labels)
 
 def error_if_dne(path, message, errno = 1):
   if not exists(path): 
