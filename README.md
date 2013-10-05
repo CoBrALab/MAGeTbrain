@@ -29,8 +29,16 @@ The major difference between algorithms is that, in MAGeT brain, segmentations f
 
 2. Copy/link your atlases, templates, subjects into `input/atlases`,
    `input/templates`, and `input/subjects`, respectively.  As per always, MR
-   images go in `brains` and corresponding labels go in `labels`.  Labels should
-   have the same name as the MR image but with a postfix of `_labels.mnc`.
+   images go in `brains`. 
+
+   Atlas labels are expected to have the same name as their MR image but with a
+   postfix of `_labels.mnc`. Use the `import` command to simplify the renaming
+   process:
+        mb import /path/to/image_file.mnc /path/to/label_file.mnc
+
+   This copies the image and label files into the proper folder and rename the
+   label file accordingly. Use the `mb import -l` to use symbolic links rather
+   than copying files.
 
 3. MAGeT Brain is operated using the ```mb``` command. In order to run the
    entire pipeline, simply run: 
