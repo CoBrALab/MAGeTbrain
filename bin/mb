@@ -7,7 +7,6 @@ import glob
 import os
 import os.path
 import argparse
-import ConfigParser
 import sys
 import errno
 import logging
@@ -17,12 +16,6 @@ import string
 import subprocess
 from os.path import join, exists, basename, dirname
 
-DEFAULT_SECTION = "Defaults"  # Name of defaults section in config file.
-                              # This section gets explicitly loaded always,
-                              # unlike the ConfigParser's DEFAULT section which
-                              # only supplies default values to be used in other
-                              # sections. 
-
 # Stages
 STAGE_NONE      = 'NONE'         # not a stage
 STAGE_REG_ATLAS = 'mb_atlas'     # register all atlases to templates
@@ -30,6 +23,7 @@ STAGE_REG_TEMPL = 'mb_tmpl'      # register all templates to subjects
 STAGE_XFM_JOIN  = 'mb_join'      # register all templates to subjects
 STAGE_RESAMPLE  = 'mb_lbl'       # resample all atlas labels to subject space
 STAGE_VOTE      = 'mb_vote'      # vote
+STAGE_TAR       = 'mb_tar'       # tar up
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -41,15 +35,18 @@ stage_queue_hints = {
   STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
   STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
   STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
-  STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'}}
+  STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
+  STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'}}
 
 # stage descriptions
 stage_description = {
-  STAGE_REG_ATLAS: 'Registering atlases to templates', 
-  STAGE_REG_TEMPL: 'Registering templates to subjects',
-  STAGE_XFM_JOIN:  'Merging transforms',
-  STAGE_RESAMPLE:  'Propogate labels from atlases to subjects', 
-  STAGE_VOTE:      'Fusing labels'}
+  STAGE_REG_ATLAS: 'atlas-to-template registration', 
+  STAGE_REG_TEMPL: 'template-to-subject registration',
+  STAGE_XFM_JOIN:  'transform merging',
+  STAGE_RESAMPLE:  'label propagation', 
+  STAGE_VOTE:      'label fusion', 
+  STAGE_TAR:       'tar intermediate files', 
+}
 
 # file/folder defaults
 XFM = "nl.xfm"
@@ -104,6 +101,8 @@ def main():
           sys.exit(2)
 
   parser = DefaultHelpParser()
+  parser.add_argument("--save", default=False, action="store_true", 
+    help="Save intermediate files (e.g. registrations, candidate labels)")
 
   # In/out directory options
   group = parser.add_argument_group(title="Folder options")
@@ -116,9 +115,6 @@ def main():
   group.add_argument("--reg_dir",   default="output/registrations", 
     type=os.path.abspath, metavar='',
     help="Directory containing registrations")
-  group.add_argument("--save",   default=False, 
-    action="store_true", 
-    help="Save intermediate files (e.g. template-subject registrations, candidate labels)")
 
   # subcommands
   subparsers = parser.add_subparsers(title='Commands', metavar='')
@@ -155,26 +151,13 @@ def main():
          "This command needs to accept the source image, target image "
          "and output transformation file as arguments, in this order.")
            
-  # Voting options
-  group = parser_run.add_argument_group(title="Registration options")
-  group.add_argument("--majvote", default=False,
-    action="store_true", 
-    help="Do majority voting")
-  group.add_argument("--xcorr",  default=None,
-    type=int, metavar='N',
-    help="Do cross-correlation voting with the top N templates.")
-  group.add_argument("--nmi", default=None,
-    type=int, metavar='N',
-    help="Do normalised mutual information voting with the top N templates.")
-
   # Execution options
   group = parser_run.add_argument_group(title="Execution options")
   group.add_argument('-q', '--queue', choices=['parallel', 'qbatch'],
                                    default = 'qbatch',
                                    help="Queueing method to use")
   group.add_argument("-n", dest="dry_run", default=False,
-    action="store_true", 
-    help="Dry run. Show what would happen.")
+    action="store_true", help="Dry run. Show what would happen.")
   group.add_argument("-j", "--processes", default=8, 
     type=int, metavar='N',
     help="Number of processes to parallelize over.")
@@ -261,15 +244,15 @@ def command_run(options):
 
   p = MAGeTBrain(options, atlases, templates, subjects)
   p.set_queue(queue) 
-
-
+  
+  
   if options.stage == "register": 
     p.stage_register_atlases() 
   if options.stage == "vote" or (options.stage == 'vanilla' and options.queue == 'parallel'): 
     #TODO assumes all atlases have been registered, but we should check here
     #that that's so.
-    p.stage_register_templates()
     p.stage_vote()
+   
 
   if options.stage == "vanilla" and options.queue == 'qbatch':
     p.stage_register_atlases() 
@@ -347,20 +330,17 @@ def command_check(options):
 
 def command_status(options): 
   """Entry point from the command line to status command"""
-
   command_check(options)
   atlases, templates, subjects = get_inputs(options)
-
   p = MAGeTBrain(options, atlases, templates, subjects)
   p.set_queue(CommandQueue()) 
   p.queue.set_dry_run(True)
   p.stage_register_atlases() 
-  p.stage_register_templates()
   p.stage_vote()
   
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
-    logger.info("{0} commands left to run in stage {1}: {2}".format(
-      len(p.queue.commands[stage]), stage, stage_description[stage]))
+    logger.info("{0} {1} commands left".format(
+      len(p.queue.commands[stage]), stage_description[stage]))
 
 def error_if_dne(path, message, errno = 1):
   if not exists(path): 
@@ -478,11 +458,7 @@ class MAGeTBrain(object):
     self.atlases = atlases
     self.templates = templates
     self.subjects = subjects
-
-    if options.save: 
-        self.temp_dir = join(options.output_dir, 'intermediate')
-    else:
-        self.temp_dir = tempfile.mkdtemp()
+    self.temp_dir = tempfile.mkdtemp()
 
   def set_queue(self, queue): 
     self.queue = queue
@@ -511,23 +487,27 @@ class MAGeTBrain(object):
     self.queue.append_commands(STAGE_REG_ATLAS, commands) 
     return len(commands) == 0
 
-  def stage_register_templates(self):
+  def stage_register_templates(self, subject):
     """Register all templates to subjects"""
     commands = []
     for template in self.templates:
-      for subject in self.subjects: 
-        reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
-        reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
-        if reg_cmd: 
-          mkdirp(reg_dir)
-          commands.append(reg_cmd)
+      reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
+      reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
+      if reg_cmd: 
+        mkdirp(reg_dir)
+        commands.append(reg_cmd)
     self.queue.append_commands(STAGE_REG_TEMPL, commands) 
     return len(commands) == 0
 
   def stage_vote(self): 
-    """
-        Assumes all registrations are complete. """
+    """Assumes all registrations are complete. """
     for subject in self.subjects:
+      if self.options.save:
+        i = mkdirp(self.options.output_dir, 'intermediate')
+        tarfile = join(i, "{0}.tar".format(subject.stem))
+        tar_cmd = "tar --remove-files -cvf {0} {1}".format(tarfile, self.temp_dir)
+        self.queue.append_commands(STAGE_TAR, [tar_cmd])
+      self.stage_register_templates(subject)
       output_dir, fused_lbl = self.fused_label_path(subject)
       mkdirp(output_dir)
       candidate_labels = []
@@ -539,7 +519,8 @@ class MAGeTBrain(object):
           candidate_labels.append(label)
       command = 'voxel_vote.py {0} {1}'.format(
           ' '.join(candidate_labels), fused_lbl)
-      self.queue.append_commands(STAGE_VOTE, [command])
+      if not exists(fused_lbl):
+        self.queue.append_commands(STAGE_VOTE, [command])
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
@@ -555,10 +536,12 @@ class MAGeTBrain(object):
       _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
-    self.queue.append_commands(STAGE_XFM_JOIN, 
-        ['xfmjoin {0} {1}'.format(' '.join(xfms), joined_xfm)]) 
-    self.queue.append_commands(STAGE_RESAMPLE, 
-        [' '.join(['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
+    if not exists(joined_xfm): 
+        self.queue.append_commands(STAGE_XFM_JOIN, 
+            ['xfmjoin {0} {1}'.format(' '.join(xfms), joined_xfm)]) 
+    if not exists(output_lbl):
+        self.queue.append_commands(STAGE_RESAMPLE, 
+            [' '.join(['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
 
   def fused_label_path(self, subject):
     output_dir = join(self.options.output_dir, 'fusion', 'majority_vote')
@@ -601,7 +584,7 @@ class MAGeTBrain(object):
 
   def _get_stage_order(self):
     return [STAGE_REG_ATLAS, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
-        STAGE_VOTE]
+        STAGE_VOTE, STAGE_TAR]
 
 ### utility functions
 def mkdirp(*p):
