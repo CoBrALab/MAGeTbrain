@@ -121,7 +121,7 @@ if __name__ == "__main__":
         mkdirp(options.logs_dir)
 
     for chunk in range(num_jobs):
-        scriptfile=".scripts/%s_%i.sh" % (basename(task_list_name), chunk)
+        scriptfile=".scripts/%s_%i" % (basename(task_list_name), chunk)
         script = open(scriptfile, "w") 
     
         script.write("#!/bin/bash\n")
