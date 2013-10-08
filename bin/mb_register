@@ -14,12 +14,13 @@
 # usage:
 #      register <atlas.mnc> <target.mnc> <output.xfm>
 #   
+set -e
 atlas=$1
 target=$2
 output_xfm=$3
 
 atlas_stem=$(basename $atlas .mnc)
-atlas_mask=$(dirname $(dirname $atlas))/masks/${atlas_stem}-mask.mnc
+atlas_mask=$(dirname $(dirname $atlas))/masks/${atlas_stem}_mask.mnc
 output_dir=$(dirname $output_xfm)
 AT_lin_xfm=$output_dir/ATlin.xfm
 TA_lin_xfm=$output_dir/ATlin_inverse.xfm
@@ -46,11 +47,10 @@ if [ -e $atlas_mask ]; then
   mincresample -like $target -transform $AT_lin_xfm $atlas_mask $atlas_res_mask
   ANTS_MASK_ARGS="-x $atlas_res_mask"
 fi 
-
 # NONLINEAR
 if [ ! -e $TA_nl_xfm ]; then
   mincANTS 3 -m PR[$target,$atlas_res,1,4] \
-    $ANT_MASK_ARGS \
+    $ANTS_MASK_ARGS \
     --continue-affine false \
     --use-Histogram-Matching \
     -r Gauss[3,0] \
