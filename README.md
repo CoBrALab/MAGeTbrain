@@ -8,12 +8,15 @@ Here is a schematic comparing 'traditional' multi-atlas segmentation, and MAGeT 
 
 The major difference between algorithms is that, in MAGeT brain, segmentations from each atlas (typically manually delineated) are propogated via image registration to a subset of the subject images (known as the 'template library') before being propogated to each subject image and fused. It is our hypothesis that by propogating labels to a template library, we are able to make use of the neuroanatomical variability of the subjects in order to 'fine tune' each individual subject's segmentation. 
 
-## For the impatient (Really quick start) 
+## For the impatient:
 
     git clone http://pipitone.github.com/MAGeTbrain
     export PATH=$PWD/MAGeTBrain/bin:$PATH
-    mb init segmentation
-    # populate the segmentation/input folder
+    mb init segmentations
+    cd segmentations
+    mb import atlas1_t1.mnc atlas1_labels.mnc
+    mb import atlas2_t1.mnc atlas2_labels.mnc
+    ... 
     mb check
     mb run
 
@@ -58,6 +61,41 @@ The major difference between algorithms is that, in MAGeT brain, segmentations f
     
 Currently, only majority voting label fusion is enabled.  For a more complete
 implementation, check the 'master' branch. 
+
+## MAGeT Brain Commands
+
+
+#### ```mb init```
+
+```
+mb init [<folder>]
+
+```
+
+The ```init``` command is used to start a new project. It creates a folder
+structure to hold MAGeT brain inputs and outputs. If no folder name is supplied
+then the current folder is used.  ```init`` creates the following folders: 
+```
+project-folder/
+    input/
+        atlases/
+            brains/
+            labels/
+        templates/
+            brains/
+        subjects/
+            brains/
+    output/
+```    
+
+### ```mb import```
+```
+mb import <image.mnc> <labels.mnc> [<mask.mnc>]
+```
+
+### ```mb check```
+### ```mb status```
+### ```mb run```
 
 ---
     http://tinysong.com/y9lO
