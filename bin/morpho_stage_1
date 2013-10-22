@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# Estimates subject surfaces and projects them into model space
+# 
+# 1. A median subject surface for each region is estimated by taking the average
+# of the surfaces from each atlas as deformed through all possible
+# transformation pathways from atlas->template->subject.
+#
+# 2. These surfaces are then registered to corresponding model surfaces and then
+# projected into model space by applying the estimated transform. These surfaces
+# are stored in the output/objects folder, with the following naming
+# convention:
+#       output/objects/<subject>_<object-type>/<subject>_<object-type>.{txt,obj}
+# 
+
+# stop on error 
+set -e 
+
+subject=$1    # subject stem
+tmp=/dev/shm
+med_surface=${subject}_median_surface
+procs=8
+
+mkdir -p output/objects
+
+# transform atlas objects to subject space along all template image pathways
+parallel -j$procs morpho_stage_1a $subject {1/.} {2/.} \
+    ::: input/atlases/brains/*.mnc ::: input/templates/brains/*.mnc
+
+# make a median surface from objects from each atlas-template combination
+morpho_make_median_surfaces.pl ${tmp}/${med_surface}.obj ${tmp}/*.obj
+dump_points_to_tag_file ${tmp}/${med_surface}.obj ${tmp}/${med_surface}.txt
+
+# transform all objects to the model via the transformation 
+# estimated by registering subject median surface to the model
+for file in input/atlases/objects/*.obj; do 
+    object=$(basename $file .obj)
+
+    # dump model objects to text
+    if [ ! -e "$(dirname $file)/${object}.txt" ]; then
+        dump_points_to_tag_file $file $(dirname $file)/${object}.txt
+    fi
+
+    # make an output directory (if it doesn't already exist) for the lsq6
+    # registered objects. There will be a directory for each object type
+    # containing that object (and its corresponding text file), after lsq6
+    # pointwise registration to the model, for each subject. 
+    mkdir -p output/objects/${object}
+    echo morpho_stage_1b $subject $object
+done | parallel -j8
+
+# copy generated files 
+# TODO: speed this up by a) generating files directly to output folder, b)
+# generating files directly to a separate folder which we can move in one
+# command, or c) converting the loops to a 'find' operation
+for file in /dev/shm/output/*.{obj,txt}; do
+    for dir in output/objects/*; do
+        if [ "${$file%.???}" = "${subject}_$(basename $dir)" ]; then
+            cp $file $dir
+        fi
+    done
+done
+
+rm -r /dev/shm/* # clean up /dev/shm/ and /dev/shm/output/ folders

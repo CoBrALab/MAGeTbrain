@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# Projects all atlas surfaces to subject space along all pathways
+#
+
+# stop on error
+set -e
+
+subject=$1    # subject stem
+atlas=$2      # atlas stem 
+template=$3   # template stem
+tmp=/dev/shm
+
+# create a single XFM from subject->template->atlas->model
+# TODO: use xfmjoin
+(
+echo "MNI Transform File"
+for xfm in  $PWD/input/atlases/transformations/${atlas}/lsq12toaverage_inverse.xfm \
+    $PWD/output/registrations/${atlas}/${template}/nl.xfm \
+    $PWD/output/registrations/${template}/${subject}/nl.xfm; do
+    grep -v "MNI Transform File" $xfm \
+        | grep -v "^%" | grep -v "^$" \
+        | sed -e "s#Displacement_Volume = #Displacement_Volume = $(dirname $xfm)/#g"
+done
+) > ${tmp}/${atlas}_${template}.xfm
+
+# Create a single deformation field for this transform
+minc_displacement -clob \
+    input/atlases/model/average_model.mnc \
+    ${tmp}/${atlas}_${template}.xfm \
+    ${tmp}/${atlas}_${template}_grid_0.mnc
+
+# remove any linear component from the grid file
+get_lin_from_nlin ${tmp}/${atlas}_${template}.xfm \
+                  input/subjects/${subject}.mnc \
+                  ${tmp}/${atlas}_${template}_nl.xfm 
+
+# clean up
+rm ${tmp}/${subject}/${atlas}_${template}.xfm
+rm ${tmp}/${subject}/${atlas}_${template}_grid_0.mnc
+
+# loop through all atlas objects and transform along atlas->subject pathway
+for file in input/atlases/objects/*; do 
+    transform_objects $file \
+                      ${tmp}/${atlas}_${template}_nl.xfm \
+                      ${tmp}/${subject}_$(basename $file)
+done

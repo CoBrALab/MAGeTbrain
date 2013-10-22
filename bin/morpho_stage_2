@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# 
+subject=$1
+object=$2
+
+xfms=/dev/shm/xfms
+mkdir /dev/shm/tmp
+mkdir /dev/shm/xfms
+
+for file in output/objects/${object}/*.txt; do
+	target=$(basename $file .txt)
+	[ "$subject" == "$target" ] && continue;
+    echo merge_tags_lsq12.pl \
+        output/objects/${object}/${target}.txt \
+        output/objects/${object}/${subject}.txt \
+        /dev/shm/tmp/${subject}_${target}.txt \
+        ${xfms}/${subject}_${target}.xfm
+done | parallel -j8
+
+# TODO: make this subject specific to avoid collision?
+xfmavg ${xfms}/* /dev/shm/avg.xfm
+
+transform_objects \
+    output/objects/${object}/${subject}.obj \
+    /dev/shm/avg.xfm \
+    output/final/${object}/${subject}.obj

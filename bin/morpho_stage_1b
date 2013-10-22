@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+# Projects subject median surfaces into model space 
+#
+
+# stop on error
+set -e 
+
+subject=$1 # subject in format H001
+object=$2  # object in format left_CA1
+
+tmp=/dev/shm
+sub2mod6xfm=${subject}_to_model_lsq6_${object}.xfm 
+med_surface=${subject}_median_surface              
+
+# lsq6 pointwise registration of subject median surface to model object.
+# merge_tags_xxxx.pl merges the target and source text files (and spits this
+# merged file out, which you don't need), then runs tagtoxfm to register them to
+# each other. xxxx indicates the type of registration (lsq6 or lsq12). In this
+# step, we are doing an lsq6 registration between the subject median surface and
+# the model object.
+morpho_merge_tags_lsq6.pl input/atlases/objects/${object}.txt \
+                          ${tmp}/${med_surface}.txt ${tmp}/${object}_merged.txt \
+                          ${tmp}/${sub2mod6xfm}
+
+# transform subject median surface along this pathway and store in the output
+# folder in format H001_left_CA1.obj
+transform_objects ${tmp}/${med_surface}.obj \
+                  ${tmp}/${sub2mod6xfm} \
+                  ${tmp}/${output}/${subject}_${object}.obj
+
+# dump object points to text file for next step and store in format
+# H001_left_CA1.txt
+dump_points_to_tag_file ${tmp}/${output}/${subject}_${object}.obj \
+                        ${tmp}/${output}/${subject}_${object}.txt
+
