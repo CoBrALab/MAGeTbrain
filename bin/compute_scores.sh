@@ -64,7 +64,7 @@ for subject in input/subjects/brains/*.mnc; do
 linxfm $xfm $linxfm  
 mincresample -2 -like $template -invert -transform $linxfm $subject $linres
 xcorr_vol.sh $linres $template $mask $score_root_dir/xcorr.txt 
-#nmi_vol.sh $linres $template $mask $score_root_dir/nmi.txt
+nmi_vol.sh $linres $template $mask $score_root_dir/nmi.txt
 rm $linxfm $linres $script
 EOF
   chmod +x $script
