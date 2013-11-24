@@ -12,20 +12,11 @@
 output_dir=$PWD/output
 
 echo "Consolidating scores..."
-for scoretype in xcorr; do 
+for scoretype in xcorr nmi; do 
     csv=$output_dir/$scoretype.csv
-    for t in $output_dir/scores/*; do
-        for s in $t/*; do
-            scorefile=$s/$scoretype.txt
-            if [ ! -e $scorefile ]; then
-                echo "WARNING: $scorefile expected but not found!" 1>&2
-                continue
-            fi
-            subject_stem=$(basename $s)
-            template_stem=$(basename $(dirname $s))
-            echo $template_stem, $subject_stem, $(cat $scorefile)
-        done
-    done > $csv
+    find $output_dir/scores -name $scoretype.txt | \
+        parallel 'echo -n "{}, "; cat {}' | \
+        sed -e "s#$output_dir/scores/##g" -e "s#/$scoretype.txt##g" -e 's#/#, #g' > $csv
 done
 
 echo "TARing labels..."

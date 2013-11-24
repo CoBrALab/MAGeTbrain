@@ -13,8 +13,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
 parser = DefaultHelpParser()
 parser.add_argument("--nmi", default=False, action='store_true',
         help="Normalized mutual information")
-parser.add_argument("--src_mask", help="source image mask")
-parser.add_argument("--tgt_mask", help="target image mask")
+parser.add_argument("--mask", help="image mask")
 parser.add_argument("source", help="source image")
 parser.add_argument("target", help="target image")
 arguments = parser.parse_args()
@@ -22,14 +21,11 @@ arguments = parser.parse_args()
 source = volumeFromFile(arguments.source, dtype='ubyte').data
 target = volumeFromFile(arguments.target, dtype='ubyte').data
 
-if arguments.src_mask:
-    src_mask = volumeFromFile(arguments.src_mask, dtype='ubyte').data
-    source = numpy.ma.array(source, mask=src_mask>0)
+if arguments.mask:
+    mask = volumeFromFile(arguments.mask, dtype='ubyte').data
+    source = numpy.ma.array(source, mask=mask>0)
     source = source[~source.mask]
-
-if arguments.tgt_mask:
-    tgt_mask = volumeFromFile(arguments.tgt_mask, dtype='ubyte').data
-    target = numpy.ma.array(target, mask=tgt_mask>0)
+    target = numpy.ma.array(target, mask=mask>0)
     target = target[~target.mask]
 
 if arguments.nmi:
