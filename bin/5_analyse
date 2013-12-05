@@ -24,9 +24,10 @@
 #
 # This script expects output/fusion* folders with .tar files in them. 
 #
-for f in output/fusion*; do 
-    for i in input/atlases/labels/*.mnc; do
-        t=output/$f/*_$(basename $i _labels.mnc).tar 
-        [ -e $t -a ! -e output/$f/$(basename $t .tar)_similarity.csv ] && echo analyse_vote_tar.sh $t $i
+for i in input/atlases/labels/*.mnc; do
+    for t in output/fusion*/*_$(basename $i _labels.mnc).tar; do
+        csv=$(dirname $t)/$(basename $t .tar)_similarity.csv
+        [ -e $csv ] && continue
+        echo vote_tar_analyse.sh $t $i
     done 
 done > analyse.jobs
