@@ -5,6 +5,7 @@ import math
 import logging
 import sys
 import os.path
+from os.path import basename
 import subprocess
 import errno
 import fnmatch 
@@ -50,6 +51,9 @@ if __name__ == "__main__":
     parser.add_option("-n", dest="dry_run",
         action="store_true", default=False,
         help="Dry run.  No commands are executed, but script files are generated.")
+    parser.add_option("--cores", dest="cores",
+        default=8, type="int", 
+        help="Number of cores per node.")
     parser.add_option("--processes", dest="processes",
         default=8, type="int", 
         help="Number of processes to parallelize over.")
@@ -88,21 +92,23 @@ if __name__ == "__main__":
     num_jobs       = int(math.ceil(len(task_list) / float(chunk_size)))
 
     if options.batch_system == 'pbs': 
-      qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime), 
+      qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.cores, walltime), 
                       '-j oe',
                       '-o %s' % options.logs_dir,
                       '-V'] 
       qsub_option_prefix = '#PBS'
 
       if options.afterok_pattern: 
-        o, e = execute('qstat')
+        o, e = execute(r"""pbs_jobnames""")
         matching_jobids = []
-        for row in o.strip().split("\n")[2:]:
-          jobid, name, user, time, status, queue = row.split()
+        for row in o.strip().split("\n"):
+          if not row.strip(): # skip empty lines
+            continue
+          jobid, name = row.split()
           if fnmatch.fnmatch(name, options.afterok_pattern):
             matching_jobids.append(jobid)        
         if matching_jobids:
-            qsub_options.append('-W depends=afterok:' + ':'.join(matching_jobids))
+            qsub_options.append('-W depend=afterok:' + ':'.join(matching_jobids))
       
     elif options.batch_system == 'sge':
       options.processes=1  # TODO: can we actually set this up properly? 
@@ -118,7 +124,7 @@ if __name__ == "__main__":
         mkdirp(options.logs_dir)
 
     for chunk in range(num_jobs):
-        scriptfile=".scripts/%s_%i.sh" % (task_list_name, chunk)
+        scriptfile=".scripts/%s_%i" % (basename(task_list_name), chunk)
         script = open(scriptfile, "w") 
     
         script.write("#!/bin/bash\n")
@@ -130,12 +136,13 @@ if __name__ == "__main__":
             script.write("cd $PBS_O_WORKDIR\n") 
             script.write("parallel -j%i <<TASKS\n" % options.processes) 
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
-            script.write("TASKS\n") 
+            script.write("\nTASKS\n") 
         else:
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
+            script.write("\n")
 
         script.close()
         
         execute("chmod +x %s" % scriptfile)
         o, e = execute("qsub %s" % scriptfile, dry_run = options.dry_run)
-        print " %s : %s " % (scriptfile, o.strip())
+        print "Submitting {0} (jobid: {1})".format(scriptfile, o.strip())
