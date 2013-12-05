@@ -6,9 +6,22 @@ output_root=$2
 temp_dir=$(mktemp -d)
 template_stem=$(basename $template .mnc)
 mask=$temp_dir/mask.mnc
-PROCESSORS=8
+PROCESSORS=16
 
-mincmath -max $output_root/labels/*/$template_stem/labels.mnc $temp_dir/max.mnc
+# propogate labels from atlases to template
+for atlas_labels in input/atlases/labels/*.mnc; do
+    atlas_stem=$(basename $atlas_labels _labels.mnc)
+    linxfm=$temp_dir/${atlas_stem}_${template_stem}_lin.xfm
+    labels=$temp_dir/${atlas_stem}_${template_stem}_labels.mnc
+
+    xfm=$output_root/registrations/$atlas_stem/$template_stem/nl.xfm
+    echo linxfm $xfm $linxfm ';' \
+    mincresample -2 -like $template -transform $linxfm $atlas_labels $labels 
+done | tee | parallel -j$PROCESSORS
+
+echo mincmath -max $temp_dir/*_${template_stem}_labels.mnc $temp_dir/max.mnc
+mincmath -max $temp_dir/*_${template_stem}_labels.mnc $temp_dir/max.mnc
+echo minccalc -expression 'max(A)>0' $temp_dir/max.mnc $temp_dir/threshold.mnc
 minccalc -expression 'max(A)>0' $temp_dir/max.mnc $temp_dir/threshold.mnc
 echo mincmorph -successive DDD $temp_dir/threshold.mnc $mask 
 mincmorph -successive DDD $temp_dir/threshold.mnc $mask 
