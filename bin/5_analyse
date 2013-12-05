@@ -1,0 +1,32 @@
+#!/bin/bash
+# 
+# Used when doing cross-validation tests, this script is used to create jobs
+# for computing the similarity/volume of output segmentations. 
+# 
+# Specifically, imagine you had run your voting stage like so: 
+#  vote.py \
+#       --tar_output \
+#       --fusion_dir=output\fusion_1  \
+#       --random_subsampling  \
+#       --num_atlases=1:9:2  \
+#       --num_templates=1:15:2  \
+#       --majvote  \
+#       --xcorr=1:15:2  \
+#       --nmi=1:15:2  \
+#       --multiatlas  \
+#       --multiatlas_xcorr=1:15:2  \
+#       --multiatlas_nmi=1:15:2 \
+#       subject_1
+#
+# Then in your fusion_1 output folder you should find a .tar file with the
+# results of the various voting permutations. This script will find those .tar
+# files, and emit analyse_vote_tar.sh commands to analyse them. 
+#
+# This script expects output/fusion* folders with .tar files in them. 
+#
+for f in output/fusion*; do 
+    for i in input/atlases/labels/*.mnc; do
+        t=output/$f/*_$(basename $i _labels.mnc).tar 
+        [ -e $t -a ! -e output/$f/$(basename $t .tar)_similarity.csv ] && echo analyse_vote_tar.sh $t $i
+    done 
+done > analyse.jobs
