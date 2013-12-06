@@ -42,9 +42,9 @@ def parse_range(r):
 
     try:
         l = r.split(":")
-        if len(l) == 1: 
+        if len(l) == 1:
             l = [r,r,1]
-        elif len(l) == 2: 
+        elif len(l) == 2:
             l.append(1)
         return (int(l[0]), int(l[1])+1, int(l[2]))
     except:
@@ -384,9 +384,9 @@ if __name__ == "__main__":
 
     if options.resample_tmpl_labels:
         execute("tar xzf output/labels.tar.gz -C " + persistent_temp_dir, dry_run = options.dry_run)
-    if options.xcorr > 0:
+    if options.xcorr or options.multiatlas_xcorr:
         xcorr_scores = read_scores(os.path.join(output_dir, "xcorr.csv"))
-    if options.nmi > 0:
+    if options.nmi or options.multiatlas_nmi:
         nmi_scores = read_scores(os.path.join(output_dir, "nmi.csv"))
     template_labels_dir = mkdirp(persistent_temp_dir, "labels")
     timestamp = datetime.now().strftime("%Y-%m-%d.%H-%M-%S") + "-" + socket.gethostname() + "_" + "_".join(target_stems)
