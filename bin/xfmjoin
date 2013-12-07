@@ -36,14 +36,13 @@ import datetime
 from os import getcwd 
 from os.path import dirname, normpath, join
 
-def _pop(l):
-    while l and l[0].strip() == "":
-        l.pop(0)
-    return l and l.pop(0).strip() or None
-
 class Transform():
+    def __init__(self):
+        self.type = ""
+        self.transform = []
+        self.invert_flag_line = "Invert_Flag = False;" 
     def __repr__(self): 
-        return "\n".join([self.type] + self.transform)
+        return "\n".join([self.type, self.invert_flag_line] + self.transform)
 
 class GridTransform(Transform):
     def update_volume_path(self, relative_to = 'source'):
@@ -66,37 +65,42 @@ class XFM():
         if xfmfile_path: 
             self.populate(xfmfile_path)
 
+    def consume_invert_line(self, lines, transform):
+        if lines[0].startswith("Invert_Flag"):
+            transform.invert_flag_line = lines.pop(0)
+
     def populate(self, xfmfile_path = None):
 
-        lines = open(xfmfile_path).readlines()
+        lines = filter(None, map(lambda x: x.strip(), open(xfmfile_path)))
         while lines:
-            line = _pop(lines)
+            line = lines.pop(0) 
             if line.startswith('%'):
                 self.history.append(line)
                 continue
             if line.startswith("MNI"):
                 self.header = line
                 continue
-
             if line.startswith("Transform_Type = Grid_Transform;"):
                 transform = GridTransform() 
                 transform.fromfile = xfmfile_path
                 transform.type = line
-                transform.transform = [_pop(lines)]
+                self.consume_invert_line(lines, transform)
+                transform.transform = [lines.pop(0)]
                 self.transforms.append(transform)
                 continue
             if line.startswith("Transform_Type = Linear;"):
                 transform = Transform() 
                 transform.fromfile = xfmfile_path
                 transform.type = line
-                transform.transform = [ _pop(lines), _pop(lines), _pop(lines), _pop(lines) ]
+                self.consume_invert_line(lines, transform)
+                transform.transform = [ lines.pop(0), lines.pop(0), lines.pop(0), lines.pop(0) ]
                 self.transforms.append(transform)
                 continue
 
             print "Ignoring line:", line
         
     def __repr__(self):
-        return "\n".join([self.header] + self.history + map(str,self.transforms))
+        return "\n".join([self.header] + self.history + map(str,self.transforms)) + "\n"
 
     def merge(self, xfms, paths_relative_to = 'source'):
         self.history.append("%% %s >> Merging %s" % (datetime.datetime.now().isoformat(), 
