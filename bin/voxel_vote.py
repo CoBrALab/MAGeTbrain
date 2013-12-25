@@ -8,7 +8,6 @@ logger.debug("Starting imports...")
 import subprocess
 from pyminc.volumes.factory import *
 from numpy import *
-from scipy.stats import *
 from optparse import OptionParser
 
 logger.debug("Done imports.  Starting program")
@@ -22,6 +21,23 @@ def execute(command, input = ""):
     proc.communicate(input)
     if proc.returncode != 0: 
         raise Exception("Returns %i :: %s" %( proc.returncode, command ))
+
+# stolen from scipy.stats
+def mode(a, axis=0):
+    scores = unique(ravel(a))       # get ALL unique values
+    testshape = list(a.shape)
+    testshape[axis] = 1
+    oldmostfreq = zeros(testshape)
+    oldcounts = zeros(testshape)
+
+    for score in scores:
+        template = (a == score)
+        counts = expand_dims(sum(template, axis),axis)
+        mostfrequent = where(counts > oldcounts, score, oldmostfreq)
+        oldcounts = maximum(counts, oldcounts)
+        oldmostfreq = mostfrequent
+
+    return mostfrequent, oldcounts
 
 if __name__ == "__main__":
 
