@@ -1,0 +1,149 @@
+#!/usr/bin/env python2.7
+from itertools import product, chain
+from collections import defaultdict
+import os.path
+import multiprocessing
+import random
+
+
+# infrastructure 
+class datafile: 
+  def __init__(self, path): 
+    self.path = path 
+    self.abspath = os.path.abspath(path)
+    self.stem = os.path.basename(os.path.splitext(path)[0])
+  def exists(self): 
+    return os.path.isfile(self.realpath)
+  def __str__(self):
+    return self.abspath
+
+class out(datafile):
+  pass
+
+class image(datafile):
+  def labels(self):
+    l = os.path.join(self.path,'..','..',"{}_labels.mnc".format(self.stem))
+    return os.path.exists(l) and abspath(l) or None
+
+class taskset:
+  def __init__(self):
+    self.stages = defaultdict(list)
+    self.stage_order = []
+  def stage(self,stage_name):
+    """syntactic sugar"""
+    t = self
+    class _stage(): 
+      def command(self, *args):
+        t.command(stage_name,args)
+    return _stage()
+
+  def command(self,stage,cmd):
+    self.stages[stage].append(cmd)
+    if stage not in self.stage_order: self.stage_order.append(stage)
+  def set_stage_order(self, order):
+    assert set(order).issubset(set(self.stages.keys)), "some stages given are not part of this taskset"
+    self.stage_order = order
+  def __str__(self):
+    __str=""
+    for stage in self.stage_order:
+      __str += '{0}:\n'.format(stage)
+      for command in self.stages[stage]:
+        __str += '\t{0}\n'.format(' '.join(map(str,command)))
+    return __str
+
+class multiprocqueue:
+  def run(self,tasks,processes=None,stage_order=None):
+    """Runs the commands from the given stages in the task list.
+       
+       If stages isn't provided, then all stages are run. """
+    stage_order = stage_order or tasks.order
+    for stage in stage_order:
+      results = self._run(tasks[stages], processes)
+      #TODO: assert that there were no errors
+
+  def _run(self,commands,processes=None): 
+    commands = self._filter_completed(commands)
+    pool = multiprocessing.Pool(processes)
+    results = pool.apply(os.system, commands)
+    pool.close()
+    return results
+  def _filter_completed(self,commands):
+    return [c for c in commands if not all(
+      map(os.path.isfile,filter(lambda x: isinstance(x,out),c)))]
+
+class Morphobits:
+  def __init__(self):
+    self._config = dict() # runtime configuration 
+    self._config['output_dir']='output'
+    self._config['reg_dir']   ='registrations'
+    self._config['reg_dir']   ='registrations'
+
+  def xfmpath(self,images,name='nl.xfm'):
+    args=[self._config['output_dir'],self._config['reg_dir']] + [i.stem for i in images] + [name]
+    return os.path.join(*args)
+
+  def build_pipeline(self,atlases,native_subjects,model,tasklist=None):
+    tasklist = tasklist or taskset()
+    subjects = []
+
+    def stage(stage_name):
+      return tasklist.stage(stage_name)
+    
+    def command(command,stage):
+      tasklist.stage(stage).command(*command)
+
+    # move to subjects to model space 
+    for s in native_subjects:
+      nuc=out('output/nuc/'+s.stem)
+      xfm=out(self.xfmpath([model,s],name='lsq9.xfm'))
+      modelsubject=out('output/modelspace/'+s.stem)
+      command(('nu_correct',s,nuc), stage='subject.nuc')
+      stage('subject.model.reg]').command('reg-lsq9',nuc,model,xfm)
+      stage('subject.model.res').command(
+          'resample','-transform',xfm,'-like',model,nuc,modelsubject)
+      subjects.append(image(modelsubject.path))
+  
+    # randomly select templates
+    templates = random.sample(subjects,int(0.3*len(subjects)))
+
+    # do pairwise registrations between atlases and templates and subjects 
+    for x,y in chain(product(atlases,templates), product(templates,subjects)):
+      stage('pairwise.reg').command('reg-nl',x,y,out(self.xfmpath([x,y])))
+
+    # compute the average deformation to the model for each subject
+    for s in subjects:
+      grids=[]
+      gridavg='output/gridavg/'+s.stem+'_grid.mnc'
+      for a,t in product(atlases,templates):
+        xfm=self.xfmpath([model,a,t,s])
+        grid=os.path.dirname(xfm)+'/grid.mnc'
+        stage('model.subject.xfm').command(
+            'xfmjoin',self.xfmpath([model,a]),self.xfmpath([a,t]),self.xfmpath([t,s]),out(xfm))
+        stage('model.subject.displace').command(
+            'minc_displacement',model,xfm,out(grid))
+        grids.append(grid)
+      grids.append(out(gridavg))
+      stage('model.subject.gridavg').command('mincaverage',*grids)
+    return tasklist
+
+def main():
+  morpho  = Morphobits()
+  atlases = [image(str(x)+'atlas.mnc') for x in range(3)]
+  subjects= [image(str(x)+'subject.mnc') for x in range(5)]
+  model   = image('model.mnc')
+  tasklist= morpho.build_pipeline(atlases,subjects,model)
+  print tasklist
+
+if __name__ == '__main__': 
+  main()
+# subjects = modelspace/*
+# templates = subset(subjects, 19)
+# for x, y in product(atlases,templates) + product(templates,subjects):
+#   reg-nl x y reg/x/y/nl.xfm
+#
+# for s in subjects:
+#   for m,a,t,s in product(model,atlases,templates,s):
+#     xfmjoin reg/m/a/nl.xfm reg/a/t/nl.xfm reg/t/s/nl.xfm reg/m/a/t/s/nl.xfm
+#     minc_displacement model reg/m/a/t/s/nl.xfm grid.mnc
+#   mincaverage product(model,atlases,templates,s)/grid.mnc deformation/s_grid.mnc
+#
