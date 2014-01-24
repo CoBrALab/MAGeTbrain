@@ -37,6 +37,33 @@ class image(datafile):
     l = os.path.join(self.path,'..','..',"{}_labels.mnc".format(self.stem))
     return os.path.exists(l) and abspath(l) or None
 
+class command:
+  def __init__(self, fmt_string, *args, **kwargs):
+    cmdstr = fmt_string.format(*args,**kwargs)
+    self.__init__(shlex.split(cmdstr))  # split it up into parts
+    #
+    #todo: we could augment the usual string formatting syntax to include 
+    #      the ability to indicate types (e.g. that an argument is an 'out'put
+    #      file. 
+    #
+    #      Ideas: 
+    #         # 1. use <Type>@<string> to mean 
+    #         #   call Type(string), as in: 
+    #         nuc_correct {0} out@{output_dir}/nuc/{0.stem} 
+    #
+    #         # Q: what if there are @ characters in the string?
+    #         # A: too bad. :-)  But honestly, we could just check for strings
+    #         that match $\w+@ so that the only strings that may get confused
+    #         are those that happen to start with out@ and are NOT mean to be
+    #         interpreted as types. 
+    #
+    #         # 2. use the conversion option for output files: o
+    #         bestlinreg {from} {to} {xfm!o} {resampled!o}
+
+  def __init__(self, *args): 
+    #todo: sanity checks
+    self.cmd = args
+
 class taskset:
   def __init__(self):
     self.stages = defaultdict(list)
