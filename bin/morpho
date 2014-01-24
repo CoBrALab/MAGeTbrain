@@ -5,7 +5,7 @@ from multiprocessing.dummy import Pool
 from subprocess import call
 import os, errno, random, glob, sys
 import os.path
-
+import argparse
 
 # infrastructure 
 
@@ -33,9 +33,10 @@ class out(datafile):
   pass
 
 class image(datafile):
+  def objects(self):
+    return glob.glob('{0.dirname}/../objects/*.obj'.format(self))
   def labels(self):
-    l = os.path.join(self.path,'..','..',"{}_labels.mnc".format(self.stem))
-    return os.path.exists(l) and abspath(l) or None
+    return glob.glob('{0.dirname}/../labels/{0.stem}_labels.mnc'.format(self))
 
 class command:
   def __init__(self, fmt_string, *args, **kwargs):
@@ -121,8 +122,11 @@ class multiprocqueue:
   def _filter_unfinished(self,commands):
     """returns tuple of each unfinished command, and a list of its output files"""
     details = [(c,filter(lambda x: isinstance(x,out),c)) for c in commands]
-    unfinished, outputs = zip(*[(c,o) for (c,o) in details if 
-      not all(map(lambda x: os.path.isfile(str(x)),o))])
+    filtered = [(c,o) for (c,o) in details if not all(map(lambda x: os.path.isfile(str(x)),o))]
+    if filtered:
+        unfinished, outputs = zip(*filtered)
+    else:
+        unfinished, outputs = (), ()
     return (unfinished, outputs)
 
 class Morphobits:
@@ -132,76 +136,125 @@ class Morphobits:
     self._config['reg_dir']   ='registrations'
 
   def xfmpath(self,images,name='nl.xfm'):
+    """Returns a standard path to an XFM file based on image names"""
     args=[self._config['output_dir'],self._config['reg_dir']] + [i.stem for i in images] + [name]
     return os.path.join(*args)
+
+  def config(self, key):
+    return self._config.get(key,None)
 
   def build_pipeline(self,atlases,native_subjects,model,tasklist=None):
     tasklist = tasklist or taskset()
     subjects = []
 
+    # syntactic sugar for now
     def stage(stage_name):
       return tasklist.stage(stage_name)
     
     def command(command,stage):
       tasklist.stage(stage).command(*command)
 
+    ## BEGIN
     # move to subjects to model space 
     for s in native_subjects:
       nuc=out('output/nuc/'+s.basename)
       xfm=out(self.xfmpath([model,s],name='lsq9.xfm'))
       modelsubject=out('output/modelspace/'+s.basename)
       command(('nu_correct','-quiet',s,nuc), stage='subject.nuc')
-      stage('subject.model.prop').command('bestlinreg','-lsq9',nuc,model,xfm,modelsubject)
+      stage('subject.model.prop').command(
+              'bestlinreg','-noverbose','-lsq9',nuc,model,xfm,modelsubject)
       subjects.append(image(modelsubject.path))
   
-    # randomly select templates
-    #templates = random.sample(subjects,int(0.3*len(subjects)))
-    templates = filter(lambda x: x.stem in self._config['templates'],subjects)
+    # fetch templates specified on commandline
+    print self.config('templates')
+    templates = filter(lambda x: x.stem in self.config('templates'),subjects)
 
     # do pairwise registrations between atlases and templates and subjects 
     for x,y in chain(product(atlases,templates), product(templates,subjects)):
       stage('pairwise.reg').command('mb_register',x,y,out(self.xfmpath([x,y])))
 
-    # compute the average deformation to the model for each subject
+    # do stuff with XFMs on all possible paths to subject
     for s in subjects:
-      grids=[]
+      grids=list()
+      objects=defaultdict(list)
       gridavg='output/gridavg/'+s.stem+'_grid.mnc'
+
+      # comput all possible XFM paths to subject
       for a,t in product(atlases,templates):
         xfm=self.xfmpath([model,a,t,s])
-        grid=os.path.dirname(xfm)+'/grid.mnc'
+        xfmdir=os.path.dirname(xfm)
+        grid='${xfmdir}/grid.mnc'.format(xfmdir=xfmdir)
         stage('model.subject.xfm').command(
             'xfmjoin',self.xfmpath([model,a]),self.xfmpath([a,t]),self.xfmpath([t,s]),out(xfm))
         stage('model.subject.displace').command(
             'minc_displacement',model,xfm,out(grid))
+          
+        # transform objects from atlases
+        for o in a.objects():
+          kind=os.path.basename(o)
+          object='${xfmdir}/${kind}'.format(xfmdir=xfmdir,kind=kind)
+          stage('model.subject.objects.transform').command(
+              'transform_objects',o,xfm,out(object))
+          objects[kind].append(object)
         grids.append(grid)
       grids.append(out(gridavg))
+    
+      # average XFM per subject
       stage('model.subject.gridavg').command('mincaverage',*grids)
+
+      # operate on surfaces
+      for kind in objects.keys(): 
+        # median surface per subject
+        kind_base = kind.replace('.obj','')
+        kind_dir  = '{output_dir}/{kind_base}/'.format(
+            output_dir=self.config('output_dir'),kind_base=kind_base)
+        medianobj = '{0}/{1.stem}_median.obj'.format(kind_dir,s)
+        voronoi   = '{0}/{1.stem}_vorn.txt'.format(kind_dir,s)
+        vorn_sa   = '{0}/{1.stem}_vorn_SA.txt'.format(kind_dir,s)
+
+        #hack: determine the blurring kernal to use: 
+        kernel = kind_base.startswith('gp_') and 3 or 5
+        vorn_blur = '{0}/{1.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
+            kind_dir,s,kernel=kernel)
+
+        stage('objects.median').command(
+          "make_median_surfaces.pl",out(medianobj),*objects[kind])
+        stage('objects.normals').command(
+          "recompute_normals",medianobj,medianobj) #fix: not out()
+
+        # voronoi of median surface
+        stage('objects.voronoi').command(
+          'depth_potential', '-area_voronoi',medianobj,out(voronoi))
+
     return tasklist
 
+def parse_args(): 
+  parser = argparse.ArgumentParser()
+  parser.add_argument("-n", dest="dry_run", default=False,
+    action="store_true", help="Dry run. Show what would happen.")
+  parser.add_argument("-t", '--templates', nargs='+', default=(),
+    help="A list of templates to use (name of the subject without .mnc extension)")
+  return parser.parse_args()
+  
+
 def main():
+  options = parse_args() 
+
   morpho  = Morphobits()
-  morpho._config['templates'] = 'ADNI001,ADNI002,ADNI003'
-  atlases = map(lambda x: image(x), glob.glob('input/atlases/brains/*.mnc')) #, #[image(str(x)+'atlas.mnc') for x in range(3)]
-  subjects= map(lambda x: image(x), glob.glob('input/subjects/brains/*.mnc')) #[image(str(x)+'subject.mnc') for x in range(5)]
+  morpho._config['templates'] = options.templates
+
+  atlases = map(lambda x: image(x), glob.glob('input/atlases/brains/*.mnc'))
+  subjects= map(lambda x: image(x), glob.glob('input/subjects/brains/*.mnc'))
   model   = image(glob.glob('input/model/brains/*.mnc')[0]) # check there is only one!
-  print 'atlases', map(str,atlases)
-  print 'subjects', map(str,subjects)
-  print 'model', model
+
+  print atlases, subjects
   tasklist= morpho.build_pipeline(atlases,subjects,model)
 
-  queue = multiprocqueue()
-  queue.run(tasklist,processes=2)
+  if options.dry_run:
+    print tasklist
+  else:
+    queue = multiprocqueue()
+    queue.run(tasklist,processes=2)
 
 if __name__ == '__main__': 
   main()
-# subjects = modelspace/*
-# templates = subset(subjects, 19)
-# for x, y in product(atlases,templates) + product(templates,subjects):
-#   reg-nl x y reg/x/y/nl.xfm
-#
-# for s in subjects:
-#   for m,a,t,s in product(model,atlases,templates,s):
-#     xfmjoin reg/m/a/nl.xfm reg/a/t/nl.xfm reg/t/s/nl.xfm reg/m/a/t/s/nl.xfm
-#     minc_displacement model reg/m/a/t/s/nl.xfm grid.mnc
-#   mincaverage product(model,atlases,templates,s)/grid.mnc deformation/s_grid.mnc
-#
