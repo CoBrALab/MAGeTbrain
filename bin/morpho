@@ -34,9 +34,19 @@ class out(datafile):
 
 class image(datafile):
   def objects(self):
-    return glob.glob('{0.dirname}/../objects/*.obj'.format(self))
+    return map(datafile, glob.glob('{0.dirname}/../objects/*.obj'.format(self)))
   def labels(self):
-    return glob.glob('{0.dirname}/../labels/{0.stem}_labels.mnc'.format(self))
+    return map(datafile, 
+        glob.glob('{0.dirname}/../labels/{0.stem}_labels.mnc'.format(self)))
+  def __eq__(self, other):
+    if isinstance(other,self.__class__):
+      print os.path.realpath(self.abspath), os.path.realpath(other.abspath)
+      print os.path.realpath(self.abspath) == os.path.realpath(other.abspath)
+      return os.path.realpath(self.abspath) == os.path.realpath(other.abspath)
+    else:
+      return false
+  def __ne__(self,other):
+    return not self.__eq__(other)
 
 class command:
   def __init__(self, fmt_string, *args, **kwargs):
@@ -131,21 +141,25 @@ class multiprocqueue:
 
 class Morphobits:
   def __init__(self):
-    self._config = dict() # runtime configuration 
-    self._config['output_dir']='output'
-    self._config['reg_dir']   ='registrations'
+    self._config = dict() # runtime configuration  #todo: temporary, replace
+                                                   # with members
 
   def xfmpath(self,images,name='nl.xfm'):
     """Returns a standard path to an XFM file based on image names"""
     args=[self._config['output_dir'],self._config['reg_dir']] + [i.stem for i in images] + [name]
     return os.path.join(*args)
 
-  def config(self, key):
-    return self._config.get(key,None)
+  def config(self, key, value=None):
+    if value: 
+      self._config[key] = value
+    else:
+      value = self._config.get(key,None)
+    return value
 
   def build_pipeline(self,atlases,native_subjects,model,tasklist=None):
     tasklist = tasklist or taskset()
     subjects = []
+    output_dir=self.config('output_dir')
 
     # syntactic sugar for now
     def stage(stage_name):
@@ -166,7 +180,6 @@ class Morphobits:
       subjects.append(image(modelsubject.path))
   
     # fetch templates specified on commandline
-    print self.config('templates')
     templates = filter(lambda x: x.stem in self.config('templates'),subjects)
 
     # do pairwise registrations between atlases and templates and subjects 
@@ -177,54 +190,72 @@ class Morphobits:
     for s in subjects:
       grids=list()
       objects=defaultdict(list)
-      gridavg='output/gridavg/'+s.stem+'_grid.mnc'
+      gridavg='{output_dir}/gridavg/{s.stem}_grid.mnc'.format(**vars())
 
-      # comput all possible XFM paths to subject
+      # compute all possible XFM paths to subject
       for a,t in product(atlases,templates):
         xfm=self.xfmpath([model,a,t,s])
         xfmdir=os.path.dirname(xfm)
-        grid='${xfmdir}/grid.mnc'.format(xfmdir=xfmdir)
-        stage('model.subject.xfm').command(
-            'xfmjoin',self.xfmpath([model,a]),self.xfmpath([a,t]),self.xfmpath([t,s]),out(xfm))
+        grid='{xfmdir}/grid.mnc'.format(**vars())
+      
+        # create single XFM for pathway (skip moves from identical images)
+        xfms=[]
+        for source,target in zip([model,a,t],[a,t,s]):
+          print "blurp:", source, target
+          if source != target:
+            xfms.append(self.xfmpath([source,target]))
+        assert xfms is not [], "{model}, {a}, {t}, {s} are all the same image?".format(**vars())
+        xfms.append(out(xfm))
+        stage('model.subject.xfm').command('xfmjoin',*xfms)
+
+        # compute displacement along the pathway
         stage('model.subject.displace').command(
             'minc_displacement',model,xfm,out(grid))
           
         # transform objects from atlases
-        for o in a.objects():
-          kind=os.path.basename(o)
-          object='${xfmdir}/${kind}'.format(xfmdir=xfmdir,kind=kind)
-          stage('model.subject.objects.transform').command(
-              'transform_objects',o,xfm,out(object))
-          objects[kind].append(object)
+        if self.config('surface_area'):
+          for o in a.objects():
+            kind=o.stem
+            object='${xfmdir}/${kind}'.format(**vars())
+            stage('model.subject.objects.transform').command(
+                'transform_objects',o,xfm,out(object))
+            objects[kind].append(object)
         grids.append(grid)
-      grids.append(out(gridavg))
     
-      # average XFM per subject
+      # compute the average XFM over all pathways to the subject
+      grids.append(out(gridavg))
       stage('model.subject.gridavg').command('mincaverage',*grids)
 
-      # operate on surfaces
-      for kind in objects.keys(): 
-        # median surface per subject
-        kind_base = kind.replace('.obj','')
-        kind_dir  = '{output_dir}/{kind_base}/'.format(
-            output_dir=self.config('output_dir'),kind_base=kind_base)
-        medianobj = '{0}/{1.stem}_median.obj'.format(kind_dir,s)
-        voronoi   = '{0}/{1.stem}_vorn.txt'.format(kind_dir,s)
-        vorn_sa   = '{0}/{1.stem}_vorn_SA.txt'.format(kind_dir,s)
+      # calculate displacement of model objects 
+      displacement_dir='{output_dir}/displacement'.format(**vars())
+      for o in model.objects():
+        obj_displace='{displacement_dir}/{s.stem}_{o.stem}.obj'.format(**vars())
+        stage('model.subject.displacement').command(
+                'object_volume_dot_product',o,gridavg,out(obj_displace))
 
-        #hack: determine the blurring kernal to use: 
-        kernel = kind_base.startswith('gp_') and 3 or 5
-        vorn_blur = '{0}/{1.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
-            kind_dir,s,kernel=kernel)
+      # operate on model..subject surfaces
+      if self.config('surface_area'):
+        for kind in objects.keys(): 
+          # median surface per subject
+          kind_dir  = '{output_dir}/{kind}'.format(**vars())
+          medianobj = '{kind_dir}/{s.stem}_median.obj'.format(**vars())
+          voronoi   = '{kind_dir}/{s.stem}_vorn.txt'.format(**vars())
+          vorn_sa   = '{kind_dir}/{s.stem}_vorn_SA.txt'.format(**vars())
 
-        stage('objects.median').command(
-          "make_median_surfaces.pl",out(medianobj),*objects[kind])
-        stage('objects.normals').command(
-          "recompute_normals",medianobj,medianobj) #fix: not out()
+          stage('objects.median').command(
+            "make_median_surfaces.pl",out(medianobj),*objects[kind])
+          stage('objects.normals').command(
+            "recompute_normals",medianobj,medianobj) #fix: not out()
 
-        # voronoi of median surface
-        stage('objects.voronoi').command(
-          'depth_potential', '-area_voronoi',medianobj,out(voronoi))
+          if self.config('voronoi'):
+            # voronoi of median surface
+            stage('objects.voronoi').command(
+              'depth_potential', '-area_voronoi',medianobj,out(voronoi))
+
+            #hack: determine the blurring kernal to use: 
+            kernel = kind.startswith('gp_') and 3 or 5
+            vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
+                **vars())
 
     return tasklist
 
@@ -232,8 +263,14 @@ def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument("-n", dest="dry_run", default=False,
     action="store_true", help="Dry run. Show what would happen.")
+  parser.add_argument("-s", '--subjects', nargs='+', default=None,
+    help="A list of subjects to use (name of the brain image without .mnc extension)")
   parser.add_argument("-t", '--templates', nargs='+', default=(),
     help="A list of templates to use (name of the subject without .mnc extension)")
+  parser.add_argument('--voronoi', default=False, action="store_true",
+    help="Compute voronoi partition of the median surface.")
+  parser.add_argument('--show-pipeline', default=False, action="store_true",
+    help="Show pipeline.")
   return parser.parse_args()
   
 
@@ -241,17 +278,30 @@ def main():
   options = parse_args() 
 
   morpho  = Morphobits()
-  morpho._config['templates'] = options.templates
+  morpho.config('output_dir','output')
+  morpho.config('reg_dir',   'registrations')
+  morpho.config('voronoi',   options.voronoi)
 
-  atlases = map(lambda x: image(x), glob.glob('input/atlases/brains/*.mnc'))
-  subjects= map(lambda x: image(x), glob.glob('input/subjects/brains/*.mnc'))
-  model   = image(glob.glob('input/model/brains/*.mnc')[0]) # check there is only one!
+  atlases = map(image, glob.glob('input/atlases/brains/*.mnc'))
+  subjects= map(image, glob.glob('input/subjects/brains/*.mnc'))
+  model   = map(image, glob.glob('input/model/brains/*.mnc'))[0] # check there is only one!
 
-  print atlases, subjects
+  if options.subjects:
+    subjects = [s for s in subjects if s.stem in options.subjects]
+  
+  #todo: sanity checks
+  # - we have some subjects?
+  # - templates are a subset of subjects?
+  #todo: we should pass in templates to build_pipeline
+  morpho.config('templates', options.templates)
+
+  print 'atlases', ','.join(map(str,atlases))
+  print 'subjects', ','.join(map(str,subjects))
   tasklist= morpho.build_pipeline(atlases,subjects,model)
 
   if options.dry_run:
-    print tasklist
+    if options.show_pipeline:
+      print tasklist
   else:
     queue = multiprocqueue()
     queue.run(tasklist,processes=2)
