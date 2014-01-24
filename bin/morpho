@@ -40,8 +40,6 @@ class image(datafile):
         glob.glob('{0.dirname}/../labels/{0.stem}_labels.mnc'.format(self)))
   def __eq__(self, other):
     if isinstance(other,self.__class__):
-      print os.path.realpath(self.abspath), os.path.realpath(other.abspath)
-      print os.path.realpath(self.abspath) == os.path.realpath(other.abspath)
       return os.path.realpath(self.abspath) == os.path.realpath(other.abspath)
     else:
       return false
@@ -201,7 +199,6 @@ class Morphobits:
         # create single XFM for pathway (skip moves from identical images)
         xfms=[]
         for source,target in zip([model,a,t],[a,t,s]):
-          print "blurp:", source, target
           if source != target:
             xfms.append(self.xfmpath([source,target]))
         assert xfms is not [], "{model}, {a}, {t}, {s} are all the same image?".format(**vars())
@@ -263,6 +260,8 @@ def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument("-n", dest="dry_run", default=False,
     action="store_true", help="Dry run. Show what would happen.")
+  parser.add_argument("-j", "--processes", default=8, 
+    type=int, metavar='N', help="Number of processes to parallelize over.")
   parser.add_argument("-s", '--subjects', nargs='+', default=None,
     help="A list of subjects to use (name of the brain image without .mnc extension)")
   parser.add_argument("-t", '--templates', nargs='+', default=(),
