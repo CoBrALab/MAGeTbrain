@@ -1,0 +1,153 @@
+
+vanilla_pipeline = [ 
+    { 'name': 'register_atlases',  'batch':  4, 'walltime': '6:00:00'},
+    { 'name': 'vanilla_vote',      'batch':  1, 'walltime': '6:00:00',
+       'substages': [
+       { 'name': 'register_templates'},
+       { 'name': 'xfm_join',         },
+       { 'name': 'resample_labels',  },
+       { 'name': 'fuse_labels',      },
+       { 'name': 'compute_volumes',  },
+       { 'name': 'save_temp_work',   }]},
+    { 'name': 'collate_volumes',  'batch':None, 'walltime': '2:00:00'}, ]
+
+options.queue = Parallel, Batch, Scinet, etc...
+a queue will decide how to run the stages it encounters
+- a basic, parallel queue will run tasks from each stage in order, in parallel
+- a Batch queue may run commands in batches, distributed around a cluster.
+Either way, a queue guarantees each stage completes before the next starts
+
+Let's talk about stages and pipelines. A stage is just a set of commands that
+can be run a) run in parallel with each other, and b) must all complete before
+anything else runs. A pipeline then is just a series of stages. Typically a
+pipeline represents a series of processing steps that must be run, for instance. 
+
+To create a pipeline, we simply create a new Pipeline object, and start
+attaching commands, annotating which stage they belong to as we go: 
+    p = Pipeline()
+    p.stage('correct', 'nu_correct input.mnc corrected.mnc')
+    p.stage('register', 'register atlas.mnc corrected.mnc transform.xfm')
+    p.stage('resample', 'mincresample -t transform.xfm atlas.mnc resampled.mnc')
+
+Then, we need to set up a Queue object to run this pipeline. Most basically: 
+    q = ParallelQueue()
+    q.run(p)
+Stages are run in the order they were introduced (usually the right thing to
+do), and all commands are run in parallel according to the number of cores
+present.  
+
+More advanced queues may need some hints as to how to run the stages: 
+    q = PBSBatchQueue()
+    q.hint('correct',  walltime='1:00:00')
+    q.hint('register', walltime='6:00:00', batchsize=4)
+    q.run(p)
+
+## Sub-pipelines
+
+For efficiency reasons, you may also want to group stages together as a unit to
+and make sure that they are all run on the same compute node. The group of
+stages forms a mini-pipeline to be executed, and you may need to create
+thousands of these if you have distributed processing to do.  Have no fear,
+pipelines are composable, so you may simply code thusly: 
+
+    p = Pipeline()
+    p.stage('correct', 'nu_correct input.mnc corrected.mnc')
+
+    v = Pipeline()
+    v.stage('candidates', 'generate_candidates corrected.mnc /tmp/dir/')
+    v.stage('vote', 'voxel_vote.py /tmp/dir voted.mnc')
+    p.stage('vote', v)
+
+    q = PBSBatchQueue()
+    q.hint('register', walltime='6:00:00', batchsize=4)
+    q.hint('vote', walltime='8:00:00', batchsize=1)
+    q.hint('vote.candidates', processes=4)
+
+There are a few things to note here. First, we created the pipeline v, and added
+it as a stage to pipeline p. Secondly, we specified a hint for stage
+'vote.candidates'. We use dot-notion to refer to stages inside a named pipeline.
+Since pipeline v was added with the stage name 'vote', 'vote.candidates' refers
+to the 'candidates' stage contained in the 'vote' pipeline. Notice that we
+didn't supply a queue for the 'vote' pipeline? That's because a Pipeline
+defaults to using the Parallel queue and that was all we needed in this case. 
+
+Each queue determines how sub-pipelines are dealt with. In the simplest case
+(Parallel), a separate process is kicked off to run the sub-pipeline commands.
+In PBSBatch queues, the pipeline is serialized end embedded in a script that is
+submitted.
+**Implementation idea:** Assuming the subpipeline is a parallel pipeline, then
+each stage could be emitted as a here-document: 
+
+    #!/bin/bash
+    echo "Stage one"
+    parallel -j8 <<'EOF'
+    command1
+    command2
+    command3
+    ...
+    EOF
+    echo "Stage two"
+    parallel -j8 <<'EOF'
+    command1
+    ...
+    EOF
+
+## Deferring command generation
+In the case of the pipeline above, it might seem like a waste of time to create
+the entire 'vote' sub pipeline just to then have to serialize it, and
+deserialise it when it starts running on a compute node later. This is
+especially problematic if the commands you want to run aren't only command-line
+tools but is instead rely on python code (e.g. creating directories), but more
+on that later.  
+
+There are two methods for defering, one that requires you build your application
+using the Runner class, and the other that can be used independently but it is
+slightly more complicated to configure. 
+
+Using the Runner class is intended if you are building a commandline
+application. Subclassing Runner as your main application automatically provides
+a --start-at command line option, which, if provided starts your application at
+the named stage. That is, using Runner.start(queue) will remove stages from
+before the specified the stage and then start the queue. Your application can,
+of course, also choose to jump just to creating that stage. 
+    Runner.get_argument_parser()
+    Runner.parse_args()
+    Runner.start(queue)
+
+Deferring a pipeline is created thusly: 
+    p = Pipeline()
+    p.stage('correct', 'nu_correct input.mnc corrected.mnc')
+
+    p.stage('vote', DeferredPipeline(state, func=vote))
+
+    q = PBSBatchQueue()
+    q.hint('register', walltime='6:00:00', batchsize=4)
+    q.hint('vote', walltime='8:00:00', batchsize=1)
+    q.hint('vote.candidates', processes=4)
+
+State is any pickleable object. This object, and a pointer to the function is
+fed into pipeline.undefer(). The function passed in is expected to: a) import
+any necessary libraries, b) populate a pipeline, and b) execute it. Any hints
+are passed on.  
+
+
+# register_atlases generates commands, and qbatches them
+# vanilla_vote generates commands, and qbatches them depend on register_atlases
+#   if a single subject hasn't been specified, then
+#      qbatch voting on the one subject
+#   otherwise, 
+#       set the queue to be parallel
+#       for each substage, run its tasks 
+
+for stage in pipeline:
+    start_stage(stage, options)
+
+def start_stage(s, options):
+    get_func(s['name']).call(s, options)
+
+def generic_stage(s, options):
+    # generate tasks
+    # execute them somehow
+
+def register_atlases
+    # generate minc_commands

@@ -1,0 +1,14 @@
+#!/bin/bash
+#
+# Apply a transform to a label and resample it with the same griding as a given
+# image
+#
+transform=$1
+like_image=$2
+source_label=$3
+output_file=$4
+
+mincresample -2 -near -byte -keep \
+  -transform $transform \
+  -like $like_image \
+  $source_label $output_file

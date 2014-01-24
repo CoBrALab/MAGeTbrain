@@ -4,6 +4,7 @@ from collections import defaultdict
 import os.path
 import multiprocessing
 import random
+import glob
 
 
 # infrastructure 
@@ -11,7 +12,8 @@ class datafile:
   def __init__(self, path): 
     self.path = path 
     self.abspath = os.path.abspath(path)
-    self.stem = os.path.basename(os.path.splitext(path)[0])
+    self.basename = os.path.basename(path)
+    self.stem = os.path.splitext(self.basename)[0]
   def exists(self): 
     return os.path.isfile(self.realpath)
   def __str__(self):
@@ -76,7 +78,6 @@ class Morphobits:
     self._config = dict() # runtime configuration 
     self._config['output_dir']='output'
     self._config['reg_dir']   ='registrations'
-    self._config['reg_dir']   ='registrations'
 
   def xfmpath(self,images,name='nl.xfm'):
     args=[self._config['output_dir'],self._config['reg_dir']] + [i.stem for i in images] + [name]
@@ -94,21 +95,20 @@ class Morphobits:
 
     # move to subjects to model space 
     for s in native_subjects:
-      nuc=out('output/nuc/'+s.stem)
+      nuc=out('output/nuc/'+s.basename)
       xfm=out(self.xfmpath([model,s],name='lsq9.xfm'))
-      modelsubject=out('output/modelspace/'+s.stem)
+      modelsubject=out('output/modelspace/'+s.basename)
       command(('nu_correct',s,nuc), stage='subject.nuc')
-      stage('subject.model.reg]').command('reg-lsq9',nuc,model,xfm)
-      stage('subject.model.res').command(
-          'resample','-transform',xfm,'-like',model,nuc,modelsubject)
+      stage('subject.model.prop').command('bestlinreg','-lsq9',nuc,model,xfm,modelsubject)
       subjects.append(image(modelsubject.path))
   
     # randomly select templates
-    templates = random.sample(subjects,int(0.3*len(subjects)))
+    #templates = random.sample(subjects,int(0.3*len(subjects)))
+    templates = filter(lambda x: x.stem in self._config['templates'],subjects)
 
     # do pairwise registrations between atlases and templates and subjects 
     for x,y in chain(product(atlases,templates), product(templates,subjects)):
-      stage('pairwise.reg').command('reg-nl',x,y,out(self.xfmpath([x,y])))
+      stage('pairwise.reg').command('mb_register',x,y,out(self.xfmpath([x,y])))
 
     # compute the average deformation to the model for each subject
     for s in subjects:
@@ -128,9 +128,13 @@ class Morphobits:
 
 def main():
   morpho  = Morphobits()
-  atlases = [image(str(x)+'atlas.mnc') for x in range(3)]
-  subjects= [image(str(x)+'subject.mnc') for x in range(5)]
-  model   = image('model.mnc')
+  morpho._config['templates'] = 'ADNI001,ADNI002,ADNI003'
+  atlases = map(lambda x: image(x), glob.glob('input/atlases/brains/*.mnc')) #, #[image(str(x)+'atlas.mnc') for x in range(3)]
+  subjects= map(lambda x: image(x), glob.glob('input/subjects/brains/*.mnc')) #[image(str(x)+'subject.mnc') for x in range(5)]
+  model   = image(glob.glob('input/model/brains/*.mnc')[0]) # check there is only one!
+  print 'atlases', map(str,atlases)
+  print 'subjects', map(str,subjects)
+  print 'model', model
   tasklist= morpho.build_pipeline(atlases,subjects,model)
   print tasklist
 
