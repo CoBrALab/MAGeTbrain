@@ -1,18 +1,28 @@
 #!/usr/bin/env python2.7
 from itertools import product, chain
 from collections import defaultdict
+from multiprocessing.dummy import Pool
+from subprocess import call
+import os, errno, random, glob, sys
 import os.path
-import multiprocessing
-import random
-import glob
 
 
 # infrastructure 
+
+def mkdir_p(path):
+  try:
+    os.makedirs(path)
+  except OSError as exc: # Python >2.5
+    if exc.errno == errno.EEXIST and os.path.isdir(path):
+      pass
+    else: raise
+
 class datafile: 
   def __init__(self, path): 
     self.path = path 
     self.abspath = os.path.abspath(path)
     self.basename = os.path.basename(path)
+    self.dirname = os.path.dirname(path)
     self.stem = os.path.splitext(self.basename)[0]
   def exists(self): 
     return os.path.isfile(self.realpath)
@@ -38,7 +48,6 @@ class taskset:
       def command(self, *args):
         t.command(stage_name,args)
     return _stage()
-
   def command(self,stage,cmd):
     self.stages[stage].append(cmd)
     if stage not in self.stage_order: self.stage_order.append(stage)
@@ -53,25 +62,41 @@ class taskset:
         __str += '\t{0}\n'.format(' '.join(map(str,command)))
     return __str
 
+def run_command(command): 
+  cmdstr = " ".join(map(str,command))
+  print >> sys.stderr, 'COMMAND:', cmdstr
+  return call(cmdstr,shell=True)
+
 class multiprocqueue:
   def run(self,tasks,processes=None,stage_order=None):
     """Runs the commands from the given stages in the task list.
        
        If stages isn't provided, then all stages are run. """
-    stage_order = stage_order or tasks.order
+    stage_order = stage_order or tasks.stage_order
     for stage in stage_order:
-      results = self._run(tasks[stages], processes)
+      print '## stage:', stage,'##'
+
+      results = self._run(tasks.stages[stage], processes)
+      print 'results ---',results
       #TODO: assert that there were no errors
+      if not all(map(lambda x: x==0,results)):
+        print "Error in stage {0}. Exiting...".format(stage)
+        return -1
 
   def _run(self,commands,processes=None): 
-    commands = self._filter_completed(commands)
-    pool = multiprocessing.Pool(processes)
-    results = pool.apply(os.system, commands)
-    pool.close()
-    return results
-  def _filter_completed(self,commands):
-    return [c for c in commands if not all(
-      map(os.path.isfile,filter(lambda x: isinstance(x,out),c)))]
+    unfinished, outputs = self._filter_unfinished(commands)
+
+    # make output dirs directories
+    map(mkdir_p, set(map(lambda x: x.dirname, chain(*outputs))))
+
+    return Pool(processes).map(run_command, unfinished)
+
+  def _filter_unfinished(self,commands):
+    """returns tuple of each unfinished command, and a list of its output files"""
+    details = [(c,filter(lambda x: isinstance(x,out),c)) for c in commands]
+    unfinished, outputs = zip(*[(c,o) for (c,o) in details if 
+      not all(map(lambda x: os.path.isfile(str(x)),o))])
+    return (unfinished, outputs)
 
 class Morphobits:
   def __init__(self):
@@ -98,7 +123,7 @@ class Morphobits:
       nuc=out('output/nuc/'+s.basename)
       xfm=out(self.xfmpath([model,s],name='lsq9.xfm'))
       modelsubject=out('output/modelspace/'+s.basename)
-      command(('nu_correct',s,nuc), stage='subject.nuc')
+      command(('nu_correct','-quiet',s,nuc), stage='subject.nuc')
       stage('subject.model.prop').command('bestlinreg','-lsq9',nuc,model,xfm,modelsubject)
       subjects.append(image(modelsubject.path))
   
@@ -136,7 +161,9 @@ def main():
   print 'subjects', map(str,subjects)
   print 'model', model
   tasklist= morpho.build_pipeline(atlases,subjects,model)
-  print tasklist
+
+  queue = multiprocqueue()
+  queue.run(tasklist,processes=2)
 
 if __name__ == '__main__': 
   main()
