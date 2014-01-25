@@ -16,9 +16,9 @@ import string
 import subprocess
 import shutil
 from os.path import join, exists, basename, dirname
+from mbpipe import *
 
 # Stages
-STAGE_NONE      = 'NONE'         # not a stage
 STAGE_REG_ATLAS = 'atlasreg'     # register all atlases to templates
 STAGE_REG_TEMPL = 'tmplreg'      # register all templates to subjects
 STAGE_XFM_JOIN  = 'joinxfm'      # register all templates to subjects
@@ -139,7 +139,7 @@ def main():
            
   # Execution options
   group = parser_run.add_argument_group(title="Execution options")
-  group.add_argument('-q', '--queue', choices=['parallel', 'qbatch'],
+  group.add_argument('-q', '--queue', choices=['parallel', 'qbatch', 'qbatch-sge'],
                                    default = 'qbatch',
                                    help="Queueing method to use")
   group.add_argument("-n", dest="dry_run", default=False,
@@ -204,7 +204,9 @@ def command_run(options):
   atlases, templates, subjects = get_inputs(options)
 
   if options.queue == "qbatch": 
-    queue = QBatchCommandQueue(processors=options.processes)
+    queue = QBatchCommandQueue(processors=options.processes, batch='pbs')
+  elif options.queue == "qbatch-sge": 
+    queue = QBatchCommandQueue(processors=options.processes, batch='sge')
   elif options.queue == "parallel":
     queue = ParallelCommandQueue(processors=options.processes)
   else:
@@ -250,7 +252,7 @@ def command_run(options):
     p.stage_vote()
    
 
-  if options.stage == "vanilla" and options.queue == 'qbatch':
+  if options.stage == "vanilla" and options.queue.startswith('qbatch'):
     p.stage_register_atlases() 
     for subject in subjects:
       _, label = p.fused_label_path(subject) 
@@ -371,101 +373,6 @@ def warning(message):
   """Print the warning message"""
   logger.warn(message)
 
-### Pipeline construction
-class CommandQueue(object):
-  def __init__(self): 
-    self.commands = {}  # stage -> [command, ...]
-    self.dry_run = False 
-
-  def set_dry_run(self, state): 
-    self.dry_run = state
-
-  def append_commands(self, stage, commands):
-    command_list = self.commands.get(stage, [])
-    command_list.extend(commands)
-    self.commands[stage] = command_list
-
-  def run(self, stages = []):
-    """Runs the given stages, in order, or all if none are supplied"""
-    if not stages: 
-      stages = self.commands.keys()
-
-    for stage in [s for s in stages if s in self.commands.keys()]:
-      for command in self.commands[stage]:
-        self.execute(command)
-
-  def __str__(self): 
-    __str = 'Pipeline:\n'
-    for stage, commands in self.commands.items():
-      __str += 'STAGE: {0}\n'.format(stage)
-      __str += '  '+'\n  '.join(commands)
-    return __str
-
-  def execute(self, command, input = ""):
-    """Spins off a subprocess to run the cgiven command"""
-    if input:
-      logger.debug("exec: {0}\n\t{1}".format(command, input.replace('\n','\n\t')))
-    else:
-      logger.debug("exec: " + command) 
-
-    if self.dry_run: 
-      return
-    proc = subprocess.Popen(command.split(), 
-             stdin = subprocess.PIPE, stdout = 2, stderr = 2)
-    proc.communicate(input)
-    if proc.returncode != 0: 
-      raise Exception("Returns %i :: %s" %( proc.returncode, command ))
-
-class ParallelCommandQueue(CommandQueue):
-  def __init__(self, processors = 8): 
-    CommandQueue.__init__(self)
-    self.processors = processors
-
-  def run(self, stages):
-    if not stages: 
-      stages = self.commands.keys()
-
-    previous_stage = STAGE_NONE
-    for stage in [s for s in stages if s in self.commands.keys()]:
-      if self.commands[stage]:
-        self.parallel(self.commands[stage])
-        previous_stage = stage
-
-  def parallel(self, commands):
-    "Runs the list of commands through parallel"
-    command = 'parallel -j%i' % self.processors
-    self.execute(command, input='\n'.join(commands))
-
-class QBatchCommandQueue(CommandQueue):
-  def __init__(self, processors = 8): 
-    CommandQueue.__init__(self)
-    self.processors = processors
-
-  def run(self, stages):
-    if not stages: 
-      stages = self.commands.keys()
-
-    previous_stage = STAGE_NONE
-    for stage in [s for s in stages if s in self.commands.keys()]:
-      if self.commands[stage]:
-        unique_stage = "{0}_{1}".format(stage, 
-            ''.join([random.choice(string.letters) for i in xrange(4)]))
-        walltime   = stage_queue_hints[stage]['walltime']
-        processors = stage_queue_hints[stage]['procs']
-        self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
-            walltime=walltime, processors = processors)  
-        previous_stage = unique_stage
-
-  def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None):
-    logger.info('running {0} commands after stage {1}'.format(len(commands), afterok))
-    
-    opt_name    = batch_name and '-N {0}'.format(batch_name) or ''
-    opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
-    batchsize   = min(self.processors, processors)
-    self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
-        input='\n'.join(commands))
-    #os.remove(cmdfilename)
-    
 ### MAGeT Brain Stages
 ######################
 class MAGeTBrain(object):
@@ -537,7 +444,7 @@ class MAGeTBrain(object):
         for template in self.templates:
           stems = [atlas.stem, template.stem, subject.stem]
           label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
-          self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems)
+          self.resample_labels(self.temp_reg, atlas.labels, subject, label, stems)
           candidate_labels.append(label)
           command = 'voxel_vote.py {0} {1}'.format(' '.join(candidate_labels), fused_lbl)
         self.queue.append_commands(STAGE_VOTE, [command])
@@ -552,7 +459,7 @@ class MAGeTBrain(object):
         # the trailing slash on {0} indicates that the *contents* of the
         # temporary registrations folder gets copied
         cmd = "rsync -av {0}/ {1}".format(self.temp_reg, self.options.reg_dir)
-        self.queue.append_commands(STAGE_SAVE, [tar_cmd])
+        self.queue.append_commands(STAGE_SAVE, [cmd])
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
@@ -617,46 +524,6 @@ class MAGeTBrain(object):
   def _get_stage_order(self):
     return [STAGE_REG_ATLAS, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
         STAGE_VOTE, STAGE_SAVE]
-
-### utility functions
-def mkdirp(*p):
-  """Like mkdir -p"""
-  path = join(*p)
-  try:
-    os.makedirs(path)
-  except OSError as exc: 
-    if exc.errno == errno.EEXIST:
-      pass
-    else: raise
-  return path
-
-
-def execute(cmd,*args):
-  wholecommand = ' '.join(map(str, [cmd] + list(args)))
-  logger.debug(wholecommand)
-  #return subprocess.check_output(wholecommand, shell=True, cwd=os.cwd(), universal_newlines=True)
-
-#### Guts
-class Template: 
-  """Represents an MR image with labels, optionally"""
-  def __init__(self, image, labels = None):
-    image_path      = os.path.realpath(image)
-    self.stem       = os.path.basename(os.path.splitext(image_path)[0])
-    self.image      = image
-    self.labels     = labels
-
-    expected_labels = os.path.join(dirname(dirname(image_path)), 'labels', self.stem + "_labels.mnc")
-    if not labels and os.path.exists(expected_labels):
-      self.labels = expected_labels 
-
-  @classmethod
-  def get_templates(cls, path):
-    """return a list of MR image Templates from the given path.  Expect to find
-    a child folder named brains/ containing MR images, and labels/ containing
-    corresponding labels."""
-    return [Template(i) for i in glob.glob(join(path, 'brains', "*.mnc"))]
-
-
 
 if __name__ == '__main__':
     main()

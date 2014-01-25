@@ -1,0 +1,79 @@
+#!/usr/bin/env perl
+
+use strict;
+use File::Basename;
+use File::Temp qw/ tempdir /;
+use Getopt::Tabular;
+
+
+my $me     = &basename($0);
+
+my $Usage = "$0: given an input linear and nonlinear transform,\n".
+    "I output a nl grid file which is \"purely\" nonlinear\n".
+"Usage: $0 <inpuitLinXFM> <outputNLOnly_XFM> \n";
+
+
+&Getopt::Tabular::SetHelp($Usage);
+
+
+
+my $inputNLXFM  = shift or die "$Usage\n";
+my $linRes      = shift or die "$Usage \n";
+my $outputXFM  = shift or die "$Usage \n";
+
+
+my $tmpdir = &tempdir("$me-XXXXXXXXXXX", TMPDIR => 1, CLEANUP => 1);
+
+
+#### first get the grid file;
+
+
+my ($nl_grid, $out_grid, $out_dir, $xfm_base);
+
+$nl_grid = $inputNLXFM;
+$nl_grid =~ s/.xfm/_grid_0.mnc/;
+$out_grid = &basename($outputXFM);
+$out_grid =~ s/.xfm/_grid_0.mnc/;
+$out_dir = &dirname($outputXFM);
+
+do_cmd('cp', $nl_grid, $tmpdir);
+
+$xfm_base = &basename($inputNLXFM, ".xfm");
+
+open(WRITE_XFM, ">${tmpdir}/${xfm_base}.xfm");
+print WRITE_XFM "MNI Transform File\n";
+print WRITE_XFM "Transform_Type = Grid_Transform;\n";
+print WRITE_XFM "Displacement_Volume = ${tmpdir}/${xfm_base}_grid_0.mnc; \n" ;
+close(WRITE_XFM);
+
+do_cmd('lin_from_nlin', $linRes,
+    "${tmpdir}/${xfm_base}.xfm", 
+    "${tmpdir}/${xfm_base}_lin.xfm");
+
+do_cmd('xfm2param', "${tmpdir}/${xfm_base}_lin.xfm");
+
+
+do_cmd("minc_displacement", $nl_grid, 
+       "${tmpdir}/${xfm_base}_lin.xfm", 
+       "${tmpdir}/tmp_grid.mnc");
+
+do_cmd('minccalc',
+       '-expression', "A[0]-A[1]",
+       $nl_grid, "${tmpdir}/tmp_grid.mnc", "${out_dir}/${out_grid}"); 
+       
+       
+       
+
+
+open(WRITE_final_XFM, ">${outputXFM}");
+print WRITE_final_XFM "MNI Transform File\n";
+print WRITE_final_XFM "Transform_Type = Grid_Transform;\n";
+print WRITE_final_XFM "Displacement_Volume = ${out_grid}; \n" ;
+close(WRITE_final_XFM);
+
+
+sub do_cmd{
+    print "@_ \n";
+    system(@_) == 0 or die;
+
+}

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+command_list=$1
+shift
+if [ ! -f "$command_list" ]; then
+  echo "ERROR: $command_list does not exist, or is not a file."
+  cat <<EOF 
+  
+  Usage: $0 <task_list> [qsub options]
+
+  task_list should be a file with shell commands to run, one per line.
+EOF
+  exit 1
+fi
+
+len=$(cat "$command_list" | wc -l)
+tmpscript="$(mktemp $(baesname $command_list).XXXXXXX)"
+chmod +x $tmpscript"
+cat > $tmpscript <<EOF
+#!/bin/bash
+\$(sed -n \${SGE_TASK_ID}p $command_list)
+EOF
+qsub -t 1-$len "$@" $tmpscript

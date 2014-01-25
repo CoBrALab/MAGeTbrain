@@ -6,136 +6,7 @@ from subprocess import call
 import os, errno, random, glob, sys
 import os.path
 import argparse
-
-# infrastructure 
-
-def mkdir_p(path):
-  try:
-    os.makedirs(path)
-  except OSError as exc: # Python >2.5
-    if exc.errno == errno.EEXIST and os.path.isdir(path):
-      pass
-    else: raise
-
-class datafile: 
-  def __init__(self, path): 
-    self.path = path 
-    self.abspath = os.path.abspath(path)
-    self.basename = os.path.basename(path)
-    self.dirname = os.path.dirname(path)
-    self.stem = os.path.splitext(self.basename)[0]
-  def exists(self): 
-    return os.path.isfile(self.realpath)
-  def __str__(self):
-    return self.abspath
-
-class out(datafile):
-  pass
-
-class image(datafile):
-  def objects(self):
-    return map(datafile, glob.glob('{0.dirname}/../objects/*.obj'.format(self)))
-  def labels(self):
-    return map(datafile, 
-        glob.glob('{0.dirname}/../labels/{0.stem}_labels.mnc'.format(self)))
-  def __eq__(self, other):
-    if isinstance(other,self.__class__):
-      return os.path.realpath(self.abspath) == os.path.realpath(other.abspath)
-    else:
-      return false
-  def __ne__(self,other):
-    return not self.__eq__(other)
-
-class command:
-  def __init__(self, fmt_string, *args, **kwargs):
-    cmdstr = fmt_string.format(*args,**kwargs)
-    self.__init__(shlex.split(cmdstr))  # split it up into parts
-    #
-    #todo: we could augment the usual string formatting syntax to include 
-    #      the ability to indicate types (e.g. that an argument is an 'out'put
-    #      file. 
-    #
-    #      Ideas: 
-    #         # 1. use <Type>@<string> to mean 
-    #         #   call Type(string), as in: 
-    #         nuc_correct {0} out@{output_dir}/nuc/{0.stem} 
-    #
-    #         # Q: what if there are @ characters in the string?
-    #         # A: too bad. :-)  But honestly, we could just check for strings
-    #         that match $\w+@ so that the only strings that may get confused
-    #         are those that happen to start with out@ and are NOT mean to be
-    #         interpreted as types. 
-    #
-    #         # 2. use the conversion option for output files: o
-    #         bestlinreg {from} {to} {xfm!o} {resampled!o}
-
-  def __init__(self, *args): 
-    #todo: sanity checks
-    self.cmd = args
-
-class taskset:
-  def __init__(self):
-    self.stages = defaultdict(list)
-    self.stage_order = []
-  def stage(self,stage_name):
-    """syntactic sugar"""
-    t = self
-    class _stage(): 
-      def command(self, *args):
-        t.command(stage_name,args)
-    return _stage()
-  def command(self,stage,cmd):
-    self.stages[stage].append(cmd)
-    if stage not in self.stage_order: self.stage_order.append(stage)
-  def set_stage_order(self, order):
-    assert set(order).issubset(set(self.stages.keys)), "some stages given are not part of this taskset"
-    self.stage_order = order
-  def __str__(self):
-    __str=""
-    for stage in self.stage_order:
-      __str += '{0}:\n'.format(stage)
-      for command in self.stages[stage]:
-        __str += '\t{0}\n'.format(' '.join(map(str,command)))
-    return __str
-
-def run_command(command): 
-  cmdstr = " ".join(map(str,command))
-  print >> sys.stderr, 'COMMAND:', cmdstr
-  return call(cmdstr,shell=True)
-
-class multiprocqueue:
-  def run(self,tasks,processes=None,stage_order=None):
-    """Runs the commands from the given stages in the task list.
-       
-       If stages isn't provided, then all stages are run. """
-    stage_order = stage_order or tasks.stage_order
-    for stage in stage_order:
-      print '## stage:', stage,'##'
-
-      results = self._run(tasks.stages[stage], processes)
-      print 'results ---',results
-      #TODO: assert that there were no errors
-      if not all(map(lambda x: x==0,results)):
-        print "Error in stage {0}. Exiting...".format(stage)
-        return -1
-
-  def _run(self,commands,processes=None): 
-    unfinished, outputs = self._filter_unfinished(commands)
-
-    # make output dirs directories
-    map(mkdir_p, set(map(lambda x: x.dirname, chain(*outputs))))
-
-    return Pool(processes).map(run_command, unfinished)
-
-  def _filter_unfinished(self,commands):
-    """returns tuple of each unfinished command, and a list of its output files"""
-    details = [(c,filter(lambda x: isinstance(x,out),c)) for c in commands]
-    filtered = [(c,o) for (c,o) in details if not all(map(lambda x: os.path.isfile(str(x)),o))]
-    if filtered:
-        unfinished, outputs = zip(*filtered)
-    else:
-        unfinished, outputs = (), ()
-    return (unfinished, outputs)
+from mbpipe import *
 
 class Morphobits:
   def __init__(self):
@@ -226,7 +97,7 @@ class Morphobits:
       # calculate displacement of model objects 
       displacement_dir='{output_dir}/displacement'.format(**vars())
       for o in model.objects():
-        obj_displace='{displacement_dir}/{s.stem}_{o.stem}.obj'.format(**vars())
+        obj_displace='{displacement_dir}/{s.stem}_{o.stem}.txt'.format(**vars())
         stage('model.subject.displacement').command(
                 'object_volume_dot_product',o,gridavg,out(obj_displace))
 
@@ -277,7 +148,7 @@ def main():
   options = parse_args() 
 
   morpho  = Morphobits()
-  morpho.config('output_dir','output')
+  morpho.config('output_dir',os.path.abspath('output'))
   morpho.config('reg_dir',   'registrations')
   morpho.config('voronoi',   options.voronoi)
 
@@ -287,7 +158,7 @@ def main():
 
   if options.subjects:
     subjects = [s for s in subjects if s.stem in options.subjects]
-  
+
   #todo: sanity checks
   # - we have some subjects?
   # - templates are a subset of subjects?
@@ -298,12 +169,12 @@ def main():
   print 'subjects', ','.join(map(str,subjects))
   tasklist= morpho.build_pipeline(atlases,subjects,model)
 
-  if options.dry_run:
-    if options.show_pipeline:
-      print tasklist
-  else:
-    queue = multiprocqueue()
-    queue.run(tasklist,processes=2)
+  if options.show_pipeline:
+    print tasklist
+
+  queue = ParallelCommandQueue(options.processes)
+  queue.set_dry_run(options.dry_run)
+  tasklist.runqueue(queue)
 
 if __name__ == '__main__': 
   main()
