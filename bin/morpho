@@ -150,9 +150,8 @@ def parse_args():
   parser.add_argument("--reg_dir",   default="output/registrations", 
     type=os.path.abspath, metavar='',
     help="Directory containing registrations")
-
   parser.add_argument('--voronoi', default=False, action="store_true",
-    help="Compute voronoi partition of the median surface.")
+    help=argparse.SUPPRESS) #help="Compute voronoi partition of the median surface.")
   parser.add_argument('--show-pipeline', default=False, action="store_true",
     help="Show pipeline.")
   parser.add_argument('--write-to-script', default=False, action="store_true",
@@ -207,15 +206,22 @@ def main():
     model_atlas_xfms[atlas] = xfm 
   model.atlas_xfms = model_atlas_xfms  #HACK monkey patch my own code? why not
 
+  # subjects
   subjects=map(image, glob.glob('{0}/subjects/brains/*.mnc'.format(options.input_dir)))
   user_error_if(not subjects, "No subjects found in {0}/subjects/brains/".format(
     options.input_dir))
 
+  # templates
+
   if options.templates:    
     templates = [s for s in subjects if s.stem in options.templates]
-  user_error_if(not templates, "Templates specified not found in {dir}/subjects/brains/".format(
-    dir=options.input_dir))
-
+    user_error_if(not templates, "Templates specified not found in {dir}/subjects/brains/".format(
+      dir=options.input_dir))
+  else:
+    templates=map(image, glob.glob('{0}/templates/brains/*.mnc'.format(options.input_dir)))
+    user_error_if(not templates, "No templates found in {0}/templates/brains/".format(
+      options.input_dir))
+    
   if options.subjects:
     subjects = [s for s in subjects if s.stem in options.subjects]
   user_error_if(not subjects, "Subjects specified not found in {dir}/subjects/brains/".format(
