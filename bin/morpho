@@ -11,13 +11,24 @@ import string
 from mbpipe import *
   
 class Morphobits:
-  def __init__(self):
-    self._config = dict() # runtime configuration  #todo: temporary, replace
-                                                   # with members
+  """The vanilla pipeline for surface morphology analysis"""
 
-  def xfmpath(self,images,name='nl.xfm'):
-    """Returns a standard path to an XFM file based on image names"""
-    args=[self._config['output_dir'],self._config['reg_dir']] + [i.stem for i in images] + [name]
+  def __init__(self):
+    #todo: fugly, replace with members
+    self._config = dict() # runtime configuration  
+
+  def xfmpath(self,images,xfmname='nl.xfm'):
+    """Returns path to an XFM file that warps through a series of image spaces
+    
+       If image A has been registered to image B, then we store the XFM at:
+          <regdir>/A/B/<xfmname>
+       That is, this is a path to an XFM that warps from A->B space. 
+
+       In general, an XFM may represent a series of warps through image spaces
+       (e.g. from A->B->C->...->X space), and the path returned is: 
+          <regdir>/A/B/C/.../X/<xfmname>
+    """
+    args=[self._config['reg_dir']] + [i.stem for i in images] + [xfmname]
     return os.path.join(*args)
 
   def config(self, key, value=None):
@@ -70,21 +81,30 @@ class Morphobits:
         xfmdir=os.path.dirname(xfm)
         grid='{xfmdir}/grid.mnc'.format(**vars())
       
-        # create single XFM for pathway (skip moves from identical images)
+        # concat a single XFM for pathway (skip moves from identical images)
         xfms=[]
-        for source,target in zip([model,a,t],[a,t,s]):
-          if source != target:
-            xfms.append(self.xfmpath([source,target]))
+        for source,target in [(model,a),(a,t),(t,s)]: 
+          if source == target:
+            continue
+          # handle the model->atlas case where XFMs are supplied 
+          #todo: add to xfmpath? 
+          if source == model:
+            warp = model.atlas_xfms[a] # we guarantee existence earlier on
+          else: 
+            warp = self.xfmpath([source,target])
+          xfms.append(warp)
+
         assert xfms is not [], "{model}, {a}, {t}, {s} are all the same image?".format(**vars())
+
         xfms.append(out(xfm))
         stage('model.subject.xfm').command('xfmjoin',*xfms)
 
-        # compute displacement along the pathway
+        # compute grid for the entire path 
         stage('model.subject.displace').command(
             'minc_displacement',model,xfm,out(grid))
           
         # transform objects from atlases
-        if self.config('surface_area'):
+        if self.config('surfaces'):
           for o in a.objects():
             kind=o.stem
             object='${xfmdir}/${kind}'.format(**vars())
@@ -93,7 +113,7 @@ class Morphobits:
             objects[kind].append(object)
         grids.append(grid)
     
-      # compute the average XFM over all pathways to the subject
+      # compute average grid over all pathways to the subject
       grids.append(out(gridavg))
       stage('model.subject.gridavg').command('mincaverage',*grids)
 
@@ -105,7 +125,7 @@ class Morphobits:
                 'object_volume_dot_product',o,gridavg,out(obj_displace))
 
       # operate on model..subject surfaces
-      if self.config('surface_area'):
+      if self.config('surfaces'):
         for kind in objects.keys(): 
           # median surface per subject
           kind_dir  = '{output_dir}/{kind}'.format(**vars())
@@ -127,6 +147,7 @@ class Morphobits:
             kernel = kind.startswith('gp_') and 3 or 5
             vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
                 **vars())
+            #todo: blur surface
 
     return tasklist
 
@@ -153,12 +174,16 @@ def parse_args():
   parser.add_argument("--reg_dir",   default="output/registrations", 
     type=os.path.abspath, metavar='',
     help="Directory containing registrations")
-  parser.add_argument('--voronoi', default=False, action="store_true",
-    help=argparse.SUPPRESS) #help="Compute voronoi partition of the median surface.")
   parser.add_argument('--show-pipeline', default=False, action="store_true",
     help="Show pipeline.")
   parser.add_argument('--write-to-script', default=False, action="store_true",
     help="Write a single script which reproduces the pipeline.")
+
+  # hidden options, for ninjas
+  parser.add_argument('--surfaces', default=False, action="store_true",
+    help=argparse.SUPPRESS) #help="Compute median surfaces.")
+  parser.add_argument('--voronoi', default=False, action="store_true",
+    help=argparse.SUPPRESS) #help="Compute voronoi partition of the median surface.")
   return parser.parse_args()
   
 def user_error_if(condition, message): 
@@ -168,15 +193,13 @@ def user_error_if(condition, message):
 
 def main():
   options = parse_args() 
-  options.output_dir = os.path.abspath('output')
-  options.reg_dir    = '{output}/registrations'.format(output=options.output_dir)
-  options.input_dir  = os.path.abspath('input')
   options.model_dir  = '{input}/model'.format(input=options.input_dir)
 
   morpho  = Morphobits()
   morpho.config('output_dir',options.output_dir)
   morpho.config('reg_dir',   options.reg_dir)
   morpho.config('voronoi',   options.voronoi)
+  morpho.config('surfaces',  options.surfaces)
 
   # Get the model image 
   inmodeldir = glob.glob('{model}/brains/*.mnc'.format(model=options.model_dir))
