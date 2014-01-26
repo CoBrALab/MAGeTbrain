@@ -3,9 +3,11 @@
 import logging
 from itertools import chain
 import datetime
+import random
 import subprocess
 import os, os.path
 import glob
+import string
 import sys
 import errno
 from collections import defaultdict
@@ -105,15 +107,14 @@ class ScriptCommandQueue(CommandQueue):
       stages = self.commands.keys()
 
 
-
-
-
 class QBatchCommandQueue(CommandQueue):
-  def __init__(self, processors = 8, batch='pbs'):
+  def __init__(self, processors = 8, batch='pbs',hints=None,walltime='1:00:00'):
     assert batch in ['pbs','sge']
     CommandQueue.__init__(self)
     self.processors = processors
     self.batch = batch
+    self.hints = hints or dict()
+    self.walltime = walltime
 
   def run(self, stages):
     if not stages:
@@ -124,8 +125,15 @@ class QBatchCommandQueue(CommandQueue):
       if self.commands[stage]:
         unique_stage = "{0}_{1}".format(stage,
             ''.join([random.choice(string.letters) for i in xrange(4)]))
-        walltime   = stage_queue_hints[stage]['walltime']
-        processors = stage_queue_hints[stage]['procs']
+
+        walltime = self.walltime
+        if stage in self.hints and 'walltime' in self.hints[stage]:
+          walltime   = self.hints[stage]['walltime']
+
+        processors = self.processors
+        if stage in self.hints and 'procs' in self.hints[stage]:
+          processors = stage_queue_hints[stage]['procs']
+
         self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
             walltime=walltime, processors = processors)
         previous_stage = unique_stage

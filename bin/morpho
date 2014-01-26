@@ -7,6 +7,7 @@ from subprocess import call
 import os, errno, random, glob, sys
 import os.path
 import argparse
+import string
 from mbpipe import *
   
 class Morphobits:
@@ -139,8 +140,10 @@ def parse_args():
     help="A list of subjects to use (name of the brain image without .mnc extension)")
   parser.add_argument("-t", '--templates', nargs='+', default=(),
     help="A list of templates to use (name of the subject without .mnc extension)")
-  parser.add_argument('-q', '--queue', choices=['parallel', 'qbatch', 'qbatch-sge'],
-    default = 'qbatch', help="Queueing method to use")
+  parser.add_argument('-q', '--queue', choices=['parallel', 'pbs', 'sge'],
+    default = 'parallel', help="Queueing method to use")
+  parser.add_argument('-w', '--walltime', default = '1:00:00', 
+    help="Default walltime for submitted jobs")
   parser.add_argument("--output_dir", default="output", 
     type=os.path.abspath, metavar='', 
     help="Top-level folder for all output")
@@ -233,10 +236,12 @@ def main():
   print 'subjects:\n\t', '\n\t'.join(map(str,subjects))
   tasklist= morpho.build_pipeline(atlases,subjects,templates,model)
 
-  if options.queue == "qbatch": 
-    queue = QBatchCommandQueue(processors=options.processes, batch='pbs')
-  elif options.queue == "qbatch-sge": 
-    queue = QBatchCommandQueue(processors=options.processes, batch='sge')
+  if options.queue == "pbs": 
+    queue = QBatchCommandQueue(processors=options.processes, batch='pbs',
+      walltime=options.walltime)
+  elif options.queue == "sge": 
+    queue = QBatchCommandQueue(processors=options.processes, batch='sge',
+      walltime=options.walltime)
   elif options.queue == "parallel":
     queue = ParallelCommandQueue(processors=options.processes)
   else:

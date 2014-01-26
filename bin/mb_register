@@ -63,6 +63,6 @@ if [ ! -e $output_xfm ]; then
   xfmconcat $AT_lin_xfm $AT_nl_xfm $output_xfm 
 fi
 
-rm -f $AT_nl_xfm  ${AT_nl_xfm/.xfm/_grid_0.xfm) \
-      $TA_nl_xfm  ${TA_nl_xfm/.xfm/_grid_0.xfm) \
+rm -f $AT_nl_xfm  ${AT_nl_xfm/.xfm/_grid_0.xfm} \
+      $TA_nl_xfm  ${TA_nl_xfm/.xfm/_grid_0.xfm} \
       $AT_lin_xfm $TA_lin_xfm $atlas_res
