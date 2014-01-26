@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.7
+# vim: set ts=2 sw=2: 
 from itertools import product, chain
 from collections import defaultdict
 from multiprocessing.dummy import Pool
@@ -7,7 +8,7 @@ import os, errno, random, glob, sys
 import os.path
 import argparse
 from mbpipe import *
-
+  
 class Morphobits:
   def __init__(self):
     self._config = dict() # runtime configuration  #todo: temporary, replace
@@ -25,9 +26,10 @@ class Morphobits:
       value = self._config.get(key,None)
     return value
 
-  def build_pipeline(self,atlases,native_subjects,model,tasklist=None):
+  def build_pipeline(self,atlases,native_subjects,native_templates,model,tasklist=None):
     tasklist = tasklist or taskset()
     subjects = []
+    templates = []
     output_dir=self.config('output_dir')
 
     # syntactic sugar for now
@@ -38,19 +40,19 @@ class Morphobits:
       tasklist.stage(stage).command(*command)
 
     ## BEGIN
-    # move to subjects to model space 
-    for s in native_subjects:
+    # move to subjects and templates to model space 
+    for s in set(native_subjects).union(set(native_templates)):
       nuc=out('output/nuc/'+s.basename)
       xfm=out(self.xfmpath([model,s],name='lsq9.xfm'))
       modelsubject=out('output/modelspace/'+s.basename)
       command(('nu_correct','-quiet',s,nuc), stage='subject.nuc')
       stage('subject.model.prop').command(
               'bestlinreg','-noverbose','-lsq9',nuc,model,xfm,modelsubject)
-      subjects.append(image(modelsubject.path))
+      if s in native_subjects:
+        subjects.append(image(modelsubject.path))
+      if s in native_templates:
+        templates.append(image(modelsubject.path))
   
-    # fetch templates specified on commandline
-    templates = filter(lambda x: x.stem in self.config('templates'),subjects)
-
     # do pairwise registrations between atlases and templates and subjects 
     for x,y in chain(product(atlases,templates), product(templates,subjects)):
       stage('pairwise.reg').command('mb_register',x,y,out(self.xfmpath([x,y])))
@@ -137,44 +139,115 @@ def parse_args():
     help="A list of subjects to use (name of the brain image without .mnc extension)")
   parser.add_argument("-t", '--templates', nargs='+', default=(),
     help="A list of templates to use (name of the subject without .mnc extension)")
+  parser.add_argument('-q', '--queue', choices=['parallel', 'qbatch', 'qbatch-sge'],
+    default = 'qbatch', help="Queueing method to use")
+  parser.add_argument("--output_dir", default="output", 
+    type=os.path.abspath, metavar='', 
+    help="Top-level folder for all output")
+  parser.add_argument("--input_dir",   default="input", 
+    type=os.path.abspath, metavar='', 
+    help="Directory containing atlas, template and subject libraries")
+  parser.add_argument("--reg_dir",   default="output/registrations", 
+    type=os.path.abspath, metavar='',
+    help="Directory containing registrations")
+
   parser.add_argument('--voronoi', default=False, action="store_true",
     help="Compute voronoi partition of the median surface.")
   parser.add_argument('--show-pipeline', default=False, action="store_true",
     help="Show pipeline.")
+  parser.add_argument('--write-to-script', default=False, action="store_true",
+    help="Write a single script which reproduces the pipeline.")
   return parser.parse_args()
   
+def user_error_if(condition, message): 
+  if condition:
+    print >> sys.stderr, message
+    sys.exit(1)
 
 def main():
   options = parse_args() 
+  options.output_dir = os.path.abspath('output')
+  options.reg_dir    = '{output}/registrations'.format(output=options.output_dir)
+  options.input_dir  = os.path.abspath('input')
+  options.model_dir  = '{input}/model'.format(input=options.input_dir)
 
   morpho  = Morphobits()
-  morpho.config('output_dir',os.path.abspath('output'))
-  morpho.config('reg_dir',   'registrations')
+  morpho.config('output_dir',options.output_dir)
+  morpho.config('reg_dir',   options.reg_dir)
   morpho.config('voronoi',   options.voronoi)
 
+  # Get the model image 
+  inmodeldir = glob.glob('{model}/brains/*.mnc'.format(model=options.model_dir))
+  user_error_if(
+    len(inmodeldir) != 1, "Expected one model image in {dir}/brains, but found {count}".format(
+      dir=options.model_dir, count=len(inmodeldir)))
+  model = image(inmodeldir.pop())
+
+  # check that the model has objects (if needed)
+  user_error_if(not model.objects(), 
+      "Model objects expected in {0}, but found none.".format(options.model_dir))
+
+  # get atlases
   atlases = map(image, glob.glob('input/atlases/brains/*.mnc'))
-  subjects= map(image, glob.glob('input/subjects/brains/*.mnc'))
-  model   = map(image, glob.glob('input/model/brains/*.mnc'))[0] # check there is only one!
+  if len(atlases) == 0:
+    print >> sys.stderr, "WARNING: no atlases found, using model: {0}".format(model.abspath)
+    atlases = [model]
+  
+  # todo: check that atlases have labels, objects, etc...
+
+  # get model->atlas xfms
+  model_atlas_xfms = dict()
+  for atlas in atlases: 
+    if atlas == model:
+      xfm=None
+    else:
+      xfm='{model}/xfms/to_{atlas.stem}.xfm'.format(model=model.abspath,atlas=atlas)
+      user_error_if(not os.path.isfile(xfm), 
+        "Expected to find model->atlas xfm {0}".format(xfm))
+    model_atlas_xfms[atlas] = xfm 
+  model.atlas_xfms = model_atlas_xfms  #HACK monkey patch my own code? why not
+
+  subjects=map(image, glob.glob('{0}/subjects/brains/*.mnc'.format(options.input_dir)))
+  user_error_if(not subjects, "No subjects found in {0}/subjects/brains/".format(
+    options.input_dir))
+
+  if options.templates:    
+    templates = [s for s in subjects if s.stem in options.templates]
+  user_error_if(not templates, "Templates specified not found in {dir}/subjects/brains/".format(
+    dir=options.input_dir))
 
   if options.subjects:
     subjects = [s for s in subjects if s.stem in options.subjects]
+  user_error_if(not subjects, "Subjects specified not found in {dir}/subjects/brains/".format(
+    dir=options.input_dir))
 
-  #todo: sanity checks
-  # - we have some subjects?
-  # - templates are a subset of subjects?
-  #todo: we should pass in templates to build_pipeline
-  morpho.config('templates', options.templates)
+  print 'model:\n\t{model.abspath}'.format(model=model)
+  print 'atlases:\n\t', '\n\t'.join(map(str,atlases))
+  print 'templates:\n\t', '\n\t'.join(map(str,templates))
+  print 'subjects:\n\t', '\n\t'.join(map(str,subjects))
+  tasklist= morpho.build_pipeline(atlases,subjects,templates,model)
 
-  print 'atlases', ','.join(map(str,atlases))
-  print 'subjects', ','.join(map(str,subjects))
-  tasklist= morpho.build_pipeline(atlases,subjects,model)
+  if options.queue == "qbatch": 
+    queue = QBatchCommandQueue(processors=options.processes, batch='pbs')
+  elif options.queue == "qbatch-sge": 
+    queue = QBatchCommandQueue(processors=options.processes, batch='sge')
+  elif options.queue == "parallel":
+    queue = ParallelCommandQueue(processors=options.processes)
+  else:
+    queue = CommandQueue()
+  queue.set_dry_run(options.dry_run)
 
   if options.show_pipeline:
     print tasklist
 
-  queue = ParallelCommandQueue(options.processes)
-  queue.set_dry_run(options.dry_run)
-  tasklist.runqueue(queue)
+  if options.write_to_script:
+    tasklist.write_to_script('script.sh', options.processes)
+
+  tasklist.populate_queue(queue)
+  if not queue.commands:
+    print "Nothing to do."
+  else: 
+    tasklist.runqueue(queue, populate=False)
 
 if __name__ == '__main__': 
   main()

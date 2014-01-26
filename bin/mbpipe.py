@@ -1,5 +1,8 @@
+#!/usr/bin/env python2.7
+# vim: set ts=2 sw=2:
 import logging
 from itertools import chain
+import datetime
 import subprocess
 import os, os.path
 import glob
@@ -10,7 +13,7 @@ from os.path import join, exists, basename, dirname
 
 STAGE_NONE      = 'NONE'         # not a stage
 
-## Logging 
+## Logging
 class SpecialFormatter(logging.Formatter):
   FORMATS = {logging.DEBUG :"DBG: MOD %(module)s: LINE %(lineno)d: %(message)s",
              logging.ERROR : "ERROR: %(message)s",
@@ -29,11 +32,11 @@ logger = logging.getLogger(__name__)
 
 ### Pipeline construction
 class CommandQueue(object):
-  def __init__(self): 
+  def __init__(self):
     self.commands = {}  # stage -> [command, ...]
-    self.dry_run = False 
+    self.dry_run = False
 
-  def set_dry_run(self, state): 
+  def set_dry_run(self, state):
     self.dry_run = state
 
   def append_commands(self, stage, commands):
@@ -43,14 +46,14 @@ class CommandQueue(object):
 
   def run(self, stages = []):
     """Runs the given stages, in order, or all if none are supplied"""
-    if not stages: 
+    if not stages:
       stages = self.commands.keys()
 
     for stage in [s for s in stages if s in self.commands.keys()]:
       for command in self.commands[stage]:
         self.execute(command)
 
-  def __str__(self): 
+  def __str__(self):
     __str = 'Pipeline:\n'
     for stage, commands in self.commands.items():
       __str += 'STAGE: {0}\n'.format(stage)
@@ -62,23 +65,23 @@ class CommandQueue(object):
     if input:
       logger.debug("exec: {0}\n\t{1}".format(command, input.replace('\n','\n\t')))
     else:
-      logger.debug("exec: " + command) 
+      logger.debug("exec: " + command)
 
-    if self.dry_run: 
+    if self.dry_run:
       return
-    proc = subprocess.Popen(command.split(), 
+    proc = subprocess.Popen(command.split(),
              stdin = subprocess.PIPE, stdout = 2, stderr = 2)
     proc.communicate(input)
-    if proc.returncode != 0: 
+    if proc.returncode != 0:
       raise Exception("Returns %i :: %s" %( proc.returncode, command ))
 
 class ParallelCommandQueue(CommandQueue):
-  def __init__(self, processors = 8): 
+  def __init__(self, processors = 8):
     CommandQueue.__init__(self)
     self.processors = processors
 
   def run(self, stages):
-    if not stages: 
+    if not stages:
       stages = self.commands.keys()
 
     previous_stage = STAGE_NONE
@@ -92,40 +95,53 @@ class ParallelCommandQueue(CommandQueue):
     command = 'parallel -j%i' % self.processors
     self.execute(command, input='\n'.join(commands))
 
+class ScriptCommandQueue(CommandQueue):
+  def __init__(self, scriptname, processes=8):
+    CommandQueue.__init__(self)
+    self.scriptname = scriptname
+    self.processes  = processes
+  def run(self, stages=None):
+    if not stages:
+      stages = self.commands.keys()
+
+
+
+
+
 class QBatchCommandQueue(CommandQueue):
-  def __init__(self, processors = 8, batch='pbs'): 
+  def __init__(self, processors = 8, batch='pbs'):
     assert batch in ['pbs','sge']
     CommandQueue.__init__(self)
     self.processors = processors
     self.batch = batch
 
   def run(self, stages):
-    if not stages: 
+    if not stages:
       stages = self.commands.keys()
 
     previous_stage = STAGE_NONE
     for stage in [s for s in stages if s in self.commands.keys()]:
       if self.commands[stage]:
-        unique_stage = "{0}_{1}".format(stage, 
+        unique_stage = "{0}_{1}".format(stage,
             ''.join([random.choice(string.letters) for i in xrange(4)]))
         walltime   = stage_queue_hints[stage]['walltime']
         processors = stage_queue_hints[stage]['procs']
         self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
-            walltime=walltime, processors = processors)  
+            walltime=walltime, processors = processors)
         previous_stage = unique_stage
 
   def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None):
     logger.info('running {0} commands after stage {1}'.format(len(commands), afterok))
-    
+
     opt_name    = batch_name and '-N {0}'.format(batch_name) or ''
     opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
     batchsize   = min(self.processors, processors)
     self.execute('qbatch --batch_system {0} {1} {2} - {3} {4}'.format(
-        self.batch, opt_name, opt_afterok, batchsize, walltime), 
+        self.batch, opt_name, opt_afterok, batchsize, walltime),
         input='\n'.join(commands))
-    
+
 #### Guts
-class Template: 
+class Template:
   """Represents an MR image with labels, optionally"""
   def __init__(self, image, labels = None):
     image_path      = os.path.realpath(image)
@@ -135,7 +151,7 @@ class Template:
 
     expected_labels = os.path.join(dirname(dirname(image_path)), 'labels', self.stem + "_labels.mnc")
     if not labels and os.path.exists(expected_labels):
-      self.labels = expected_labels 
+      self.labels = expected_labels
 
   @classmethod
   def get_templates(cls, path):
@@ -146,17 +162,29 @@ class Template:
 
 
 # new style?
-class datafile: 
-  def __init__(self, path): 
-    self.path = path 
+class datafile:
+  def __init__(self, path):
+    self.path = path
     self.abspath = os.path.abspath(path)
     self.basename = os.path.basename(path)
     self.dirname = os.path.dirname(path)
+    self.realpath = os.path.realpath(path)
     self.stem = os.path.splitext(self.basename)[0]
-  def exists(self): 
+  def exists(self):
     return os.path.isfile(self.realpath)
   def __str__(self):
     return self.abspath
+  def __repr__(self):
+    return self.realpath
+  def __eq__(self, other):
+    if isinstance(other,self.__class__):
+      return os.path.realpath(self.abspath) == os.path.realpath(other.abspath)
+    else:
+      return false
+  def __ne__(self,other):
+    return not self.__eq__(other)
+  def __hash__(self):
+    return hash(os.path.realpath(self.abspath))
 
 class out(datafile):
   pass
@@ -165,40 +193,33 @@ class image(datafile):
   def objects(self):
     return map(datafile, glob.glob('{0.dirname}/../objects/*.obj'.format(self)))
   def labels(self):
-    return map(datafile, 
+    return map(datafile,
         glob.glob('{0.dirname}/../labels/{0.stem}_labels.mnc'.format(self)))
-  def __eq__(self, other):
-    if isinstance(other,self.__class__):
-      return os.path.realpath(self.abspath) == os.path.realpath(other.abspath)
-    else:
-      return false
-  def __ne__(self,other):
-    return not self.__eq__(other)
 
 class command:
   def __init__(self, fmt_string, *args, **kwargs):
     cmdstr = fmt_string.format(*args,**kwargs)
     self.__init__(shlex.split(cmdstr))  # split it up into parts
     #
-    #todo: we could augment the usual string formatting syntax to include 
+    #todo: we could augment the usual string formatting syntax to include
     #      the ability to indicate types (e.g. that an argument is an 'out'put
-    #      file. 
+    #      file.
     #
-    #      Ideas: 
-    #         # 1. use <Type>@<string> to mean 
-    #         #   call Type(string), as in: 
-    #         nuc_correct {0} out@{output_dir}/nuc/{0.stem} 
+    #      Ideas:
+    #         # 1. use <Type>@<string> to mean
+    #         #   call Type(string), as in:
+    #         nuc_correct {0} out@{output_dir}/nuc/{0.stem}
     #
     #         # Q: what if there are @ characters in the string?
     #         # A: too bad. :-)  But honestly, we could just check for strings
     #         that match $\w+@ so that the only strings that may get confused
     #         are those that happen to start with out@ and are NOT mean to be
-    #         interpreted as types. 
+    #         interpreted as types.
     #
     #         # 2. use the conversion option for output files: o
     #         bestlinreg {from} {to} {xfm!o} {resampled!o}
 
-  def __init__(self, *args): 
+  def __init__(self, *args):
     #todo: sanity checks
     self.cmd = args
 
@@ -209,7 +230,7 @@ class taskset:
   def stage(self,stage_name):
     """syntactic sugar"""
     t = self
-    class _stage(): 
+    class _stage():
       def command(self, *args):
         t.command(stage_name,args)
     return _stage()
@@ -226,7 +247,7 @@ class taskset:
       for command in self.stages[stage]:
         __str += '\t{0}\n'.format(' '.join(map(str,command)))
     return __str
-  def runqueue(self, commandqueue): 
+  def populate_queue(self, commandqueue):
     for stage in self.stages:
       unfinished, outputs = self._filter_unfinished(self.stages[stage])
       if not unfinished:
@@ -235,10 +256,12 @@ class taskset:
       # make output dirs directories
       map(mkdirp, set(map(lambda x: x.dirname, chain(*outputs))))
 
-
       cmds = map(lambda command: " ".join(map(str,command)), unfinished)
       commandqueue.append_commands(stage, set(cmds))
 
+  def runqueue(self, commandqueue, populate=True):
+    if populate:
+        self.populate_queue(commandqueue)
     commandqueue.run(self.stage_order)
 
   def _filter_unfinished(self,commands):
@@ -251,7 +274,37 @@ class taskset:
         unfinished, outputs = (), ()
     return (unfinished, outputs)
 
-def run_command(command): 
+  def write_to_script(self,scriptname,processes=8):
+    script = open(scriptname,'w')
+    script.write('#!/bin/bash\n')
+    script.write(
+        'echo "This script was generated by MAGeT morph on {0!s}"\n'.format(
+          datetime.datetime.now()))
+
+    for stage in self.stage_order:
+      details = [(c,filter(lambda x: isinstance(x,out),c)) for c in self.stages[stage]]
+      runnable, outputs = zip(*details)
+
+      script.write('\necho "STAGE {0} -- creating directories"\n'.format(stage))
+      dirs_to_make = set(map(lambda x: x.dirname, chain(*outputs)))
+      script.write(''.join(map(lambda x: 'mkdir -p "{0}"\n'.format(x),
+        dirs_to_make))+'\n')
+
+      script.write('\necho "STAGE {0} -- commands"\n'.format(stage))
+      commands = map(lambda command: " ".join(map(str,command)), runnable)
+      if processes == 0:
+        script.write('\n'.join(commands) + '\n')
+      else:
+        for i in range(0,len(commands),processes):
+          batch = commands[i:i+processes]
+          script.write(' &\n'.join(batch) + ' &\n')
+          script.write('wait;\n')
+
+    script.write('\necho "DONE!!!!"\n')
+    script.close()
+
+
+def run_command(command):
   cmdstr = " ".join(map(str,command))
   print >> sys.stderr, 'COMMAND:', cmdstr
   return call(cmdstr,shell=True)
@@ -259,13 +312,13 @@ def run_command(command):
 class multiprocqueue:
   def run(self,tasks,processes=None,stage_order=None):
     """Runs the commands from the given stages in the task list.
-       
+
        If stages isn't provided, then all stages are run. """
     stage_order = stage_order or tasks.stage_order
     for stage in stage_order:
       print '## stage:', stage,'##'
 
-      # 
+      #
       unfinished, outputs = self._filter_unfinished(tasks.stages[stage])
       if not unfinished:
         continue
@@ -296,7 +349,7 @@ class multiprocqueue:
     return (unfinished, outputs)
 
 class scriptqueue(multiprocqueue):
-  def __init__(self): 
+  def __init__(self):
     self.stage = 1
 
   def _run(self,commands,stage,processes=None):
@@ -306,7 +359,7 @@ class scriptqueue(multiprocqueue):
     return [0]
 
 class batcharrayqueue(multiprocqueue):
-  def __init__(self): 
+  def __init__(self):
     self.stage = 1
 
   def _run(self,commands,stage,processes=None):
@@ -326,7 +379,7 @@ def mkdirp(*p):
   path = join(*p)
   try:
     os.makedirs(path)
-  except OSError as exc: 
+  except OSError as exc:
     if exc.errno == errno.EEXIST:
       pass
     else: raise
@@ -334,10 +387,10 @@ def mkdirp(*p):
 
 def execute(command, input = ""):
   """Spins off a subprocess to run the cgiven command"""
-  proc = subprocess.Popen(command.split(), 
+  proc = subprocess.Popen(command.split(),
            stdin = subprocess.PIPE, stdout = 2, stderr = 2)
   proc.communicate(input)
-  if proc.returncode != 0: 
+  if proc.returncode != 0:
     raise Exception("Returns %i :: %s" %( proc.returncode, command ))
 
 def parallel(commands, processors=8):
