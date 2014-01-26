@@ -1,5 +1,12 @@
 # Multiple Automatically Generated Templates brain segmentation algorithm
 
+---
+
+Looking for the MAGeT morphology pipeline? Go here: 
+    https://github.com/pipitone/MAGeTbrain/tree/morpho
+    
+---
+
 Given a set of labelled MR images (atlases) and unlabelled images (subjects), MAGeT produces a segmentation for each subject using a multi-atlas voting procedure based on a template library made up of images from the subject set.  
 
 Here is a schematic comparing 'traditional' multi-atlas segmentation, and MAGeT brain segmentation: 
