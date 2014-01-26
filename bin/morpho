@@ -55,7 +55,7 @@ class Morphobits:
     # move to subjects and templates to model space 
     for s in set(native_subjects).union(set(native_templates)):
       nuc=out('output/nuc/'+s.basename)
-      xfm=out(self.xfmpath([model,s],name='lsq9.xfm'))
+      xfm=out(self.xfmpath([model,s],xfmname='lsq9.xfm'))
       modelsubject=out('output/modelspace/'+s.basename)
       command(('nu_correct','-quiet',s,nuc), stage='subject.nuc')
       stage('subject.model.prop').command(
@@ -226,11 +226,13 @@ def main():
     if atlas == model:
       xfm=None
     else:
-      xfm='{model}/xfms/to_{atlas.stem}.xfm'.format(model=model.abspath,atlas=atlas)
+      xfm='{model.dirname}/../xfms/to_{atlas.stem}.xfm'.format(model=model,atlas=atlas)
+      xfm=os.path.abspath(xfm)
       user_error_if(not os.path.isfile(xfm), 
         "Expected to find model->atlas xfm {0}".format(xfm))
     model_atlas_xfms[atlas] = xfm 
-  model.atlas_xfms = model_atlas_xfms  #HACK monkey patch my own code? why not
+  model.atlas_xfms = model_atlas_xfms  #HACK monkey patch my own code? yes.
+  # todo: create a model class to handle much of the above
 
   # subjects
   subjects=map(image, glob.glob('{0}/subjects/brains/*.mnc'.format(options.input_dir)))
@@ -238,7 +240,6 @@ def main():
     options.input_dir))
 
   # templates
-
   if options.templates:    
     templates = [s for s in subjects if s.stem in options.templates]
     user_error_if(not templates, "Templates specified not found in {dir}/subjects/brains/".format(
@@ -248,6 +249,7 @@ def main():
     user_error_if(not templates, "No templates found in {0}/templates/brains/".format(
       options.input_dir))
     
+  # refine subject list
   if options.subjects:
     subjects = [s for s in subjects if s.stem in options.subjects]
   user_error_if(not subjects, "Subjects specified not found in {dir}/subjects/brains/".format(

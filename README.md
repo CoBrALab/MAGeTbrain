@@ -86,6 +86,12 @@ Running ```morpho``` by itself will start the processing pipeline on the current
 
 Lastly, you can control which subjects are processed using the ```-s``` flag. List the subject file names without the .mnc extension (e.g. ```-s s001 s002 s003```). Likewise, you can specify which subjects are used as templates in the template library by using the ```-t``` flag. This option can be used in-place of creating an ```input/templates``` folder, or to override it. 
 
+All together, here is how you might run the pipeline on SciNET: 
+
+```sh
+$ morpho --queue pbs --walltime 4:00:00
+```
+
 ### MAGeT morph output
 
 Upon completing successfully, the output will held in the following folders: 
