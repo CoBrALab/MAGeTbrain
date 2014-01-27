@@ -86,7 +86,7 @@ class Morphobits:
 
         # handle the model->atlas case where XFMs are supplied 
         if model != a:
-          xfms.append(source.atlas_xfms[target]) # we guarantee existence earlier on
+          xfms.append(model.atlas_xfms[a]) # we guarantee existence earlier on
         
         for source,target in [(a,t),(t,s)]: 
           if source == target:
