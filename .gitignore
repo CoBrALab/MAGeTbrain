@@ -1,9 +1,6 @@
-input_atlases 
-input_subjects 
-input_templates
 logs
 scripts
-tmp
-.jobscript
-.scripts
 input
+output
+.scripts
+*.pyc
