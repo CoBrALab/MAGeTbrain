@@ -83,16 +83,15 @@ class Morphobits:
       
         # concat a single XFM for pathway (skip moves from identical images)
         xfms=[]
-        for source,target in [(model,a),(a,t),(t,s)]: 
+
+        # handle the model->atlas case where XFMs are supplied 
+        if model != a:
+          xfms.append(source.atlas_xfms[target]) # we guarantee existence earlier on
+        
+        for source,target in [(a,t),(t,s)]: 
           if source == target:
             continue
-          # handle the model->atlas case where XFMs are supplied 
-          #todo: add to xfmpath? 
-          if source == model:
-            warp = model.atlas_xfms[a] # we guarantee existence earlier on
-          else: 
-            warp = self.xfmpath([source,target])
-          xfms.append(warp)
+          xfms.append(self.xfmpath([source,target]))
 
         assert xfms is not [], "{model}, {a}, {t}, {s} are all the same image?".format(**vars())
 
@@ -223,14 +222,12 @@ def main():
   # get model->atlas xfms
   model_atlas_xfms = dict()
   for atlas in atlases: 
-    if atlas == model:
-      xfm=None
-    else:
+    if atlas != model:
       xfm='{model.dirname}/../xfms/to_{atlas.stem}.xfm'.format(model=model,atlas=atlas)
       xfm=os.path.abspath(xfm)
       user_error_if(not os.path.isfile(xfm), 
         "Expected to find model->atlas xfm {0}".format(xfm))
-    model_atlas_xfms[atlas] = xfm 
+      model_atlas_xfms[atlas] = xfm 
   model.atlas_xfms = model_atlas_xfms  #HACK monkey patch my own code? yes.
   # todo: create a model class to handle much of the above
 
