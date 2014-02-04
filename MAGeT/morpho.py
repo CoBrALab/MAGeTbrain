@@ -55,11 +55,24 @@ class Morphobits:
     # move to subjects and templates to model space
     for s in set(native_subjects).union(set(native_templates)):
       nuc=out('output/nuc/'+s.basename)
-      xfm=out(self.xfmpath([model,s],xfmname='lsq9.xfm'))
+      xfm=out(self.xfmpath([model,s],xfmname='lsq12.xfm'))
       modelsubject=out('output/modelspace/'+s.basename)
-      command(('nu_correct','-quiet',s,nuc), stage='subject.nuc')
+
+      command(('nu_correct','-quiet',
+        '-iter','100',
+        '-stop','0.0001',
+        '-fwhm','0.1',
+        s,nuc), stage='subject.nuc')
+
+      stage('reg.subject.to.modelspace').command(
+              'bestlinreg','-noverbose','-lsq12',nuc,model,xfm)
+
       stage('subject.to.modelspace').command(
-              'bestlinreg','-noverbose','-lsq9',nuc,model,xfm,modelsubject)
+          'mincresample',
+            '-keep',  # keep the voxel resolution of the subjects
+            '-sinc',  # does something important and good
+            '-2','-like',model,'-transform',xfm,nuc,modelsubject)
+
       if s in native_subjects:
         subjects.append(image(modelsubject.path))
       if s in native_templates:
@@ -69,6 +82,9 @@ class Morphobits:
     for x,y in chain(product(atlases,templates), product(templates,subjects)):
       if x != y:
         stage('pairwise.reg').command('mb_register',x,y,out(self.xfmpath([x,y])))
+
+    #TODO: consider using 1-stage registration for templates to subjects, by
+    # default
 
     # do stuff with XFMs on all possible paths to subject
     for s in subjects:
@@ -148,6 +164,7 @@ class Morphobits:
             vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
                 **vars())
             #todo: blur surface
+
 
     return tasklist
 
