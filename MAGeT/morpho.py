@@ -52,6 +52,10 @@ class Morphobits:
       tasklist.stage(stage).command(*command)
 
     ## BEGIN
+    res_model='output/modelspace/'+model.basename
+    command( ('autocrop', '-isostep 1', model, out(res_model)),
+      stage='image.prep')
+
     # move to subjects and templates to model space
     for s in set(native_subjects).union(set(native_templates)):
       nuc=out('output/nuc/'+s.basename)
@@ -62,16 +66,16 @@ class Morphobits:
         '-iter','100',
         '-stop','0.0001',
         '-fwhm','0.1',
-        s,nuc), stage='subject.nuc')
+        s,nuc), stage='image.prep')
 
       stage('reg.subject.to.modelspace').command(
-              'bestlinreg','-noverbose','-lsq12',nuc,model,xfm)
+              'bestlinreg','-noverbose','-lsq12',nuc,res_model,xfm)
 
       stage('subject.to.modelspace').command(
           'mincresample',
-            '-keep',  # keep the voxel resolution of the subjects
-            '-sinc',  # does something important and good
-            '-2','-like',model,'-transform',xfm,nuc,modelsubject)
+            '-sinc',                # does something important and good
+            '-like', res_model,
+            '-2','-transform',xfm,nuc,modelsubject)
 
       if s in native_subjects:
         subjects.append(image(modelsubject.path))
@@ -224,6 +228,7 @@ def main():
     len(inmodeldir) != 1, "Expected one model image in {dir}/brains, but found {count}".format(
       dir=options.model_dir, count=len(inmodeldir)))
   model = image(inmodeldir.pop())
+
 
   # check that the model has objects (if needed)
   user_error_if(not model.objects(),
