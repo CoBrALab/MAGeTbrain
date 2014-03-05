@@ -33,6 +33,7 @@
 import sys
 import copy
 import datetime
+import argparse
 from os import getcwd 
 from os.path import dirname, normpath, join
 
@@ -99,8 +100,6 @@ class XFM():
         return "\n".join([self.header] + self.history + map(str,self.transforms))
 
     def merge(self, xfms, paths_relative_to = 'source'):
-        self.history.append("%% %s >> Merging %s" % (datetime.datetime.now().isoformat(), 
-                  ", ".join(map(lambda x: x.xfmfile_path, xfms))))
         for xfm in xfms:
             self.header = xfm.header
             self.history.extend(xfm.history)
@@ -108,18 +107,26 @@ class XFM():
                 if isinstance(transform, GridTransform):
                     transform.update_volume_path(relative_to = paths_relative_to)
                 self.transforms.append(transform)        
-            
+        self.history.append("%% %s >> Merging %s" % (datetime.datetime.now().isoformat(), 
+                  ", ".join(map(lambda x: x.xfmfile_path, xfms))))
+    def strip_linear_transforms(self):
+        """Only includes grid transforms, removes everything else"""
+        self.history.append("%% {} >> Strip linear transforms".format(datetime.datetime.now().isoformat()))
+        self.transforms = filter(lambda x: isinstance(x, GridTransform), self.transforms)
+
+def main(): 
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--nl-only', action='store_true', 
+      help="Joined XFM only includes non-linear parts")
+  parser.add_argument('xfm', nargs='+', help="XFM file to concatenate")
+  parser.add_argument('output_xfm', help="joined xfm")
+  options =  parser.parse_args()
+
+  merged_xfm = XFM()
+  merged_xfm.merge(map(XFM, options.xfm))
+  if options.nl_only: 
+    merged_xfm.strip_linear_transforms()
+  open(options.output_xfm, 'w').write(str(merged_xfm))
 
 if __name__ == '__main__': 
-    
-    if len(sys.argv) <= 1: 
-        print "Joins together several xfm files, leaving the original displacement volumes"
-        print "in place."
-        print 
-        print "Usage: %s xfm [xfm ...] merged.xfm" % sys.argv[0]
-        print
-        sys.exit(-1)
-
-    merged_xfm = XFM()
-    merged_xfm.merge(map(XFM, sys.argv[1:-1]))
-    open(sys.argv[-1], 'w').write(str(merged_xfm))
+   main() 
