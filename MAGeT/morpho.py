@@ -87,9 +87,6 @@ class Morphobits:
       if x != y:
         stage('pairwise.reg').command('mb_register',x,y,out(self.xfmpath([x,y])))
 
-    #TODO: consider using 1-stage registration for templates to subjects, by
-    # default
-
     # do stuff with XFMs on all possible paths to subject
     for s in subjects:
       grids=list()
@@ -98,8 +95,9 @@ class Morphobits:
 
       # compute all possible XFM paths to subject
       for a,t in product(atlases,templates):
-        xfm=self.xfmpath([model,a,t,s])
-        xfmdir=os.path.dirname(xfm)
+        xfm        =self.xfmpath([model,a,t,s])
+        nl_only_xfm=self.xfmpath([model,a,t,s],xfmname="nl_only.xfm")
+        xfmdir     =os.path.dirname(xfm)
         grid='{xfmdir}/grid.mnc'.format(**vars())
 
         # concat a single XFM for pathway (skip moves from identical images)
@@ -116,15 +114,18 @@ class Morphobits:
 
         assert xfms is not [], "{model}, {a}, {t}, {s} are all the same image?".format(**vars())
 
-        xfms.append(out(xfm))
-        stage('model.subject.xfm').command('xfmjoin',*xfms)
+        # create two concatenated xfms: one with linear parts (to use with
+        # segmentation), one without
+        stage('model.subject.xfm').command('xfmjoin',*(xfms + [out(xfm)]))
+        stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
 
-        # compute grid for the entire path
+        # compute non-lin grid for the entire path
         stage('model.subject.displace').command(
-            'minc_displacement',model,xfm,out(grid))
+            'minc_displacement',model,nl_only_xfm,out(grid))
 
         # transform objects from atlases
         if self.config('surfaces'):
+          #TODO: should transform to native space? 
           for o in a.objects():
             kind=o.stem
             object='${xfmdir}/${kind}'.format(**vars())
@@ -169,7 +170,7 @@ class Morphobits:
                 **vars())
             #todo: blur surface
 
-
+      #TODO: for segmentation, remember to transform voted volumes back into native space
     return tasklist
 
 def parse_args():
