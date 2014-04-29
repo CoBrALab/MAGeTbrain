@@ -18,7 +18,7 @@ The major difference between algorithms is that, in MAGeT brain, segmentations f
 ## For the impatient:
 
     git clone http://pipitone.github.com/MAGeTbrain
-    export PATH=$PWD/MAGeTBrain/bin:$PATH
+    source MAGeTbrain/bin/activate
     mb init segmentations
     cd segmentations
     mb import atlas1_t1.mnc atlas1_labels.mnc
@@ -33,7 +33,10 @@ The major difference between algorithms is that, in MAGeT brain, segmentations f
     
         git clone  git://github.com/pipitone/MAGeTbrain.git 
 
-1. Add the `bin` folder to your path. Create a new folder for your project and, 
+1. Add the `MAGeTbrain/bin` folder to your path. This can be done easily by
+running, `source MAGeTbrain/bin/activate` (revert PATH by typing `deactivate`). 
+
+1. Create a new folder for your project and, 
 
         mb init
 
