@@ -1,0 +1,63 @@
+#!/bin/bash
+
+usage() { echo "
+Usage: $0 [options] FILE [qsub options]
+
+Options: 
+  -b     batch size
+  -j     commands to run in parallel per node
+  -p     cores per node [default: 8]
+  -w     walltime [default: 1:00:00]
+  " 1>&2; exit 1; }
+
+b=2           # batch size
+j=8           # commands to run in parallel 
+p=8           # cores per node 
+w=1:00:00     # walltime
+
+while getopts ":b:j:p:N:w:" o; do
+  case "${o}" in
+    b)
+      b=${OPTARG}
+      ;;
+    j)
+      j=${OPTARG}
+      ;;
+    p)
+      p=${OPTARG}
+      ;;
+    w)
+      w=${OPTARG}
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done;
+
+shift $((OPTIND-1))
+
+list=$1
+shift
+if [[ ! -f "$list" ]]; then
+  echo "ERROR: $list does not exist, or is not a file."
+  usage
+fi
+
+mkdir -p logs
+
+batches=$(( $(cat $list | wc -l) / $b ))     # batches
+lines=$(( $b - 1 ))                              # num lines for sed
+script=$list.array.sh
+cat > $script <<EOF
+#!/bin/bash
+#PBS -l nodes=1:ppn=$p,walltime=$w
+#PBS -j oe
+#PBS -o logs
+#PBS -V
+cd \${PBS_O_WORKDIR}
+start=\$(( \${PBS_ARRAYID} * $b + 1 ))
+sed -n \$start,+${lines}p $list | parallel -j$j
+EOF
+chmod +x $script
+qsub -t 0-$batches $script
