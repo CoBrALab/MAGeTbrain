@@ -1,0 +1,75 @@
+#!/bin/bash
+nfolds=$1
+natlases=$2
+ntemplates=$3
+pool=(input/pool/brains/*.mnc)
+
+function usage {
+cat <<EOF
+Samples from labelled images to create MAGeT input folders for cross validation
+folds
+    
+usage: 
+  $(basename $0)  folds atlases templates
+
+  folds      - number of validation folds to produce
+  altases    - number of atlases to use in each fold
+  templates  - number of templates to use in each fold
+
+Expects that in the current folder is ./input/pool/ that contains brains/ and
+/labels/ folders of images (in brains/) and corresponding labels (in labels/).
+Labels should be named following the MAGeT brain conventions. E.g. 
+  brains/s1.mnc  ->   labels/s1_labels.mnc
+  brains/s2.mnc  ->   labels/s2_labels.mnc
+  brains/s3.mnc  ->   labels/s3_labels.mnc
+
+Each "fold" is a new folder in input/ (e.g. input/fold1) that has an atlases/
+templates/ and subjects/ folder containing images randomly sampled from the
+pool according to the parameters you set. For instance, if you run this script
+like so: 
+
+  $(basename $0) 10 5 19
+
+You'll have a ten fold directories created, with each one containing a
+different atlas library (of 5 images and labels), subject library (the
+remaining images in the pool), and template library (19 of subjects).
+
+NOTE: this script uses 'cp -l' to create hard links to the images in your pool
+folder, rather than make full copies (run 'man ln' to learn more about hard
+links).
+
+# Using the fold directories with MAGeT 
+
+Once you have created these fold folders, you can then run MAGeT so that it
+uses one of these folds as its input. e.g. 
+
+  mb --input_dir=input/fold1 --output_dir=output/fold1 run 
+
+NOTE: since the folds will likely share registrations (from atlas->template,
+and template->subject), if you are doing many folds to save time you may want
+to run all the pairwise registrations in the entire pool. Exercise left for the
+reader. 
+EOF
+}
+
+if [[ -z "$nfolds" || -z "$natlases" || -z "$ntemplates" || ! -e input/pool ]]; then
+    usage
+    exit 1
+fi
+
+for fold in $(seq $nfolds); do 
+    #shuffle
+    pool=($(printf "%s\n" "${pool[@]}" | sort -R))
+    atlases=("${pool[@]:0:$natlases}")
+    subjects=("${pool[@]:$natlases}")
+    templates=("${subjects[@]:0:$ntemplates}")
+
+    folddir=input/fold$fold
+    mkdir -p $folddir/{atlases,templates,subjects}/{brains,labels}
+    cp -l "${atlases[@]}" $folddir/atlases/brains/
+    tmp=("${atlases[@]/.mnc/_labels.mnc}")
+    cp -l "${tmp[@]/brains/labels}" $folddir/atlases/labels
+    cp -l "${templates[@]}" $folddir/templates/brains/
+    cp -l "${subjects[@]}" $folddir/subjects/brains/
+done
+
