@@ -17,7 +17,7 @@ The major difference between algorithms is that, in MAGeT brain, segmentations f
 
 ## For the impatient:
 
-    git clone http://pipitone.github.com/MAGeTbrain
+    git clone https://github.com/pipitone/MAGeTbrain
     source MAGeTbrain/bin/activate
     mb init segmentations
     cd segmentations
