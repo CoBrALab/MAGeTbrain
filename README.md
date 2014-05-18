@@ -31,7 +31,7 @@ The major difference between algorithms is that, in MAGeT brain, segmentations f
 
 0. Check out a copy of this repository somewhere handy,
     
-        git clone  git://github.com/pipitone/MAGeTbrain.git 
+        git clone git://github.com/pipitone/MAGeTbrain.git 
 
 1. Add the `MAGeTbrain/bin` folder to your path. This can be done easily by
 running, `source MAGeTbrain/bin/activate` (revert PATH by typing `deactivate`). 
@@ -53,14 +53,14 @@ running, `source MAGeTbrain/bin/activate` (revert PATH by typing `deactivate`).
    label file accordingly. Use the `mb import -l` to use symbolic links rather
    than copying files.
 
-3. MAGeT Brain is operated using the ```mb``` command. In order to run the
+3. MAGeT Brain is operated using the `mb` command. In order to run the
    entire pipeline, simply run: 
 
         mb run
 
    This uses the default settings to execute the necessary commands. In
    particular, it assumes you have access to a PBS batch queuing system, and
-   uses the utility ```bin/qbatch``` to submit commands in batches.  If you are
+   uses the utility `bin/qbatch` to submit commands in batches.  If you are
    running this on SciNet, you should no problems.
 
    If you can also run MAGeT Brain using the GNU parallel on a single machine, 
@@ -75,16 +75,17 @@ implementation, check the 'master' branch.
 ## MAGeT Brain Commands
 
 
-#### ```mb init```
+#### `mb init`
 
 ```
 mb init [<folder>]
 
 ```
 
-The ```init``` command is used to start a new project. It creates a folder
+The `init` command is used to start a new project. It creates a folder
 structure to hold MAGeT brain inputs and outputs. If no folder name is supplied
-then the current folder is used.  ```init`` creates the following folders: 
+then the current folder is used.  `init` creates the following folders: 
+
 ```
 project-folder/
     input/
@@ -98,14 +99,28 @@ project-folder/
     output/
 ```    
 
-### ```mb import```
+### `mb import`
+
 ```
 mb import <image.mnc> <labels.mnc> [<mask.mnc>]
 ```
 
-### ```mb check```
-### ```mb status```
-### ```mb run```
+The given image and corresponding labels are imported into the `input/atlases`
+folder, with the proper naming convention. 
+
+### `mb check`
+
+Checks the input configuration and reports any anomalies and suggestions to
+correct them. If this command doesn't return any messages then you should be
+set to run MAGeT brain. 
+
+### `mb status`
+
+Reports on the progress of MAGeT brain and shows the number of remaining tasks.
+
+### `mb run`
+
+Starts the MAGeT brain pipeline. 
 
 ---
     http://tinysong.com/y9lO
