@@ -29,6 +29,8 @@ AT_nl_xfm=$output_dir/TAnl_inverse.xfm
 atlas_res=$output_dir/linres.mnc
 atlas_res_mask=$output_dir/masklinres.mnc
 
+mkdir -p $output_dir
+
 # LINEAR  
 if [ ! -e $AT_lin_xfm ]; then
   mincANTS 3 -m CC[$atlas,$target,1,4] \
