@@ -93,7 +93,9 @@ function run {
     helptxt="${help["run"]}"
     eval "$(docopts -h "${helptxt}" : "$@")"
     case $queue in pbs|sge|none) ;; *) die "$helptxt";; esac
-
+    if [[ $segment == "false" && $shape == "false" && $all == "false" ]]; then
+        segment="true";
+    fi
     check
      
     local run_id=$(date -Isecond | tr -d '\-:')
@@ -103,27 +105,42 @@ function run {
     local atlases=($input_dir/atlases/brains/*.mnc)
     local templates=($input_dir/templates/brains/*.mnc)
     local subjects=($input_dir/subjects/brains/*.mnc)
-    if [[ $(ls $input_dir/model/brains/*.mnc | wc -l) -gt 1 ]]; then
+    if [[ $(find $input_dir/model/brains/ -name '*.mnc' | wc -l) -gt 1 ]]; then
         die "More than one model image found in $input_dir/model/brains"; 
     fi
     local model=$input_dir/model/brains/*.mnc 
 
-    if [[ $nomodelspace == "true" -a $segment == "false" ]]; then 
+    if [[ $nomodelspace == "true" && $segment == "false" ]]; then 
         die "the --nomodelspace option cannot be used when performing shape analysis."
     fi
 
     # register subjects and templates to model space
     if [[ $nomodelspace == "false" ]]; then 
         die_if_dne $model "No model image found in $input_dir/model/brains/" 
+        local std_dir=$output_dir/std
+        local std_tmpl_dir=$std_dir/templates
+        local std_subj_dir=$std_dir/subjects
+        local new_templates=( )
+        local new_subjects=( )
+
+        local modelspace_cmds=( )
+        mkdir -p $std_tmpl_dir $std_subj_dir
+
+        local resampled_model=$std_dir/$(basename $model)
+        autocrop 
+        for t in ${templates[@]}; do
+            std_tmpl=$std_tmpl_dir/$(stem $t)_std.mnc
+            [[ -e $std_tmpl ]] && continue
+            modelspace_cmds+=( "bestlinreg $t $model $std_tmpl" )
+        done
+
+        for s in ${subjects[@]}; do
+        done
     fi 
 
     # build template library 
     template_cmds=$run_dir/mb-mktemplib-${run_id}
-    for a in ${atlases[@]}; do for t in ${templates[@]}; do
-        xfm=$(regxfmpath $output_dir $a $t)
-        [[ -e $xfm ]] && continue
-        echo $registerbin $a $t $xfm
-    done; done > $template_cmds
+    mb.mktmpl -i $input_dir -o $output_dir -j$j -n | queue
 
     # segment subjects
     local labelsdir=$output_dir/labels
@@ -215,14 +232,17 @@ function die { echo $1; exit 1; }
 function die_if_dne { [[ ! -e $1 ]] && die "${2:-"$1 does not exist."}"; }
 function stem { echo $(basename $1 .mnc); }
 function labelspath { echo $(dirname $(dirname $1))/labels/$(stem $1)_labels.mnc; }
-function go { echo "$@"; }
-function goparallel { echo parallel "$@"; cat; }
+function go { [[ $verbose == "true" ]] && echo "$@";  [[ $dry_run == "false" ]] && eval $@;}
+function gosh { go "$*"; }
+function goparallel { go parallel "$@"; cat; }
 function regxfmpath {
-     basedir=$1; shift; 
-     regdir=$basedir/xfms;
-     for i in ${@}; do regdir="$regdir/$(stem $i)"; done;
-     echo $regdir/reg.xfm;
+    basedir=$1; shift; 
+    regdir=$basedir/xfms;
+    for i in ${@}; do regdir="$regdir/$(stem $i)"; done;
+    echo $regdir/reg.xfm;
 }
+function queue.none { parallel -j1 }
+    
 
 ### main ###
 main $@

@@ -1,0 +1,31 @@
+#!/bin/bash
+help="
+Run the MAGeT brain pipelines.
+
+Usage: 
+    mb.mktempl [options] 
+
+General options: 	                 
+    --nomodelspace         Do not use subjects/templates in model space. 
+    --registerbin CMD      Script to register images. [default: mb_register]
+
+Folder options: 
+    -i PATH --input-dir PATH    Top-level for all input. [default: $PWD/input]
+    -o PATH --output-dir PATH   Top-level for all output. [default: $PWD/output]
+
+Execution options:
+    -n --dry_run           Dry run. Do not take any action.
+    -j N                   Number of processes to parallelize over.  [default: 8]
+    -v, --verbose          Be verbose.
+"
+eval "$(docopts -h "$help" : "$@")"
+
+atlases=($input_dir/atlases/brains/*.mnc)
+templates=($input_dir/templates/brains/*.mnc)
+subjects=($input_dir/subjects/brains/*.mnc)
+
+[[ $dry_run == "true" ]] && dryrun=--dry-run
+
+parallel $dryrun -j$j \
+    $registerbin {1} {2} $output_dir/xfms/{1/.}/{2/.}/reg.xfm \
+    ::: ${atlases[@]} ::: ${templates[@]}
