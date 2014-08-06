@@ -1,0 +1,18 @@
+To cite MAGeTbrain in publications, please use: 
+
+    Pipitone J, Park MT, Winterburn J, et al. Multi-atlas segmentation of the whole hippocampus 
+      and subfields using multiple automatically generated templates. Neuroimage. 2014;
+    
+DOI: 10.1016/j.neuroimage.2014.04.054
+
+A BibTeX entry for LaTeX users is
+
+    @article{age_Voineskos_Chakravarty_2014,
+      title= {Multi-atlas segmentation of the whole hippocampus and subfields using multiple automatically generated templates},
+      url= {http://dx.doi.org/10.1016/j.neuroimage.2014.04.054},
+      journal= {NeuroImage},
+      publisher= {Elsevier BV},
+      author= {Pipitone, Jon and Park, Min Tae M. and Winterburn, Julie and Lett, Tristram A. and Lerch, Jason P. and Pruessner, Jens C. and Lepage, Martin and Voineskos, Aristotle N. and Chakravarty, M.M.},
+      year= {2014},
+      month= {Apr},
+    }
