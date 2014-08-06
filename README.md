@@ -15,6 +15,11 @@ Here is a schematic comparing 'traditional' multi-atlas segmentation, and MAGeT 
 
 The major difference between algorithms is that, in MAGeT brain, segmentations from each atlas (typically manually delineated) are propogated via image registration to a subset of the subject images (known as the 'template library') before being propogated to each subject image and fused. It is our hypothesis that by propogating labels to a template library, we are able to make use of the neuroanatomical variability of the subjects in order to 'fine tune' each individual subject's segmentation. 
 
+To [cite MAGeTbrain in publications](CITATION), please use:
+
+> Pipitone J, Park MT, Winterburn J, et al. Multi-atlas segmentation of the whole hippocampus
+> and subfields using multiple automatically generated templates. Neuroimage. 2014;
+
 ## For the impatient:
 
     git clone https://github.com/pipitone/MAGeTbrain
