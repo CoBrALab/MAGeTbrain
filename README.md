@@ -3,7 +3,7 @@
 ---
 
 Looking for the MAGeT morphology pipeline? Go here: 
-    https://github.com/pipitone/MAGeTbrain/tree/morpho
+    https://github.com/CobraLab/MAGeTbrain/tree/morpho
     
 ---
 
