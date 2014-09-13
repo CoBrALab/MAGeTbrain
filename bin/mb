@@ -19,13 +19,13 @@ import datetime
 from os.path import join, exists, basename, dirname
 
 # Stages
-STAGE_NONE      = 'NONE'         # not a stage
-STAGE_REG_ATLAS = 'mb_atlas'     # register all atlases to templates
-STAGE_REG_TEMPL = 'mb_tmpl'      # register all templates to subjects
-STAGE_XFM_JOIN  = 'mb_join'      # register all templates to subjects
-STAGE_RESAMPLE  = 'mb_lbl'       # resample all atlas labels to subject space
-STAGE_VOTE      = 'mb_vote'      # vote
-STAGE_TAR       = 'mb_tar'       # tar up
+STAGE_NONE      = 'NONE'           # not a stage
+STAGE_REG_ATLAS = 'mb_templatelib' # register all atlases to templates
+STAGE_REG_TEMPL = 'mb_subject_reg' # register all templates to subjects
+STAGE_XFM_JOIN  = 'mb_xfm_join'    # register all templates to subjects
+STAGE_RESAMPLE  = 'mb_label_prop'  # resample all atlas labels to subject space
+STAGE_VOTE      = 'mb_voting'      # vote
+STAGE_TAR       = 'mb_tar'         # tar up
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
