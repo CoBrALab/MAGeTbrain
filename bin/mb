@@ -15,6 +15,7 @@ import random
 import string
 import subprocess
 import shutil
+import datetime
 from os.path import join, exists, basename, dirname
 
 # Stages
@@ -454,14 +455,14 @@ class QBatchCommandQueue(CommandQueue):
     self.processors = processors
 
   def run(self, stages):
+    timestamp = datetime.datetime.now().isoformat()
     if not stages: 
       stages = self.commands.keys()
 
     previous_stage = STAGE_NONE
     for stage in [s for s in stages if s in self.commands.keys()]:
       if self.commands[stage]:
-        unique_stage = "{0}_{1}".format(stage, 
-            ''.join([random.choice(string.letters) for i in xrange(4)]))
+        unique_stage = "{0}_{1}".format(stage, timestamp) 
         walltime   = stage_queue_hints[stage]['walltime']
         processors = stage_queue_hints[stage]['procs']
         self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
