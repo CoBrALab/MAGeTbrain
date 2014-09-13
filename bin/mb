@@ -140,6 +140,22 @@ def main():
   group.add_argument("--clobber", default=False, 
       action="store_true",
       help="Overwrite output if it exists")
+  group.add_argument("--stage-templatelib-walltime", 
+          default=stage_queue_hints[STAGE_REG_ATLAS]['walltime'], 
+          metavar="<walltime>", 
+          help="Walltime for jobs submitted to build the template library.")
+  group.add_argument("--stage-templatelib-procs", 
+          default=stage_queue_hints[STAGE_REG_ATLAS]['procs'], 
+          metavar="<procs>", type=int,
+          help="Number of processes to run per node when building the template library.")
+  group.add_argument("--stage-voting-walltime", 
+          default=stage_queue_hints[STAGE_VOTE]['walltime'], 
+          metavar="<walltime>", 
+          help="Walltime for jobs submitted to do label fusion.")
+  group.add_argument("--stage-voting-procs", 
+          default=stage_queue_hints[STAGE_VOTE]['procs'], 
+          metavar="<procs>", type=int,
+          help="Number of processes to run per node when doing label fusion.")
 
   # check : sanity checks on inputs and MAGeT run-state
   #####################################################
@@ -200,6 +216,12 @@ def command_run(options):
   else:
     queue = CommandQueue()
   queue.set_dry_run(options.dry_run)
+
+  # update the stage queue settings based on command-line options
+  stage_queue_hints[STAGE_REG_ATLAS]['walltime'] = options.stage_templatelib_walltime 
+  stage_queue_hints[STAGE_REG_ATLAS]['procs'] = options.stage_templatelib_procs 
+  stage_queue_hints[STAGE_VOTE]['walltime'] = options.stage_voting_walltime 
+  stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs 
 
   # we could be running one of many different stages depending on what is
   # specified on the command line. 
