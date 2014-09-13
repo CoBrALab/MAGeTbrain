@@ -68,31 +68,6 @@ logging.root.addHandler(hdlr)
 logging.root.setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# commands:
-# init                     - create a folder for a MAGeT brain run
-# status                   - what is uncomplete in the pipeline
-# check                    - do some sanity checks on inputs 
-# run                      - do everything that needs doing, picking up where
-#                            left off
-# run register             - do atlas-template registrations
-# run vote                 - do voting 
-# pick_templates <size>    - randomly make template library from subjects
-# 
-# options:
-#  --batch            # which batch system to use: SGE, PBS, NONE, custom
-#  --num_templates
-#  --fake  -n         # dry run
-#  --vote_method      # list of voting methods to use, e.g. maj,xcorr,STAPLE
-#  --retries          # number of times to retry submitting commands to batch
-#  --output_dir
-#  --log_dir
-#  --save_xfms
-#  --processors
-#  --invert_resample  
-#  --registration_cmd 
-#  --resample_cmd
-#
-
 def main(): 
   """Main driver."""
   class DefaultHelpParser(argparse.ArgumentParser):
