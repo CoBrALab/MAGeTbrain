@@ -487,7 +487,7 @@ class MAGeTBrain(object):
     self.atlases = atlases
     self.templates = templates
     self.subjects = subjects
-    self.temp_dir = tempfile.mkdtemp(dir='/scratch')
+    self.temp_dir = tempfile.mkdtemp(dir='/remotescratch')
 
   def set_queue(self, queue): 
     self.queue = queue
