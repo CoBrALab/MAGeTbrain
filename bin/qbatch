@@ -63,7 +63,7 @@ if __name__ == "__main__":
         default="logs", type="string", 
         help="Path to logs folder")
     parser.add_option("--batch_system", dest="batch_system",
-        default="pbs", type="choice", choices=['pbs','sge'],
+        default="sge", type="choice", choices=['pbs','sge'],
         help="Batch queueing system to use")
     parser.add_option("-N", dest="job_name",
         default=None, type="string", 
