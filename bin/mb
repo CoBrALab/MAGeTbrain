@@ -95,6 +95,9 @@ def main():
   group.add_argument("--reg_dir",   default="output/registrations", 
     type=os.path.abspath, metavar='',
     help="Directory containing registrations")
+  group.add_argument("--model_reg_dir",   default="output/model_registrations", 
+    type=os.path.abspath, metavar='',
+    help="Directory containing model to atlas registrations")
 
   # subcommands
   subparsers = parser.add_subparsers(title='Commands', metavar='')
@@ -574,7 +577,7 @@ class MAGeTBrain(object):
     commands = []
     for model in self.models:
       for atlas in self.atlases:
-        reg_dir, transform_file = self.xfm_path(model, atlas)
+        reg_dir, transform_file = self.xfm_path(model, atlas, self.options.model_reg_dir)
         reg_cmd = self.register_images(self.options.register_cmd, model, atlas, transform_file)
         if reg_cmd:
           mkdirp(reg_dir)
