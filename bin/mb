@@ -288,6 +288,11 @@ def command_init(options):
   mkdirp(options.folder, 'input', 'atlases', 'labels')
   mkdirp(options.folder, 'input', 'templates', 'brains')
   mkdirp(options.folder, 'input', 'subjects', 'brains')
+#new
+  mkdirp(options.folder, 'input', 'model', 'brains')
+  mkdirp(options.folder, 'input', 'model', 'xfms')
+  mkdirp(options.folder, 'input', 'model', 'objects')
+  mkdirp(options.folder, 'input', 'atlases', 'objects')
 
 def command_check(options): 
   """Entry point from the command line to init a folder for MAGeT brain"""
@@ -309,6 +314,14 @@ def command_check(options):
   error_if_dne(join(options.input_dir, 'subjects'), 
     "{0} folder does not exist.")
   error_if_dne(join(options.input_dir, 'subjects', 'brains'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'model', 'brains'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'model', 'xfms'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'model', 'objects'), 
+    "{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'atlases', 'objects'), 
     "{0} folder does not exist.")
 
   # check that atlases exist, and have labels
