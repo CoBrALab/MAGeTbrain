@@ -650,16 +650,26 @@ def execute(cmd,*args):
 #### Guts
 class Template: 
   """Represents an MR image with labels, optionally"""
-  def __init__(self, image, labels = None):
+  def __init__(self, image, labels = None, objects = None, xfms = None):
     image_path      = os.path.realpath(image)
     self.stem       = os.path.basename(os.path.splitext(image_path)[0])
     self.image      = image
     self.labels     = labels
+    self.objects    = objects
+    self.xfms       = xfms
 
     expected_labels = os.path.join(dirname(dirname(image_path)), 'labels', self.stem + "_labels.mnc")
     if not labels and os.path.exists(expected_labels):
       self.labels = expected_labels 
 
+    objects_path = os.path.join(dirname(dirname(image_path)), 'objects')
+    if not objects and os.path.exists(objects_path):
+      self.objects = glob.glob(join(path, 'objects', "*.obj")):
+   
+    xfms_path = os.path.join(dirname(dirname(image_path)), 'xfms')
+    if not xfms and os.path.exists(xfms_path):
+      self.xfms = glob.glob(join(path, 'xfms', "*.xfm")):
+        
   @classmethod
   def get_templates(cls, path):
     """return a list of MR image Templates from the given path.  Expect to find
