@@ -496,11 +496,12 @@ class QBatchCommandQueue(CommandQueue):
 ### MAGeT Brain Stages
 ######################
 class MAGeTBrain(object):
-  def __init__(self, options, atlases, templates, subjects): 
+  def __init__(self, options, atlases, templates, subjects, model): 
     self.options = options
     self.atlases = atlases
     self.templates = templates
     self.subjects = subjects
+    self.model = model
     self.temp_dir = tempfile.mkdtemp()
 
   def set_queue(self, queue): 
@@ -564,6 +565,20 @@ class MAGeTBrain(object):
           ' '.join(candidate_labels), fused_lbl)
       if not exists(fused_lbl):
         self.queue.append_commands(STAGE_VOTE, [command])
+
+  def stage_register_atlases(self):
+    """Register atlases to templates"""
+    commands = []
+    for atlas in self.atlases:
+      for template in self.templates:
+        reg_dir, transform_file = self.xfm_path(atlas, template)
+        reg_cmd = self.register_images(self.options.register_cmd, atlas, template, transform_file)
+        if reg_cmd:
+          mkdirp(reg_dir)
+          commands.append(reg_cmd)
+    self.queue.append_commands(STAGE_REG_ATLAS, commands)
+    return len(commands) == 0
+
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
@@ -649,7 +664,7 @@ def execute(cmd,*args):
 
 #### Guts
 class Template: 
-  """Represents an MR image with labels, optionally"""
+  """Represents an MR image with labels, optionally, with objects and xfms, optionally"""
   def __init__(self, image, labels = None, objects = None, xfms = None):
     image_path      = os.path.realpath(image)
     self.stem       = os.path.basename(os.path.splitext(image_path)[0])
