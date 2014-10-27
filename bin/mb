@@ -194,21 +194,22 @@ def get_inputs(options):
   atlases   = Template.get_templates(join(options.input_dir, 'atlases'))
   templates = Template.get_templates(join(options.input_dir, 'templates'))
   subjects  = Template.get_templates(join(options.input_dir, 'subjects'))
+  model     = Template.get_templates(join(options.input_dir, 'model'))
 
   if options.subject: 
     subjects = [s for s in subjects if s.stem == options.subject]
    
-  logger.info('{0} atlases, {1} templates, {2} subjects found'.format(
-    len(atlases), len(templates), len(subjects)))
+  logger.info('{0} models, {1} atlases, {2} templates, {3} subjects found'.format(
+    len(model), len(atlases), len(templates), len(subjects)))
 
-  return (atlases, templates, subjects)
+  return (model, atlases, templates, subjects)
 
 def command_run(options): 
   """Entry point from the command line to start the MAGeT pipeline"""
     
   # Run through sanity checks
   command_check(options)
-  atlases, templates, subjects = get_inputs(options)
+  model, atlases, templates, subjects = get_inputs(options)
 
   if options.queue == "qbatch": 
     queue = QBatchCommandQueue(processors=options.processes)
