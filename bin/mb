@@ -26,6 +26,7 @@ STAGE_XFM_JOIN  = 'mb_xfm_join'    # register all templates to subjects
 STAGE_RESAMPLE  = 'mb_label_prop'  # resample all atlas labels to subject space
 STAGE_VOTE      = 'mb_voting'      # vote
 STAGE_TAR       = 'mb_tar'         # tar up
+STAGE_REG_MODEL = 'mb_regmodel'    # register model to atlases
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -39,6 +40,7 @@ stage_queue_hints = {
   STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
   STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'}}
+  STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
 
 # stage descriptions
 stage_description = {
@@ -48,6 +50,7 @@ stage_description = {
   STAGE_RESAMPLE:  'label propagation', 
   STAGE_VOTE:      'label fusion', 
   STAGE_TAR:       'tar intermediate files', 
+  STAGE_REG_MODEL: 'model-atlas registration'
 }
 
 # file/folder defaults
@@ -566,19 +569,18 @@ class MAGeTBrain(object):
       if not exists(fused_lbl):
         self.queue.append_commands(STAGE_VOTE, [command])
 
-  def stage_register_atlases(self):
-    """Register atlases to templates"""
+  def stage_register_models(self):
+    """Register models to atlases"""
     commands = []
-    for atlas in self.atlases:
-      for template in self.templates:
-        reg_dir, transform_file = self.xfm_path(atlas, template)
-        reg_cmd = self.register_images(self.options.register_cmd, atlas, template, transform_file)
+    for model in self.models:
+      for atlas in self.atlases:
+        reg_dir, transform_file = self.xfm_path(model, atlas)
+        reg_cmd = self.register_images(self.options.register_cmd, model, atlas, transform_file)
         if reg_cmd:
           mkdirp(reg_dir)
           commands.append(reg_cmd)
-    self.queue.append_commands(STAGE_REG_ATLAS, commands)
+    self.queue.append_commands(STAGE_REG_MODEL, commands)
     return len(commands) == 0
-
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
