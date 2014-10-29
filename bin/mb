@@ -658,6 +658,60 @@ class MAGeTBrain(object):
     
       self.queue.append_commands(STAGE_IMAGEPREP, commands)
     
+  def stage_morpho(self):
+    """Assumes all registrations complete. Carries out morpho analysis"""
+    commands = []
+
+    catxfm_dir = join(self.options.model_reg_dir, 'model')
+    mkdirp(catxfm_dir)
+
+    for s in self.subjects:
+
+      grids = list()
+      objects = defaultdict(list)
+      gridavg = '{0}/gridavg/{1}_grid.mnc'.format(self.options.output_dir, s.stem)
+
+      
+      for a,t in product(self.atlases,self.templates):
+        #create folder for model->atlas->template->subject transform
+        xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
+        mkdirp(xfmdir)
+        #return path for final, concatenated model -> subject transform
+        nl_only_xfm = join(xfmdir, 'nl_only.xfm')
+       # grid = '{0}/grid.mnc'.format(xfmdir)
+        grid = join(xfmdir, 'grid.mnc')
+
+        #list of individual transforms from each stage
+        xfms = []
+
+        #add xfm from each stage to list
+        xfms.append(self.xfm_path(model, a, self.options.model_reg_dir))
+        xfms.append(self.xfm_path(a, t))
+        xfms.append(self.xfm_path(t,s,self.temp_dir))
+
+        # create concatenated xfm without linear parts
+
+        #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
+        #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_XFM, ['xfmjoin --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)])
+
+        # compute non-lin grid for the entire path
+        #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['minc_displacement {0} {1} {2}'.format(model, nl_only_xfm, out(grid))])
+        grids.append(grid)
+
+      # compute average grid over all pathways to the subject
+      grids.append(out(gridavg))
+      #stage('model.subject.gridavg').command('mincaverage',*grids)
+      self.queue.append_commands(STAGE_MODEL_SUBJECT_GRIDAVG, ['mincaverage {0}'.format(grids)])
+
+      # calculate displacement of model objects
+      displacement_dir='{output_dir}/displacement'.format(**vars())
+      for o in model.objects():
+        obj_displace='{displacement_dir}/{s.stem}_{o.stem}.txt'.format(**vars())
+        #stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACEMENT, ['object_volume_dot_product {0} {1} {2}'.format(o, gridavg, out(obj_displace))])
+
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
