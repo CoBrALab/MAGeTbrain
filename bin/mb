@@ -693,11 +693,11 @@ class MAGeTBrain(object):
 
         #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
         #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_XFM, ['xfmjoin --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)])
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_XFM, ['xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)])
 
         # compute non-lin grid for the entire path
         #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['minc_displacement {0} {1} {2}'.format(model, nl_only_xfm, out(grid))])
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['minc_displacement {0} {1} {2}'.format(model, nl_only_xfm, grid)])
         grids.append(grid)
 
       # compute average grid over all pathways to the subject
