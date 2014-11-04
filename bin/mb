@@ -28,6 +28,7 @@ STAGE_RESAMPLE  = 'mb_label_prop'  # resample all atlas labels to subject space
 STAGE_VOTE      = 'mb_voting'      # vote
 STAGE_TAR       = 'mb_tar'         # tar up
 STAGE_REG_MODEL = 'mb_regmodel'    # register model to atlases
+STAGE_MODEL_SUBJ_DISPLACE = 'mb_model_displace' #compute displacement of model objects
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -42,7 +43,8 @@ stage_queue_hints = {
   STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
   STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'},
-  STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'}}
+  STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
+  STAGE_MODEL_SUBJ_DISPLACE: {'procs': 4, 'walltime': '8:00:00'}}
 
 # stage descriptions
 stage_description = {
@@ -54,6 +56,7 @@ stage_description = {
   STAGE_VOTE:      'label fusion', 
   STAGE_TAR:       'tar intermediate files', 
   STAGE_REG_MODEL: 'model-atlas registration'
+  STAGE_MODEL_SUBJ_DISPLACE: 'model object displacement calculation'
 }
 
 # file/folder defaults
@@ -693,7 +696,7 @@ class MAGeTBrain(object):
 
         #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
         #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_XFM, ['xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)])
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)])
 
         # compute non-lin grid for the entire path
         #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
@@ -703,7 +706,7 @@ class MAGeTBrain(object):
       # compute average grid over all pathways to the subject
       grids.append(gridavg)
       #stage('model.subject.gridavg').command('mincaverage',*grids)
-      self.queue.append_commands(STAGE_MODEL_SUBJECT_GRIDAVG, ['mincaverage {0}'.format(grids)])
+      self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['mincaverage {0}'.format(grids)])
 
       # calculate displacement of model objects
       displacement_dir = join(self.options.output_dir, 'displacement')
@@ -713,7 +716,7 @@ class MAGeTBrain(object):
         ostem = os.path.basename(os.path.splitext(opath)[0])
         obj_displace='{0}/{1}_{2}.txt'.format(displacement_dir, s.stem, ostem)
         #stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACEMENT, ['object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)])
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)])
 
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
