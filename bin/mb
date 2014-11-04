@@ -17,6 +17,8 @@ import subprocess
 import shutil
 import datetime
 from os.path import join, exists, basename, dirname
+from collections import defaultdict
+from itertools import product, chain
 
 # Stages
 STAGE_NONE      = 'NONE'           # not a stage
@@ -28,7 +30,7 @@ STAGE_RESAMPLE  = 'mb_label_prop'  # resample all atlas labels to subject space
 STAGE_VOTE      = 'mb_voting'      # vote
 STAGE_TAR       = 'mb_tar'         # tar up
 STAGE_REG_MODEL = 'mb_regmodel'    # register model to atlases
-STAGE_MODEL_SUBJ_DISPLACE = 'mb_model_displace' #compute displacement of model objects
+STAGE_MODEL_SUBJECT_DISPLACE = 'mb_model_displace' #compute displacement of model objects
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -44,7 +46,7 @@ stage_queue_hints = {
   STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'},
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
-  STAGE_MODEL_SUBJ_DISPLACE: {'procs': 4, 'walltime': '8:00:00'}}
+  STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 4, 'walltime': '8:00:00'}}
 
 # stage descriptions
 stage_description = {
@@ -56,7 +58,7 @@ stage_description = {
   STAGE_VOTE:      'label fusion', 
   STAGE_TAR:       'tar intermediate files', 
   STAGE_REG_MODEL: 'model-atlas registration',
-  STAGE_MODEL_SUBJ_DISPLACE: 'model object displacement calculation'
+  STAGE_MODEL_SUBJECT_DISPLACE: 'model object displacement calculation'
 }
 
 # file/folder defaults
@@ -369,12 +371,14 @@ def command_check(options):
 def command_status(options): 
   """Entry point from the command line to status command"""
   command_check(options)
-  atlases, templates, subjects = get_inputs(options)
-  p = MAGeTBrain(options, atlases, templates, subjects)
+  model, atlases, templates, subjects = get_inputs(options)
+  p = MAGeTBrain(options, atlases, templates, subjects, model)
   p.set_queue(CommandQueue()) 
   p.queue.set_dry_run(True)
   p.stage_register_atlases() 
+#  p.stage_register_models()
   p.stage_vote()
+  p.stage_morpho()
   
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
@@ -688,25 +692,35 @@ class MAGeTBrain(object):
         xfms = []
 
         #add xfm from each stage to list
-        xfms.append(self.xfm_path(model, a, self.options.model_reg_dir))
-        xfms.append(self.xfm_path(a, t))
-        xfms.append(self.xfm_path(t,s,self.temp_dir))
+        #_,xfm = self.xfm_path(self.model, a, join(self.options.output_dir, 'model_registrations'))
+        #xfms.append(xfm)
+        #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
+        _,xfm = self.xfm_path(a, t)
+        xfms.append(xfm)
+        
+        _,xfm = self.xfm_path(t,s,self.temp_dir)
+        xfms.append(xfm)
 
         # create concatenated xfm without linear parts
 
         #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
         #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)])
+        command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
 
         # compute non-lin grid for the entire path
         #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['minc_displacement {0} {1} {2}'.format(model, nl_only_xfm, grid)])
+        command = 'minc_displacement {0} {1} {2}'.format(self.model.image, nl_only_xfm, grid)
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
         grids.append(grid)
 
       # compute average grid over all pathways to the subject
       grids.append(gridavg)
       #stage('model.subject.gridavg').command('mincaverage',*grids)
-      self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['mincaverage {0}'.format(grids)])
+      command = 'mincaverage {0}'.format(grids)
+      self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
+      avgcommand = 'mincaverage {0}'.format(grids)
+      print avgcommand
 
       # calculate displacement of model objects
       displacement_dir = join(self.options.output_dir, 'displacement')
@@ -716,7 +730,8 @@ class MAGeTBrain(object):
         ostem = os.path.basename(os.path.splitext(opath)[0])
         obj_displace='{0}/{1}_{2}.txt'.format(displacement_dir, s.stem, ostem)
         #stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, ['object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)])
+        command = 'object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
 
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
@@ -818,11 +833,11 @@ class Template:
 
     objects_path = os.path.join(dirname(dirname(image_path)), 'objects')
     if not objects and os.path.exists(objects_path):
-      self.objects = glob.glob(join(path, 'objects', "*.obj"))
+      self.objects = glob.glob(join(objects_path, "*.obj"))
    
     xfms_path = os.path.join(dirname(dirname(image_path)), 'xfms')
     if not xfms and os.path.exists(xfms_path):
-      self.xfms = glob.glob(join(path, 'xfms', "*.xfm"))
+      self.xfms = glob.glob(join(xfms_path, "*.xfm"))
         
   @classmethod
   def get_templates(cls, path):
