@@ -48,14 +48,14 @@ stage_queue_hints = {
 
 # stage descriptions
 stage_description = {
-  STAGE_IMAGEPREP: 'preprocessing of images'
+  STAGE_IMAGEPREP: 'preprocessing of images',
   STAGE_REG_ATLAS: 'atlas-to-template registration', 
   STAGE_REG_TEMPL: 'template-to-subject registration',
   STAGE_XFM_JOIN:  'transform merging',
   STAGE_RESAMPLE:  'label propagation', 
   STAGE_VOTE:      'label fusion', 
   STAGE_TAR:       'tar intermediate files', 
-  STAGE_REG_MODEL: 'model-atlas registration'
+  STAGE_REG_MODEL: 'model-atlas registration',
   STAGE_MODEL_SUBJ_DISPLACE: 'model object displacement calculation'
 }
 
@@ -818,11 +818,11 @@ class Template:
 
     objects_path = os.path.join(dirname(dirname(image_path)), 'objects')
     if not objects and os.path.exists(objects_path):
-      self.objects = glob.glob(join(path, 'objects', "*.obj")):
+      self.objects = glob.glob(join(path, 'objects', "*.obj"))
    
     xfms_path = os.path.join(dirname(dirname(image_path)), 'xfms')
     if not xfms and os.path.exists(xfms_path):
-      self.xfms = glob.glob(join(path, 'xfms', "*.xfm")):
+      self.xfms = glob.glob(join(path, 'xfms', "*.xfm"))
         
   @classmethod
   def get_templates(cls, path):
