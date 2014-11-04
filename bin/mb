@@ -701,16 +701,19 @@ class MAGeTBrain(object):
         grids.append(grid)
 
       # compute average grid over all pathways to the subject
-      grids.append(out(gridavg))
+      grids.append(gridavg)
       #stage('model.subject.gridavg').command('mincaverage',*grids)
       self.queue.append_commands(STAGE_MODEL_SUBJECT_GRIDAVG, ['mincaverage {0}'.format(grids)])
 
       # calculate displacement of model objects
-      displacement_dir='{output_dir}/displacement'.format(**vars())
-      for o in model.objects():
-        obj_displace='{displacement_dir}/{s.stem}_{o.stem}.txt'.format(**vars())
+      displacement_dir = join(self.options.output_dir, 'displacement')
+      mkdirp(displacement_dir)
+      for o in model.objects:
+        opath = os.path.realpath(o)
+        ostem = os.path.basename(os.path.splitext(opath)[0])
+        obj_displace='{0}/{1}_{2}.txt'.format(displacement_dir, s.stem, ostem)
         #stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACEMENT, ['object_volume_dot_product {0} {1} {2}'.format(o, gridavg, out(obj_displace))])
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACEMENT, ['object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)])
 
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
