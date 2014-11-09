@@ -269,7 +269,7 @@ def command_run(options):
     # on error, re-run ourselves at least n times to handle any errors
     # that are due to flakey filesystems, etc..
 
-  p = MAGeTBrain(options, atlases, templates, subjects)
+  p = MAGeTBrain(options, atlases, templates, subjects, model)
   p.set_queue(queue) 
   
   
@@ -282,7 +282,9 @@ def command_run(options):
    
 
   if options.stage == "vanilla" and options.queue == 'qbatch':
+    p.stage_imageprep()
     p.stage_register_atlases() 
+    p.stage_register_models()
     for subject in subjects:
       _, label = p.fused_label_path(subject) 
       if exists(label):
@@ -297,7 +299,7 @@ def command_run(options):
         commandline = commandline + ' -q parallel'
   
       p.queue.append_commands(STAGE_VOTE, [commandline])
-
+    p.stage_morpho()
   p.run()
  
 def command_init(options): 
@@ -375,8 +377,9 @@ def command_status(options):
   p = MAGeTBrain(options, atlases, templates, subjects, model)
   p.set_queue(CommandQueue()) 
   p.queue.set_dry_run(True)
+  p.stage_imageprep()
   p.stage_register_atlases() 
-#  p.stage_register_models()
+  p.stage_register_models()
   p.stage_vote()
   p.stage_morpho()
   
@@ -604,22 +607,27 @@ class MAGeTBrain(object):
     #autocrop the model and place the output in output/modelspace/input/model/
     newmodel_dir = join(self.options.modelspace_dir,'model')
     mkdirp(newmodel_dir)
-    #res_model is path to new model
-    res_model = join(newmodel_dir, model.stem)
-    prep_cmd = 'autocrop -isostep 1 model.image res_model'
-    #reset model.template settings to the path of our new model
-    model.image = res_model
-    modelimage_path = os.path.realpath(model.image)
-    model.stem = os.path.basename(os.path.splitext(modelimage_path)[0])
-    command.append(prep_cmd)
+   
+    for model in self.model:
+
+      #res_model is path to new model
+      res_model = join(newmodel_dir, model.stem)
+      prep_cmd = 'autocrop -isostep 1 model.image res_model'
+      #reset model.template settings to the path of our new model
+      model.image = res_model
+      modelimage_path = os.path.realpath(model.image)
+      model.stem = os.path.basename(os.path.splitext(modelimage_path)[0])
+      commands.append(prep_cmd)
   
-    #nucorrect, register to model space each subject and place them in modelspace/input/subjects
-    newsubject_dir = join(self.options.modelspace_dir,'subjects')
-    mkdirp(newsubject_dir)
+    #  print model.image
+     # print model.stem
+      #nucorrect, register to model space each subject and place them in modelspace/input/subjects
+      newsubject_dir = join(self.options.modelspace_dir,'subjects')
+      mkdirp(newsubject_dir)
    
     for subject in self.subjects:
       nuc_subject = join('output/nuc/',subject.stem)
-      reg_dir, transform_file = self.xfm_path(self.model. subject, self.options.model_reg_dir)
+      reg_dir, transform_file = self.xfm_path(model, subject, self.options.model_reg_dir)
       modelsubject = join(newsubject_dir, subject.stem)
 
       prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 subject.image nuc_subject'
@@ -638,13 +646,15 @@ class MAGeTBrain(object):
       subjectimage_path = os.path.realpath(subject.image)
       subject.stem = os.path.basename(os.path.splitext(subjectimage_path)[0])
 
+     # print subject.image
+     # print subject.stem
     #nucorrect, register to model space each template and put in modelspace/input/templates
     newtemplate_dir = join(self.options.modelspace_dir,'templates')
     mkdirp(newtemplate_dir)
    
     for template in self.templates:
       nuc_template = join('output/nuc/',template.stem)
-      reg_dir, transform_file = self.xfm_path(self.model. template, self.options.model_reg_dir)
+      reg_dir, transform_file = self.xfm_path(model, template, self.options.model_reg_dir)
       modeltemplate = join(newtemplate_dir, template.stem)
 
       prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 template.image nuc_template'
@@ -660,9 +670,11 @@ class MAGeTBrain(object):
 
       #reset template.templates settings to the path of our new template
       template.image = modeltemplate
-      templateimage_path = os.path.realpath(subject.templae)
+      templateimage_path = os.path.realpath(template.image)
       template.stem = os.path.basename(os.path.splitext(templateimage_path)[0])
     
+     # print template.image
+     # print template.stem
       self.queue.append_commands(STAGE_IMAGEPREP, commands)
     
   def stage_morpho(self):
@@ -672,67 +684,73 @@ class MAGeTBrain(object):
     catxfm_dir = join(self.options.model_reg_dir, 'model')
     mkdirp(catxfm_dir)
 
-    for s in self.subjects:
+    for m in self.model:
 
-      grids = list()
-      objects = defaultdict(list)
-      gridavg = '{0}/gridavg/{1}_grid.mnc'.format(self.options.output_dir, s.stem)
+      for s in self.subjects:
+
+        grids = list()
+        objects = defaultdict(list)
+        gridavg = '{0}/gridavg/{1}_grid.mnc'.format(self.options.output_dir, s.stem)
 
       
-      for a,t in product(self.atlases,self.templates):
-        #create folder for model->atlas->template->subject transform
-        xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
-        mkdirp(xfmdir)
-        #return path for final, concatenated model -> subject transform
-        nl_only_xfm = join(xfmdir, 'nl_only.xfm')
-       # grid = '{0}/grid.mnc'.format(xfmdir)
-        grid = join(xfmdir, 'grid.mnc')
+        for a,t in product(self.atlases,self.templates):
+          #create folder for model->atlas->template->subject transform
+          xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
+          mkdirp(xfmdir)
+          #return path for final, concatenated model -> subject transform
+          nl_only_xfm = join(xfmdir, 'nl_only.xfm')
+         # grid = '{0}/grid.mnc'.format(xfmdir)
+          grid = join(xfmdir, 'grid.mnc')
 
-        #list of individual transforms from each stage
-        xfms = []
+          #list of individual transforms from each stage
+          xfms = []
 
-        #add xfm from each stage to list
-        #_,xfm = self.xfm_path(self.model, a, join(self.options.output_dir, 'model_registrations'))
-        #xfms.append(xfm)
-        #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
-        _,xfm = self.xfm_path(a, t)
-        xfms.append(xfm)
+          #add xfm from each stage to list
+          _,xfm = self.xfm_path(m, a, self.options.model_reg_dir)
+          xfms.append(xfm)
+          #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
+          _,xfm = self.xfm_path(a, t)
+          xfms.append(xfm)
         
-        _,xfm = self.xfm_path(t,s,self.temp_dir)
-        xfms.append(xfm)
+          _,xfm = self.xfm_path(t,s,self.temp_dir)
+          xfms.append(xfm)
 
-        # create concatenated xfm without linear parts
+          # create concatenated xfm without linear parts
 
-        #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
-        #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
-        command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
+          #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
+          #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
+          command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
+          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
+
+          # compute non-lin grid for the entire path
+
+          #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
+          command = 'minc_displacement {0} {1} {2}'.format(m.image, nl_only_xfm, grid)
+          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
+          #print command
+          grids.append(grid)
+
+        # compute average grid over all pathways to the subject
+        grids.append(gridavg)
+        #stage('model.subject.gridavg').command('mincaverage',*grids)
+        command = 'mincaverage {0}'.format(grids)
         self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
+        avgcommand = 'mincaverage {0}'.format(' '.join(grids))
+        #print avgcommand
 
-        # compute non-lin grid for the entire path
-        #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
-        command = 'minc_displacement {0} {1} {2}'.format(self.model.image, nl_only_xfm, grid)
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
-        grids.append(grid)
-
-      # compute average grid over all pathways to the subject
-      grids.append(gridavg)
-      #stage('model.subject.gridavg').command('mincaverage',*grids)
-      command = 'mincaverage {0}'.format(grids)
-      self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
-      avgcommand = 'mincaverage {0}'.format(grids)
-      print avgcommand
-
-      # calculate displacement of model objects
-      displacement_dir = join(self.options.output_dir, 'displacement')
-      mkdirp(displacement_dir)
-      for o in model.objects:
-        opath = os.path.realpath(o)
-        ostem = os.path.basename(os.path.splitext(opath)[0])
-        obj_displace='{0}/{1}_{2}.txt'.format(displacement_dir, s.stem, ostem)
-        #stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
-        command = 'object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
-
+        # calculate displacement of model objects
+        displacement_dir = join(self.options.output_dir, 'displacement')
+        mkdirp(displacement_dir)
+  
+        for o in m.objects:
+          opath = os.path.realpath(o)
+          ostem = os.path.basename(os.path.splitext(opath)[0])
+          obj_displace='{0}/{1}_{2}.txt'.format(displacement_dir, s.stem, ostem)
+          #stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
+          command = 'object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)
+          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
+ #         print command
+  
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
