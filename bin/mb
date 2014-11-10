@@ -382,11 +382,13 @@ def command_status(options):
   p.stage_register_models()
   p.stage_vote()
   p.stage_morpho()
-  
+ 
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
       len(p.queue.commands[stage]), stage_description[stage]))
 
+  print p.queue.commands
+ 
 def command_import(options): 
   """Entry point for the import command"""
   atlases_brains = join(options.input_dir, 'atlases', 'brains')
@@ -612,7 +614,9 @@ class MAGeTBrain(object):
 
       #res_model is path to new model
       res_model = join(newmodel_dir, model.stem)
-      prep_cmd = 'autocrop -isostep 1 model.image res_model'
+      #prep_cmd = 'autocrop -isostep 1 $model.image $res_model'
+      prep_cmd = 'autocrop -isostep 1 {0} {1}'.format(model.image, res_model)
+
       #reset model.template settings to the path of our new model
       model.image = res_model
       modelimage_path = os.path.realpath(model.image)
@@ -628,7 +632,7 @@ class MAGeTBrain(object):
     for subject in self.subjects:
       nuc_subject = join('output/nuc/',subject.stem)
       reg_dir, transform_file = self.xfm_path(model, subject, self.options.model_reg_dir)
-      modelsubject = join(newsubject_dir, subject.stem)
+      modelsubject = join(newsubject_dir, subject.stem + ".mnc")
 
       prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 subject.image nuc_subject'
       commands.append(prep_cmd)
@@ -720,23 +724,24 @@ class MAGeTBrain(object):
           #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
           #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
           command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
-          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
-
+          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
+          #print command 
+          
           # compute non-lin grid for the entire path
 
           #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
           command = 'minc_displacement {0} {1} {2}'.format(m.image, nl_only_xfm, grid)
-          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
-          #print command
+          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
+#          print command
           grids.append(grid)
 
         # compute average grid over all pathways to the subject
         grids.append(gridavg)
         #stage('model.subject.gridavg').command('mincaverage',*grids)
         command = 'mincaverage {0}'.format(grids)
-        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
-        avgcommand = 'mincaverage {0}'.format(' '.join(grids))
-        #print avgcommand
+        self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
+        #avgcommand = 'mincaverage {0}'.format(' '.join(grids))
+        #print command
 
         # calculate displacement of model objects
         displacement_dir = join(self.options.output_dir, 'displacement')
@@ -748,8 +753,8 @@ class MAGeTBrain(object):
           obj_displace='{0}/{1}_{2}.txt'.format(displacement_dir, s.stem, ostem)
           #stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
           command = 'object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)
-          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, command)
- #         print command
+          self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
+          #print command
   
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
