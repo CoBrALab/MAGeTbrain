@@ -387,7 +387,11 @@ def command_status(options):
     logger.info("{0} {1} commands left".format(
       len(p.queue.commands[stage]), stage_description[stage]))
 
-  print p.queue.commands
+  testpath = '/scratch/m/mchakrav/patelmo6/shapetest/input/atlases/brains/brain2.mnc'
+  if not os.path.exists(testpath):
+    print testpath
+
+#  print p.queue.commands
  
 def command_import(options): 
   """Entry point for the import command"""
@@ -613,15 +617,17 @@ class MAGeTBrain(object):
     for model in self.model:
 
       #res_model is path to new model
-      res_model = join(newmodel_dir, model.stem)
+      res_model = join(newmodel_dir, model.stem + ".mnc")
       #prep_cmd = 'autocrop -isostep 1 $model.image $res_model'
-      prep_cmd = 'autocrop -isostep 1 {0} {1}'.format(model.image, res_model)
+      if not os.path.exists(res_model):
+        prep_cmd = 'autocrop -isostep 1 {0} {1}'.format(model.image, res_model)
+        commands.append(prep_cmd)
 
       #reset model.template settings to the path of our new model
       model.image = res_model
       modelimage_path = os.path.realpath(model.image)
       model.stem = os.path.basename(os.path.splitext(modelimage_path)[0])
-      commands.append(prep_cmd)
+      
   
     #  print model.image
      # print model.stem
@@ -630,20 +636,26 @@ class MAGeTBrain(object):
       mkdirp(newsubject_dir)
    
     for subject in self.subjects:
-      nuc_subject = join('output/nuc/',subject.stem)
+      nuc_subject = join('output/nuc/',subject.stem + ".mnc")
       reg_dir, transform_file = self.xfm_path(model, subject, self.options.model_reg_dir)
       modelsubject = join(newsubject_dir, subject.stem + ".mnc")
 
-      prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 subject.image nuc_subject'
-      commands.append(prep_cmd)
-    
-      prep_cmd = 'bestlinreg -noverbose -lsq12 nuc_subject res_model transform_file'
-      if prep_cmd:
-        mkdirp(reg_dir)
+      #prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 subject.image nuc_subject'
+      if not os.path.exists(nuc_subject):
+        prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 {0} {1}'.format(subject.image, nuc_subject)
         commands.append(prep_cmd)
+    
+      if not os.path.exists(transform_file):
+      #prep_cmd = 'bestlinreg -noverbose -lsq12 nuc_subject res_model transform_file'
+        prep_cmd = 'bestlinreg -noverbose -lsq12 {0} {1} {2}'.format(nuc_subject, res_model, transform_file)
+        if prep_cmd:
+          mkdirp(reg_dir)
+          commands.append(prep_cmd)
         
-      prep_cmd = 'mincresample -sinc -like res_model -2 -transform transform_file nuc_subject modelsubject'
-      commands.append(prep_cmd)
+      if not os.path.exists(modelsubject):
+      #prep_cmd = 'mincresample -sinc -like res_model -2 -transform transform_file nuc_subject modelsubject'
+        prep_cmd = 'mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
+        commands.append(prep_cmd)
 
       #reset the subject.template settings to the path of our new subject
       subject.image = modelsubject
@@ -657,20 +669,26 @@ class MAGeTBrain(object):
     mkdirp(newtemplate_dir)
    
     for template in self.templates:
-      nuc_template = join('output/nuc/',template.stem)
+      nuc_template = join('output/nuc/',template.stem + ".mnc")
       reg_dir, transform_file = self.xfm_path(model, template, self.options.model_reg_dir)
-      modeltemplate = join(newtemplate_dir, template.stem)
+      modeltemplate = join(newtemplate_dir, template.stem + ".mnc")
 
-      prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 template.image nuc_template'
-      commands.append(prep_cmd)
-    
-      prep_cmd = 'bestlinreg -noverbose -lsq12 nuc_template res_model transform_file'
-      if prep_cmd:
-        mkdirp(reg_dir)
+      if not os.path.exists(nuc_template):
+      #prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 template.image nuc_template'
+        prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 {0} {1}'.format(template.image, nuc_template)
         commands.append(prep_cmd)
+    
+      if not os.path.exists(transform_file):
+      #prep_cmd = 'bestlinreg -noverbose -lsq12 nuc_template res_model transform_file'
+        prep_cmd = 'bestlinreg -noverbose -lsq12 {0} {1} {2}'.format(nuc_template, res_model, transform_file)
+        if prep_cmd:
+          mkdirp(reg_dir)
+          commands.append(prep_cmd)
         
-      prep_cmd = 'mincresample -sinc -like res_model -2 -transform transform_file nuc_template modeltemplate'
-      commands.append(prep_cmd)
+      if not os.path.exists(modeltemplate):
+      #prep_cmd = 'mincresample -sinc -like res_model -2 -transform transform_file nuc_template modeltemplate'
+        prep_cmd = 'mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_template, modeltemplate)
+        commands.append(prep_cmd)
 
       #reset template.templates settings to the path of our new template
       template.image = modeltemplate
