@@ -391,6 +391,9 @@ def command_status(options):
   if not os.path.exists(testpath):
     print testpath
 
+  commands = []
+  if not commands:
+    print testpath
 #  print p.queue.commands
  
 def command_import(options): 
@@ -697,6 +700,7 @@ class MAGeTBrain(object):
     
      # print template.image
      # print template.stem
+    if commands:  
       self.queue.append_commands(STAGE_IMAGEPREP, commands)
     
   def stage_morpho(self):
