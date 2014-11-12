@@ -13,7 +13,7 @@ modelsubject=$5
 nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 $subject $nucsubject
 
 #bestlinreg -noverbose -lsq12 {0} {1} {2}'.format(nuc_subject, res_model, transform_file)
-bestlinreg -noverbose -lsq12 $nucsubject $resmodel $xfm
+bestlinreg.pl -noverbose -lsq12 $nucsubject $resmodel $xfm
 
 #mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
 mincresample -sinc -like $resmodel -2 -transform $xfm $nucsubject $modelsubject
