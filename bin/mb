@@ -296,23 +296,23 @@ def command_run(options):
 
   if options.stage == "vanilla" and options.queue == 'qbatch':
     p.stage_imageprep()
-    #p.stage_register_atlases() 
-    #p.stage_register_models()
-    #for subject in subjects:
-     # _, label = p.fused_label_path(subject) 
-      #if exists(label):
-       # continue
+    p.stage_register_atlases() 
+    p.stage_register_models()
+    for subject in subjects:
+      _, label = p.fused_label_path(subject) 
+      if exists(label):
+        continue
       # HACK the command line to run the voting stage next
-      #commandline = ' '.join(sys.argv)
-      #commandline = commandline.replace('vanilla', '')
-      #commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
-      #if ' -q ' in commandline:
-      #  commandline = commandline.replace('-q qbatch', '-q parallel')
-      #else:
-       # commandline = commandline + ' -q parallel'
+      commandline = ' '.join(sys.argv)
+      commandline = commandline.replace('vanilla', '')
+      commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
+      if ' -q ' in commandline:
+        commandline = commandline.replace('-q qbatch', '-q parallel')
+      else:
+        commandline = commandline + ' -q parallel'
   
-      #p.queue.append_commands(STAGE_VOTE, [commandline])
-    #p.stage_morpho()
+      p.queue.append_commands(STAGE_VOTE, [commandline])
+    p.stage_morpho()
   p.run()
  
 def command_init(options): 
@@ -752,11 +752,13 @@ class MAGeTBrain(object):
       
         for a,t in product(self.atlases,self.templates):
           #create folder for model->atlas->template->subject transform
+B
           xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
           mkdirp(xfmdir)
           #return path for final, concatenated model -> subject transform
           nl_only_xfm = join(xfmdir, 'nl_only.xfm')
-         # grid = '{0}/grid.mnc'.format(xfmdir)
+          lin_xfm = join(xfmdir, 'lin.xfm') 
+        # grid = '{0}/grid.mnc'.format(xfmdir)
           grid = join(xfmdir, 'grid.mnc')
 
           #list of individual transforms from each stage
@@ -765,6 +767,7 @@ class MAGeTBrain(object):
           #add xfm from each stage to list
           _,xfm = self.xfm_path(m, a, self.options.model_reg_dir)
           xfms.append(xfm)
+B
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
           xfms.append(xfm)
@@ -780,6 +783,9 @@ class MAGeTBrain(object):
             command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
           #print command 
+          if not os.path.exists(lin_xfm):
+            command = 'xfmjoin {0} {1}'.format(' '.join(xfms), lin_xfm)
+            self.queue.append_commands(STAGE_XFMJOIN_M, [command])
           
           # compute non-lin grid for the entire path
 
@@ -789,6 +795,17 @@ class MAGeTBrain(object):
             self.queue.append_commands(STAGE_SUBJECTDISPLACE, [command])
 #          print command
           grids.append(grid)
+
+        # transform objects from atlases
+          if self.config('surfaces'):
+            #TODO: should transform to native space? 
+            for o in m.objects():
+              kind=o.stem
+              object='{0}/{1}'.format(xfmdir, kind)
+              stage('model.subject.objects.transform').command(
+                'transform_objects',o,lin_xfm,object)
+              objects[kind].append(object)
+          
 
         # compute average grid over all pathways to the subject
         grids.append(gridavg)
