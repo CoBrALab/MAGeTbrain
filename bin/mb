@@ -752,7 +752,7 @@ class MAGeTBrain(object):
       
         for a,t in product(self.atlases,self.templates):
           #create folder for model->atlas->template->subject transform
-B
+
           xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
           mkdirp(xfmdir)
           #return path for final, concatenated model -> subject transform
@@ -767,7 +767,7 @@ B
           #add xfm from each stage to list
           _,xfm = self.xfm_path(m, a, self.options.model_reg_dir)
           xfms.append(xfm)
-B
+
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
           xfms.append(xfm)
@@ -797,14 +797,14 @@ B
           grids.append(grid)
 
         # transform objects from atlases
-          if self.config('surfaces'):
+          #if self.config('surfaces'):
             #TODO: should transform to native space? 
-            for o in m.objects():
-              kind=o.stem
-              object='{0}/{1}'.format(xfmdir, kind)
-              stage('model.subject.objects.transform').command(
-                'transform_objects',o,lin_xfm,object)
-              objects[kind].append(object)
+            #for o in m.objects():
+             # kind=o.stem
+             # object='{0}/{1}'.format(xfmdir, kind)
+             # stage('model.subject.objects.transform').command(
+             #   'transform_objects',o,lin_xfm,object)
+             # objects[kind].append(object)
           
 
         # compute average grid over all pathways to the subject
