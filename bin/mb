@@ -45,7 +45,7 @@ STAGE_SUBJECTGRID_AVG = 'mb_gridavg' #calc avg grid per subject
 stage_queue_hints = {  
   STAGE_IMAGEPREP: {'procs':    4, 'walltime': '2:00:00'},
   STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
-  STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
+  STAGE_REG_TEMPL: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
   STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
   STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
@@ -122,6 +122,9 @@ def main():
   group.add_argument("--modelspace_dir",   default="output/modelspace/input", 
     type=os.path.abspath, metavar='',
     help="Directory containing model, atlas, template, subject libraries after image prep stage")
+  group.add_argument("--subjreg_dir",   default="output/registrations/temp-subj", 
+    type=os.path.abspath, metavar='',
+    help="Directory containing template to subject registrations")
 
   # subcommands
   subparsers = parser.add_subparsers(title='Commands', metavar='')
@@ -575,17 +578,31 @@ class MAGeTBrain(object):
     self.queue.append_commands(STAGE_REG_ATLAS, commands) 
     return len(commands) == 0
 
-  def stage_register_templates(self, subject):
+  def stage_register_templates(self):
     """Register all templates to subjects"""
     commands = []
     for template in self.templates:
-      reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
-      reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
-      if reg_cmd: 
-        mkdirp(reg_dir)
-        commands.append(reg_cmd)
+      for subject in self.subjects:
+        #still need to add option/default for subjreg_dir
+        reg_dir, transform_file = self.xfm_path(template, subject, self.subjreg_dir)
+        reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
+        if reg_cmd: 
+          mkdirp(reg_dir)
+          commands.append(reg_cmd)
     self.queue.append_commands(STAGE_REG_TEMPL, commands) 
     return len(commands) == 0
+  
+  #def stage_register_templates(self, subject):
+   # """Register all templates to subjects"""
+   # commands = []
+   # for template in self.templates:
+     # reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
+     # reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
+     # if reg_cmd: 
+       # mkdirp(reg_dir)
+       # commands.append(reg_cmd)
+    #self.queue.append_commands(STAGE_REG_TEMPL, commands) 
+    #return len(commands) == 0
 
   def stage_vote(self): 
     """Assumes all registrations are complete. """
@@ -595,7 +612,7 @@ class MAGeTBrain(object):
         tarfile = join(i, "{0}.tar".format(subject.stem))
         tar_cmd = "tar --remove-files -cvf {0} {1}".format(tarfile, self.temp_dir)
         self.queue.append_commands(STAGE_TAR, [tar_cmd])
-      self.stage_register_templates(subject)
+      #self.stage_register_templates(subject)
       output_dir, fused_lbl = self.fused_label_path(subject)
       mkdirp(output_dir)
       candidate_labels = []
@@ -603,7 +620,8 @@ class MAGeTBrain(object):
         for template in self.templates:
           stems = [atlas.stem, template.stem, subject.stem]
           label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
-          self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems)
+          #self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems)
+          self.resample_labels(self.subjreg_dir, atlas.labels, subject, label, stems)
           candidate_labels.append(label)
       command = 'voxel_vote.py {0} {1}'.format(
           ' '.join(candidate_labels), fused_lbl)
