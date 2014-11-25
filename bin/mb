@@ -35,7 +35,7 @@ STAGE_MODELPREP = 'mb_modelprep' #autocrop model
 STAGE_XFMJOIN_M = 'mb_xfm_join_morpho' #model to subject xfm concat
 STAGE_SUBJECTDISPLACE = 'mb_subjgrid' #calculate transform grid for each subject
 STAGE_SUBJECTGRID_AVG = 'mb_gridavg' #calc avg grid per subject
-
+STAGE_M_S_OBJ_XFM = 'mb_model_subj_object_transform' #transform model objects to subject
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -55,7 +55,9 @@ stage_queue_hints = {
   STAGE_MODELPREP: {'procs': 8, 'walltime': '0:30:00'},
   STAGE_XFMJOIN_M: {'procs': 8, 'walltime': '4:00:00'},
   STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '4:00:00'},
-  STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '4:00:00'}}
+  STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '1:00:00'},
+  STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '4:00:00'}}
+  
 
 # stage descriptions
 stage_description = {
@@ -71,7 +73,8 @@ stage_description = {
   STAGE_MODELPREP: 'model prep',
   STAGE_XFMJOIN_M: 'model to subj transform merging',
   STAGE_SUBJECTDISPLACE: 'subject grid',
-  STAGE_SUBJECTGRID_AVG: 'grid average calculation'
+  STAGE_SUBJECTGRID_AVG: 'grid average calculation',
+  STAGE_M_S_OBJ_XFM: 'model to subject object transformation'
 }
 
 # file/folder defaults
@@ -773,6 +776,9 @@ class MAGeTBrain(object):
         objects = defaultdict(list)
         gridavg = '{0}/gridavg/{1}_grid.mnc'.format(self.options.output_dir, s.stem)
 
+        gridavgdir = dirname(gridavg)
+        mkdirp(gridavgdir)
+
       
         for a,t in product(self.atlases,self.templates):
           #create folder for model->atlas->template->subject transform
@@ -823,12 +829,15 @@ class MAGeTBrain(object):
         # transform objects from atlases
           #if self.config('surfaces'):
             #TODO: should transform to native space? 
-            #for o in m.objects():
-             # kind=o.stem
-             # object='{0}/{1}'.format(xfmdir, kind)
-             # stage('model.subject.objects.transform').command(
-             #   'transform_objects',o,lin_xfm,object)
-             # objects[kind].append(object)
+          for o in m.objects:
+            opath = os.path.realpath(o)
+            kind = os.path.basename(os.path.splitext(opath)[0])
+            object='{0}/{1}.obj'.format(xfmdir, kind)
+            #stage('model.subject.objects.transform').command(
+            #'transform_objects',o,lin_xfm,object)
+            command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
+            self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
+            objects[kind].append(object)
           
 
         # compute average grid over all pathways to the subject
