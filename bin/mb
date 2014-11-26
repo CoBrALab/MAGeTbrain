@@ -917,6 +917,8 @@ class MAGeTBrain(object):
     for s, t in zip(stems[:-1],stems[1:]):
       _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
+    invert_xfm = join(self.options.model_reg_dir, stems[0], stems[2], "nl_inv.xfm")
+    xfms.append(invert_xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     if not exists(joined_xfm): 
         self.queue.append_commands(STAGE_XFM_JOIN, 
