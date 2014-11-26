@@ -406,12 +406,12 @@ def command_status(options):
   p = MAGeTBrain(options, atlases, templates, subjects, model)
   p.set_queue(CommandQueue()) 
   p.queue.set_dry_run(True)
-  p.stage_imageprep()
-  p.stage_register_atlases() 
-  p.stage_register_models()
-  p.stage_register_templates()
+  #p.stage_imageprep()
+  #p.stage_register_atlases() 
+  #p.stage_register_models()
+  #p.stage_register_templates()
   p.stage_vote()
-  p.stage_morpho()
+  #p.stage_morpho()
  
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
@@ -917,7 +917,7 @@ class MAGeTBrain(object):
     for s, t in zip(stems[:-1],stems[1:]):
       _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
-    invert_xfm = join(self.options.model_reg_dir, stems[0], stems[2], "nl_inv.xfm")
+    invert_xfm = join(self.options.model_reg_dir, self.model(0), stems[2], "nl_inv.xfm")
     xfms.append(invert_xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     if not exists(joined_xfm): 
