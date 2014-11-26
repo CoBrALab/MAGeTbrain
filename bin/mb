@@ -36,6 +36,7 @@ STAGE_XFMJOIN_M = 'mb_xfm_join_morpho' #model to subject xfm concat
 STAGE_SUBJECTDISPLACE = 'mb_subjgrid' #calculate transform grid for each subject
 STAGE_SUBJECTGRID_AVG = 'mb_gridavg' #calc avg grid per subject
 STAGE_M_S_OBJ_XFM = 'mb_model_subj_object_transform' #transform model objects to subject
+STAGE_OBJ_MEDIAN = 'mb_medsurface' #calculate median surfaces
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -56,7 +57,9 @@ stage_queue_hints = {
   STAGE_XFMJOIN_M: {'procs': 8, 'walltime': '4:00:00'},
   STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '4:00:00'},
   STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '1:00:00'},
-  STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '4:00:00'}}
+  STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '4:00:00'},
+  STAGE_OBJ_MEDIAN: {'procs': 2, 'walltime': '4:00:00'}}
+  
   
 
 # stage descriptions
@@ -74,7 +77,8 @@ stage_description = {
   STAGE_XFMJOIN_M: 'model to subj transform merging',
   STAGE_SUBJECTDISPLACE: 'subject grid',
   STAGE_SUBJECTGRID_AVG: 'grid average calculation',
-  STAGE_M_S_OBJ_XFM: 'model to subject object transformation'
+  STAGE_M_S_OBJ_XFM: 'model to subject object transformation',
+  STAGE_OBJ_MEDIAN: 'median surface calculations'
 }
 
 # file/folder defaults
@@ -685,12 +689,12 @@ class MAGeTBrain(object):
       nuc_subject = join('output/nuc/',subject.stem + ".mnc")
       reg_dir, transform_file = self.xfm_path(model, subject, self.options.model_reg_dir)
       modelsubject = join(newsubject_dir, subject.stem + ".mnc")
-
+      transform_file_invert = join(reg_dir, 'nl_inv.xfm')
 
       mkdirp(reg_dir)
 
       if not os.path.exists(modelsubject):
-        prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(subject.image, nuc_subject, res_model, transform_file, modelsubject)
+        prep_cmd = 'subj_prep {0} {1} {2} {3} {4} {5}'.format(subject.image, nuc_subject, res_model, transform_file, modelsubject, transform_file_invert)
         commands.append(prep_cmd)
 
 
@@ -863,6 +867,42 @@ class MAGeTBrain(object):
             self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
           #print command
   
+              # operate on model..subject surfaces
+        #if self.config('surfaces'):
+        for kind in objects.keys():
+          # median surface per subject
+          kind_dir  = '{0}/{1}'.format(self.options.output_dir, kind)
+          mkdirp(kind_dir)
+ 
+          #medianobj = '{kind_dir}/{s.stem}_median.obj'.format(**vars())
+          #voronoi   = '{kind_dir}/{s.stem}_vorn.txt'.format(**vars())
+          #vorn_sa   = '{kind_dir}/{s.stem}_vorn_SA.txt'.format(**vars())
+          
+          medianobj = '{0}/{1}_median.obj'.format(kind_dir, s.stem)
+          voronoi   = '{0}/{1}_vorn.txt'.format(kind_dir, s.stem)
+          vorn_sa   = '{0}/{1}_vorn_SA.txt'.format(kind_dir, s.stem)
+
+          command = 'make_median_surfaces.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
+          self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
+
+          #command = 'recompute_normals {0} {1}'.format(medianobj, medianobj)
+          #self.queue.append_commands(STAGE_NORMALS, [command])
+          
+          #stage('objects.median').command(
+            #"make_median_surfaces.pl",out(medianobj),*objects[kind])
+          #stage('objects.normals').command(
+            #"recompute_normals",medianobj,medianobj) #fix: not out()
+
+          #if self.config('voronoi'):
+            # voronoi of median surface
+            #stage('objects.voronoi').command(
+              #'depth_potential', '-area_voronoi',medianobj,out(voronoi))
+
+            #hack: determine the blurring kernal to use:
+            #kernel = kind.startswith('gp_') and 3 or 5
+            #vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
+                #**vars())
+            #todo: blur surface
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
@@ -926,7 +966,7 @@ class MAGeTBrain(object):
 
   def _get_stage_order(self):
     return [STAGE_MODELPREP, STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
-        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE]
+        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN]
 
 ### utility functions
 def mkdirp(*p):
