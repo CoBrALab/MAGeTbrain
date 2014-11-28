@@ -914,8 +914,7 @@ class MAGeTBrain(object):
           #stage('objects.voronoi').command(
           #'depth_potential', '-area_voronoi',medianobj,out(voronoi))
 
-          command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential
-                    -area_voronoi {0} {1}'.format(recompute, voronoi)
+          command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -area_voronoi {0} {1}'.format(recompute, voronoi)
           self.queue.append_commands(STAGE_VORN, [commands])
 
           #TODO: need to confirm that it is _rot_vorn.txt thati want
