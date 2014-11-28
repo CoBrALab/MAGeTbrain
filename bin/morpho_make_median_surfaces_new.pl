@@ -104,7 +104,7 @@ my $R_command_points = "R --slave --no-save --silent ".
   "${tmpdir}/median_xcoords.csv ".
   "${tmpdir}/median_ycoords.csv ".
   "${tmpdir}/median_zcoords.csv ".
-  "< barf_medians_driver.R ";
+  "< /home/m/mchakrav/patelmo6/MAGeTbrain/bin/barf_medians_driver.R ";
 do_cmd($R_command_points);
   #"< /projects/mallar/NIH_COS_2/Median_surface_code/barf_medians_driver.R ";
 
@@ -115,7 +115,7 @@ my $R_command_normals = "R --slave --no-save --silent ".
   "${tmpdir}/median_xnorms.csv ".
   "${tmpdir}/median_ynorms.csv ".
   "${tmpdir}/median_znorms.csv ".
-  "< barf_medians_driver.R ";
+  "< /home/m/mchakrav/patelmo6/MAGeTbrain/bin/barf_medians_driver.R ";
 do_cmd($R_command_normals);
   #"< /projects/mallar/NIH_COS_2/Median_surface_code/barf_medians_driver.R ";
 
