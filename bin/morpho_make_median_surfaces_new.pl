@@ -104,8 +104,9 @@ my $R_command_points = "R --slave --no-save --silent ".
   "${tmpdir}/median_xcoords.csv ".
   "${tmpdir}/median_ycoords.csv ".
   "${tmpdir}/median_zcoords.csv ".
-  "< /projects/mallar/NIH_COS_2/Median_surface_code/barf_medians_driver.R ";
+  "< barf_medians_driver.R ";
 do_cmd($R_command_points);
+  #"< /projects/mallar/NIH_COS_2/Median_surface_code/barf_medians_driver.R ";
 
 my $R_command_normals = "R --slave --no-save --silent ".
   "--args  ${tmpdir}/all_xnorms.csv ".
@@ -114,8 +115,9 @@ my $R_command_normals = "R --slave --no-save --silent ".
   "${tmpdir}/median_xnorms.csv ".
   "${tmpdir}/median_ynorms.csv ".
   "${tmpdir}/median_znorms.csv ".
-  "< /projects/mallar/NIH_COS_2/Median_surface_code/barf_medians_driver.R ";
+  "< barf_medians_driver.R ";
 do_cmd($R_command_normals);
+  #"< /projects/mallar/NIH_COS_2/Median_surface_code/barf_medians_driver.R ";
 
 
 my $median_points_paste = "paste ${tmpdir}/median_xcoords.csv ".
