@@ -893,7 +893,7 @@ class MAGeTBrain(object):
           voronoi   = '{0}/{1}_vorn.txt'.format(kind_dir, s.stem)
           vorn_sa   = '{0}/{1}_vorn_SA.txt'.format(kind_dir, s.stem)
 
-          command = 'morpho_make_median_surfaces.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
+          command = 'morpho_make_median_surfaces_new.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
           self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
 
           #command = 'recompute_normals {0} {1}'.format(medianobj, medianobj)
