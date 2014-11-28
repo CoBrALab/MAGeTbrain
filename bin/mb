@@ -853,10 +853,10 @@ class MAGeTBrain(object):
             object='{0}/{1}.obj'.format(xfmdir, kind)
             #stage('model.subject.objects.transform').command(
             #'transform_objects',o,lin_xfm,object)
-           
-            command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
-            self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
-            objects[kind].append(object)
+            if not os.path.exists(object):
+              command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
+              self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
+              objects[kind].append(object)
           
 
         # compute average grid over all pathways to the subject
