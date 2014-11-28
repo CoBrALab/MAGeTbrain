@@ -406,13 +406,17 @@ def command_status(options):
   p = MAGeTBrain(options, atlases, templates, subjects, model)
   p.set_queue(CommandQueue()) 
   p.queue.set_dry_run(True)
-  #p.stage_imageprep()
-  #p.stage_register_atlases() 
-  #p.stage_register_models()
-  #p.stage_register_templates()
+  p.stage_imageprep()
+  p.stage_register_atlases() 
+  p.stage_register_models()
+  p.stage_register_templates()
   p.stage_vote()
-  #p.stage_morpho()
- 
+  p.stage_morpho()
+
+  x = p.model[0]
+  modelname = x.stem
+  print modelname
+
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
       len(p.queue.commands[stage]), stage_description[stage]))
@@ -629,6 +633,7 @@ class MAGeTBrain(object):
       output_dir, fused_lbl = self.fused_label_path(subject)
       mkdirp(output_dir)
       candidate_labels = []
+      #m = self.model.pop()
       for atlas in self.atlases: 
         for template in self.templates:
           stems = [atlas.stem, template.stem, subject.stem]
@@ -791,24 +796,30 @@ class MAGeTBrain(object):
           mkdirp(xfmdir)
           #return path for final, concatenated model -> subject transform
           nl_only_xfm = join(xfmdir, 'nl_only.xfm')
-          lin_xfm = join(xfmdir, 'lin.xfm') 
+          lin_xfm = join(xfmdir, 'lin_native.xfm') 
         # grid = '{0}/grid.mnc'.format(xfmdir)
           grid = join(xfmdir, 'grid.mnc')
 
           #list of individual transforms from each stage
           xfms = []
+          xfms_native = []
 
           #add xfm from each stage to list
           _,xfm = self.xfm_path(m, a, self.options.model_reg_dir)
+          #xfm = join(self.options.model_reg_dir, 'model', a.stem, t.stem, s.stem, 'nl.xfm'
           xfms.append(xfm)
+          xfms_native.append(xfm)
 
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
           xfms.append(xfm)
+          xfms_native.append(xfm)
         
           _,xfm = self.xfm_path(t,s,self.options.subjreg_dir)
           xfms.append(xfm)
+          xfms_native.append(xfm)
 
+          xfms_native.append(join(self.options.model_reg_dir, m.stem, s.stem, 'nl_inv.xfm'))
           # create concatenated xfm without linear parts
 
           #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
@@ -818,7 +829,7 @@ class MAGeTBrain(object):
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
           #print command 
           if not os.path.exists(lin_xfm):
-            command = 'xfmjoin {0} {1}'.format(' '.join(xfms), lin_xfm)
+            command = 'xfmjoin {0} {1}'.format(' '.join(xfms_native), lin_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
           
           # compute non-lin grid for the entire path
@@ -882,7 +893,7 @@ class MAGeTBrain(object):
           voronoi   = '{0}/{1}_vorn.txt'.format(kind_dir, s.stem)
           vorn_sa   = '{0}/{1}_vorn_SA.txt'.format(kind_dir, s.stem)
 
-          command = 'make_median_surfaces.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
+          command = 'morpho_make_median_surfaces.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
           self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
 
           #command = 'recompute_normals {0} {1}'.format(medianobj, medianobj)
@@ -917,7 +928,8 @@ class MAGeTBrain(object):
     for s, t in zip(stems[:-1],stems[1:]):
       _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
-    invert_xfm = join(self.options.model_reg_dir, self.model(0), stems[2], "nl_inv.xfm")
+    
+    invert_xfm = join(self.options.model_reg_dir, self.model[0].stem, stems[2], "nl_inv.xfm")
     xfms.append(invert_xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     if not exists(joined_xfm): 
@@ -968,7 +980,7 @@ class MAGeTBrain(object):
 
   def _get_stage_order(self):
     return [STAGE_MODELPREP, STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
-        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN]
+        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM]
 
 ### utility functions
 def mkdirp(*p):
