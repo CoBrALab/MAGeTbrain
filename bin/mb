@@ -38,6 +38,8 @@ STAGE_SUBJECTGRID_AVG = 'mb_gridavg' #calc avg grid per subject
 STAGE_M_S_OBJ_XFM = 'mb_model_subj_object_transform' #transform model objects to subject
 STAGE_OBJ_MEDIAN = 'mb_medsurface' #calculate median surfaces
 STAGE_NORMALS = 'mb_recomputenorms' #recompute normals of median surface
+STAGE_VORN = 'mb_vorn' #compute voronoi
+STAGE_MATH = 'mb_vornSA' #compute voronoi sa
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -60,8 +62,9 @@ stage_queue_hints = {
   STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '1:00:00'},
   STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '4:00:00'},
   STAGE_OBJ_MEDIAN: {'procs': 8, 'walltime': '4:00:00'},
-  STAGE_NORMALS: {'procs': 4, 'walltime': '2:00:00'}}
-  
+  STAGE_NORMALS: {'procs': 4, 'walltime': '2:00:00'},
+  STAGE_VORN: {'procs': 4, 'walltime': '2:00:00'},
+  STAGE_MATH: {'procs': 4, 'walltime': '2:00:00'}}
   
 
 # stage descriptions
@@ -81,9 +84,10 @@ stage_description = {
   STAGE_SUBJECTGRID_AVG: 'grid average calculation',
   STAGE_M_S_OBJ_XFM: 'model to subject object transformation',
   STAGE_OBJ_MEDIAN: 'median surface calculations',
-  STAGE_NORMALS: 'recompute normals for median surface'
+  STAGE_NORMALS: 'recompute normals for median surface',
+  STAGE_VORN: 'calculate voronoi',
+  STAGE_MATH: 'calculate voronoi sa'
 }
-
 # file/folder defaults
 XFM = "nl.xfm"
 
@@ -419,6 +423,7 @@ def command_status(options):
   x = p.model[0]
   modelname = x.stem
   print modelname
+
 
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
@@ -853,10 +858,10 @@ class MAGeTBrain(object):
             object='{0}/{1}.obj'.format(xfmdir, kind)
             #stage('model.subject.objects.transform').command(
             #'transform_objects',o,lin_xfm,object)
-            if not os.path.exists(object):
-              command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
-              self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
-              objects[kind].append(object)
+            #if not os.path.exists(object):
+            command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
+            self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
+            objects[kind].append(object)
           
 
         # compute average grid over all pathways to the subject
@@ -915,12 +920,12 @@ class MAGeTBrain(object):
           #'depth_potential', '-area_voronoi',medianobj,out(voronoi))
 
           command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -area_voronoi {0} {1}'.format(recompute, voronoi)
-          self.queue.append_commands(STAGE_VORN, [commands])
+          self.queue.append_commands(STAGE_VORN, [command])
 
           #TODO: need to confirm that it is _rot_vorn.txt thati want
-          ref = ' '.join('/home/m/mchakrav/mchakrav/subcortical_models', kind, '_rot_vorn.txt')
+          ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
           command = 'vertstats_math -old_style_file -div {0} {1} {2}'.format(voronoi, ref, vorn_sa)
-          self.queue.append_commands(STAGE_MATH, [commands])
+          self.queue.append_commands(STAGE_MATH, [command])
             #hack: determine the blurring kernal to use:
             #kernel = kind.startswith('gp_') and 3 or 5
             #vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
@@ -993,7 +998,7 @@ class MAGeTBrain(object):
   def _get_stage_order(self):
     return [STAGE_MODELPREP, STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
         STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN,
-        STAGE_NORMALS]
+        STAGE_NORMALS, STAGE_VORN, STAGE_MATH]
 
 ### utility functions
 def mkdirp(*p):
