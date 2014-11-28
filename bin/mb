@@ -37,6 +37,7 @@ STAGE_SUBJECTDISPLACE = 'mb_subjgrid' #calculate transform grid for each subject
 STAGE_SUBJECTGRID_AVG = 'mb_gridavg' #calc avg grid per subject
 STAGE_M_S_OBJ_XFM = 'mb_model_subj_object_transform' #transform model objects to subject
 STAGE_OBJ_MEDIAN = 'mb_medsurface' #calculate median surfaces
+STAGE_NORMALS = 'mb_recomputenorms' #recompute normals of median surface
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -58,7 +59,8 @@ stage_queue_hints = {
   STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '4:00:00'},
   STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '1:00:00'},
   STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '4:00:00'},
-  STAGE_OBJ_MEDIAN: {'procs': 2, 'walltime': '4:00:00'}}
+  STAGE_OBJ_MEDIAN: {'procs': 2, 'walltime': '4:00:00'},
+  STAGE_NORMALS: {'procs': 4, 'walltime': '2:00:00'}}
   
   
 
@@ -78,7 +80,8 @@ stage_description = {
   STAGE_SUBJECTDISPLACE: 'subject grid',
   STAGE_SUBJECTGRID_AVG: 'grid average calculation',
   STAGE_M_S_OBJ_XFM: 'model to subject object transformation',
-  STAGE_OBJ_MEDIAN: 'median surface calculations'
+  STAGE_OBJ_MEDIAN: 'median surface calculations',
+  STAGE_NORMALS: 'recompute normals for median surface'
 }
 
 # file/folder defaults
@@ -892,12 +895,13 @@ class MAGeTBrain(object):
           medianobj = '{0}/{1}_median.obj'.format(kind_dir, s.stem)
           voronoi   = '{0}/{1}_vorn.txt'.format(kind_dir, s.stem)
           vorn_sa   = '{0}/{1}_vorn_SA.txt'.format(kind_dir, s.stem)
+          recompute= '{0}/{1}_recomputed.obj'.format(kind_dir, s.stem)
 
           command = 'morpho_make_median_surfaces_new.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
           self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
 
-          #command = 'recompute_normals {0} {1}'.format(medianobj, medianobj)
-          #self.queue.append_commands(STAGE_NORMALS, [command])
+          command = 'recompute_normals {0} {1}'.format(medianobj, recompute)
+          self.queue.append_commands(STAGE_NORMALS, [command])
           
           #stage('objects.median').command(
             #"make_median_surfaces.pl",out(medianobj),*objects[kind])
@@ -980,7 +984,8 @@ class MAGeTBrain(object):
 
   def _get_stage_order(self):
     return [STAGE_MODELPREP, STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
-        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM]
+        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN,
+        STAGE_NORMALS]
 
 ### utility functions
 def mkdirp(*p):
