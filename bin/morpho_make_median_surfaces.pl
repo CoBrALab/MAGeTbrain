@@ -1,4 +1,6 @@
-e strict;
+#! /usr/bin/env perl
+
+use strict;
 use File::Basename;
 use File::Temp qw/ tempdir /;
 
