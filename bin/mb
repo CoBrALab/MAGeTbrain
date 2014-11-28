@@ -59,7 +59,7 @@ stage_queue_hints = {
   STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '4:00:00'},
   STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '1:00:00'},
   STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '4:00:00'},
-  STAGE_OBJ_MEDIAN: {'procs': 2, 'walltime': '4:00:00'},
+  STAGE_OBJ_MEDIAN: {'procs': 8, 'walltime': '4:00:00'},
   STAGE_NORMALS: {'procs': 4, 'walltime': '2:00:00'}}
   
   
