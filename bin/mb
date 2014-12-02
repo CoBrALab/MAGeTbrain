@@ -40,6 +40,7 @@ STAGE_OBJ_MEDIAN = 'mb_medsurface' #calculate median surfaces
 STAGE_NORMALS = 'mb_recomputenorms' #recompute normals of median surface
 STAGE_VORN = 'mb_vorn' #compute voronoi
 STAGE_MATH = 'mb_vornSA' #compute voronoi sa
+STAGE_BLUR = 'mb_blur' #compute blurred surface
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -64,7 +65,8 @@ stage_queue_hints = {
   STAGE_OBJ_MEDIAN: {'procs': 8, 'walltime': '4:00:00'},
   STAGE_NORMALS: {'procs': 4, 'walltime': '2:00:00'},
   STAGE_VORN: {'procs': 4, 'walltime': '2:00:00'},
-  STAGE_MATH: {'procs': 4, 'walltime': '2:00:00'}}
+  STAGE_MATH: {'procs': 4, 'walltime': '2:00:00'},
+  STAGE_BLUR: {'procs': 8, 'walltime': '2:00:00'}}
   
 
 # stage descriptions
@@ -86,7 +88,8 @@ stage_description = {
   STAGE_OBJ_MEDIAN: 'median surface calculations',
   STAGE_NORMALS: 'recompute normals for median surface',
   STAGE_VORN: 'calculate voronoi',
-  STAGE_MATH: 'calculate voronoi sa'
+  STAGE_MATH: 'calculate voronoi sa',
+  STAGE_BLUR: 'surface blurring'
 }
 # file/folder defaults
 XFM = "nl.xfm"
@@ -902,7 +905,8 @@ class MAGeTBrain(object):
           voronoi   = '{0}/{1}_vorn.txt'.format(kind_dir, s.stem)
           vorn_sa   = '{0}/{1}_vorn_SA.txt'.format(kind_dir, s.stem)
           recompute= '{0}/{1}_recomputed.obj'.format(kind_dir, s.stem)
-
+             
+     
           command = 'morpho_make_median_surfaces_new.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
           self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
 
@@ -931,6 +935,12 @@ class MAGeTBrain(object):
             #vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
                 #**vars())
             #todo: blur surface
+          kernel = 5
+          vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
+          command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth 5 {0} {1} {2}'.format(
+		     vorn_SA, ref, vorn_blur) 
+          self.queue.append_commands(STAGE_BLUR, [command])
+
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
@@ -998,7 +1008,7 @@ class MAGeTBrain(object):
   def _get_stage_order(self):
     return [STAGE_MODELPREP, STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
         STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN,
-        STAGE_NORMALS, STAGE_VORN, STAGE_MATH]
+        STAGE_NORMALS, STAGE_VORN, STAGE_MATH, STAGE_BLUR]
 
 ### utility functions
 def mkdirp(*p):
