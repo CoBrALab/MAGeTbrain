@@ -413,6 +413,9 @@ def command_status(options):
   """Entry point from the command line to status command"""
   command_check(options)
   model, atlases, templates, subjects = get_inputs(options)
+  for a in atlases:
+    print a.stem
+    print a.objects
   p = MAGeTBrain(options, atlases, templates, subjects, model)
   p.set_queue(CommandQueue()) 
   p.queue.set_dry_run(True)
@@ -438,8 +441,8 @@ def command_status(options):
 #  commands = []
 #  if not commands:
 #    print testpath
-  print p.queue.commands
- 
+  #print p.queue.commands
+
 def command_import(options): 
   """Entry point for the import command"""
   atlases_brains = join(options.input_dir, 'atlases', 'brains')
@@ -1047,7 +1050,8 @@ class Template:
 
     objects_path = os.path.join(dirname(dirname(image_path)), 'objects')
     if not objects and os.path.exists(objects_path):
-      self.objects = glob.glob(join(objects_path, "*.obj"))
+      self.objects = glob.glob(join(objects_path, "{0}*.obj".format(self.stem)))
+      #self.objects = glob.glob(join(objects_path, "*.obj"))
    
     xfms_path = os.path.join(dirname(dirname(image_path)), 'xfms')
     if not xfms and os.path.exists(xfms_path):
