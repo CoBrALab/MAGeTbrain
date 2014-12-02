@@ -861,9 +861,9 @@ class MAGeTBrain(object):
             object='{0}/{1}.obj'.format(xfmdir, kind)
             #stage('model.subject.objects.transform').command(
             #'transform_objects',o,lin_xfm,object)
-            #if not os.path.exists(object):
-            command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
-            self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
+            if not os.path.exists(object):
+              command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
+              self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
             objects[kind].append(object)
           
 
@@ -938,7 +938,7 @@ class MAGeTBrain(object):
           kernel = 5
           vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
           command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth 5 {0} {1} {2}'.format(
-		     vorn_SA, ref, vorn_blur) 
+		     vorn_sa, ref, vorn_blur) 
           self.queue.append_commands(STAGE_BLUR, [command])
 
 
