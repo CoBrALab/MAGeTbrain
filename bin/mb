@@ -58,14 +58,14 @@ stage_queue_hints = {
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 4, 'walltime': '8:00:00'},
   STAGE_MODELPREP: {'procs': 8, 'walltime': '0:30:00'},
-  STAGE_XFMJOIN_M: {'procs': 8, 'walltime': '4:00:00'},
-  STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '4:00:00'},
-  STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '1:00:00'},
-  STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '4:00:00'},
-  STAGE_OBJ_MEDIAN: {'procs': 8, 'walltime': '4:00:00'},
-  STAGE_NORMALS: {'procs': 4, 'walltime': '2:00:00'},
-  STAGE_VORN: {'procs': 4, 'walltime': '2:00:00'},
-  STAGE_MATH: {'procs': 4, 'walltime': '2:00:00'},
+  STAGE_XFMJOIN_M: {'procs': 8, 'walltime': '0:20:00'},
+  STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '0:30:00'},
+  STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '0:30:00'},
+  STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '1:00:00'},
+  STAGE_OBJ_MEDIAN: {'procs': 8, 'walltime': '1:00:00'},
+  STAGE_NORMALS: {'procs': 8, 'walltime': '0:30:00'},
+  STAGE_VORN: {'procs': 8, 'walltime': '0:30:00'},
+  STAGE_MATH: {'procs': 8, 'walltime': '0:30:00'},
   STAGE_BLUR: {'procs': 8, 'walltime': '1:00:00'}}
   
 
@@ -413,9 +413,9 @@ def command_status(options):
   """Entry point from the command line to status command"""
   command_check(options)
   model, atlases, templates, subjects = get_inputs(options)
-  for a in atlases:
-    print a.stem
-    print a.objects
+  #for a in atlases:
+    #print a.stem
+    #print a.objects
   p = MAGeTBrain(options, atlases, templates, subjects, model)
   p.set_queue(CommandQueue()) 
   p.queue.set_dry_run(True)
@@ -1050,8 +1050,8 @@ class Template:
 
     objects_path = os.path.join(dirname(dirname(image_path)), 'objects')
     if not objects and os.path.exists(objects_path):
-      self.objects = glob.glob(join(objects_path, "{0}*.obj".format(self.stem)))
-      #self.objects = glob.glob(join(objects_path, "*.obj"))
+      #self.objects = glob.glob(join(objects_path, "{0}*.obj".format(self.stem)))
+      self.objects = glob.glob(join(objects_path, "*.obj"))
    
     xfms_path = os.path.join(dirname(dirname(image_path)), 'xfms')
     if not xfms and os.path.exists(xfms_path):
