@@ -427,7 +427,6 @@ def command_status(options):
   modelname = x.stem
   print modelname
 
-
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
       len(p.queue.commands[stage]), stage_description[stage]))
@@ -937,7 +936,8 @@ class MAGeTBrain(object):
                 #**vars())
             #todo: blur surface
           ref_obj = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot.obj')
-          kernel = 5
+          kernel = kind.startswith('gp_') and 3 or 5
+          #kernel = 5
           vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
           command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth 5 {0} {1} {2}'.format(
 		     vorn_sa, ref_obj, vorn_blur) 
