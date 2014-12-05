@@ -114,7 +114,8 @@ if __name__ == "__main__":
                       '-o %s' % options.logs_dir,
                       '-V', 
                       '-cwd',
-                      '-pe threaded %i' % options.processes] 
+                      '-pe threaded %i' % options.processes,
+                      '-hold_jid %s' % options.afterok_pattern] 
       qsub_option_prefix = '#$'
        
     mkdirp('.scripts')
