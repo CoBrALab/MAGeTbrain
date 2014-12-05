@@ -108,7 +108,6 @@ if __name__ == "__main__":
             qsub_options.append('-W depend=afterok:' + ':'.join(matching_jobids))
       
     elif options.batch_system == 'sge':
-      options.processes=1  # TODO: can we actually set this up properly? 
       qsub_options = ['-l h_rt=%s' % walltime, 
                       '-j yes',
                       '-o %s' % options.logs_dir,
