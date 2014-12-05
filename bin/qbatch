@@ -113,7 +113,8 @@ if __name__ == "__main__":
                       '-j yes',
                       '-o %s' % options.logs_dir,
                       '-V', 
-                      '-cwd'] 
+                      '-cwd',
+                      '-pe threaded %i' % options.processes] 
       qsub_option_prefix = '#$'
        
     mkdirp('.scripts')
@@ -135,8 +136,9 @@ if __name__ == "__main__":
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
             script.write("\nTASKS\n") 
         else:
+            script.write("parallel -j%i <<TASKS\n" % options.processes) 
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
-            script.write("\n")
+            script.write("\nTASKS\n") 
 
         script.close()
         
