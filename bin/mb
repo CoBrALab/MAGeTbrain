@@ -37,7 +37,7 @@ stage_queue_hints = {
   STAGE_REG_TEMPL: {'procs':    4, 'walltime': '4:00:00'},
   STAGE_XFM_JOIN:  {'procs':    2, 'walltime': '0:10:00'},
   STAGE_RESAMPLE:  {'procs':    2, 'walltime': '1:00:00'}, 
-  STAGE_VOTE:      {'procs':    8, 'walltime': '14:00:00'},
+  STAGE_VOTE:      {'procs':    1, 'walltime': '14:00:00'},
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'}}
 
 # stage descriptions
