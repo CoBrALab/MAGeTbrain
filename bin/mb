@@ -419,16 +419,16 @@ def command_status(options):
   p = MAGeTBrain(options, atlases, templates, subjects, model)
   p.set_queue(CommandQueue()) 
   p.queue.set_dry_run(True)
-  p.stage_imageprep()
-  p.stage_register_atlases() 
-  p.stage_register_models()
-  p.stage_register_templates()
-  p.stage_vote()
+  #p.stage_imageprep()
+  #p.stage_register_atlases() 
+  #p.stage_register_models()
+  #p.stage_register_templates()
+  #p.stage_vote()
   p.stage_morpho()
 
-  x = p.model[0]
-  modelname = x.stem
-  print modelname
+  #x = p.model[0]
+  #modelname = x.stem
+  #print modelname
 
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
@@ -441,7 +441,7 @@ def command_status(options):
 #  commands = []
 #  if not commands:
 #    print testpath
-  #print p.queue.commands
+  print p.queue.commands
 
 def command_import(options): 
   """Entry point for the import command"""
