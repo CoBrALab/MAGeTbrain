@@ -818,10 +818,12 @@ class MAGeTBrain(object):
           xfms_native = []
 
           #add xfm from each stage to list
+          #nl_only_xfm is from model to subj, for model obj displacement
+          #xfms_native is for creation of subject object, from atlas objs, in native space
           _,xfm = self.xfm_path(m, a, self.options.model_reg_dir)
           #xfm = join(self.options.model_reg_dir, 'model', a.stem, t.stem, s.stem, 'nl.xfm'
           xfms.append(xfm)
-          xfms_native.append(xfm)
+          #xfms_native.append(xfm)
 
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
@@ -840,7 +842,6 @@ class MAGeTBrain(object):
           if not os.path.exists(nl_only_xfm):
             command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
-          #print command 
           if not os.path.exists(lin_xfm):
             command = 'xfmjoin {0} {1}'.format(' '.join(xfms_native), lin_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
@@ -857,7 +858,7 @@ class MAGeTBrain(object):
         # transform objects from atlases
           #if self.config('surfaces'):
             #TODO: should transform to native space? 
-          for o in m.objects:
+          for o in a.objects:
             opath = os.path.realpath(o)
             kind = os.path.basename(os.path.splitext(opath)[0])
             object='{0}/{1}.obj'.format(xfmdir, kind)
