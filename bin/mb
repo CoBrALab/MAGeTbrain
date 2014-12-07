@@ -798,7 +798,7 @@ class MAGeTBrain(object):
     """Assumes all registrations complete. Carries out morpho analysis"""
     commands = []
 
-    catxfm_dir = join(self.options.model_reg_dir, 'model')
+    catxfm_dir = join(self.options.pathways_dir, 'model')
     mkdirp(catxfm_dir)
 
     for m in self.model:
@@ -831,7 +831,7 @@ class MAGeTBrain(object):
           #add xfm from each stage to list
           #nl_only_xfm is from model to subj, for model obj displacement
           #xfms_native is for creation of subject object, from atlas objs, in native space
-          _,xfm = self.xfm_path(m, a, self.options.model_reg_dir)
+          _,xfm = self.xfm_path(m, a, self.options.reg_model_atlas_dir)
           #xfm = join(self.options.model_reg_dir, 'model', a.stem, t.stem, s.stem, 'nl.xfm'
           xfms.append(xfm)
           #xfms_native.append(xfm)
@@ -845,7 +845,7 @@ class MAGeTBrain(object):
           xfms.append(xfm)
           xfms_native.append(xfm)
 
-          xfms_native.append(join(self.options.model_reg_dir, m.stem, s.stem, 'nl_inv.xfm'))
+          xfms_native.append(join(self.options.reg_model_dir,'subjects', s.stem, 'nl_inv.xfm'))
           # create concatenated xfm without linear parts
 
           #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
