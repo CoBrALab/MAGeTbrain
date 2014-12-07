@@ -145,6 +145,9 @@ def main():
   group.add_argument("--reg_model_dir",   default="output/registrations/model", 
     type=os.path.abspath, metavar='',
     help="Directory containing registrations from model to atlases, templates, subjects")
+  group.add_argument("--pathways_dir",   default="output/pathways", 
+    type=os.path.abspath, metavar='',
+    help="Directory containing concatenated xfms from model to subject through ALL pathways")
 
   # subcommands
   subparsers = parser.add_subparsers(title='Commands', metavar='')
