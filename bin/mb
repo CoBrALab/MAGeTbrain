@@ -133,7 +133,7 @@ def main():
   group.add_argument("--reg_dir",   default="output/registrations/template_library", 
     type=os.path.abspath, metavar='',
     help="Directory containing registrations")
-  group.add_argument("--model_reg_dir",   default="output/model_registrations", 
+  group.add_argument("--reg_model_atlas_dir",   default="output/registrations/model/atlases", 
     type=os.path.abspath, metavar='',
     help="Directory containing model to atlas registrations")
   group.add_argument("--modelspace_dir",   default="output/modelspace/input", 
@@ -667,7 +667,7 @@ class MAGeTBrain(object):
     commands = []
     for model in self.model:
       for atlas in self.atlases:
-        reg_dir, transform_file = self.xfm_path(model, atlas, self.options.model_reg_dir)
+        reg_dir, transform_file = self.xfm_path(model, atlas, self.options.reg_model_atlas_dir)
         reg_cmd = self.register_images(self.options.register_cmd, model, atlas, transform_file)
         if reg_cmd:
           mkdirp(reg_dir)
@@ -971,7 +971,7 @@ class MAGeTBrain(object):
       _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
     
-    invert_xfm = join(self.options.model_reg_dir, self.model[0].stem, stems[2], "nl_inv.xfm")
+    invert_xfm = join(self.options.reg_model_dir,'subjects',stems[2],"nl_inv.xfm")
     xfms.append(invert_xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     if not exists(joined_xfm): 
