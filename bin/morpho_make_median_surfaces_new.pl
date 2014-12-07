@@ -3,7 +3,7 @@
 use strict;
 use File::Basename;
 use File::Temp qw/ tempdir /;
-
+use Env;
 
 chomp(my $prog = `basename $0`);
 my $tmpdir = &tempdir("$prog-XXXXXXXXXXX", TMPDIR =>1, CLEANUP =>1);
@@ -104,7 +104,7 @@ my $R_command_points = "R --slave --no-save --silent ".
   "${tmpdir}/median_xcoords.csv ".
   "${tmpdir}/median_ycoords.csv ".
   "${tmpdir}/median_zcoords.csv ".
-  "< /home/m/mchakrav/patelmo6/MAGeTbrain/bin/barf_medians_driver.R ";
+  "< $PWD/barf_medians_driver.R ";
 do_cmd($R_command_points);
   #"< /projects/mallar/NIH_COS_2/Median_surface_code/barf_medians_driver.R ";
 
@@ -115,7 +115,7 @@ my $R_command_normals = "R --slave --no-save --silent ".
   "${tmpdir}/median_xnorms.csv ".
   "${tmpdir}/median_ynorms.csv ".
   "${tmpdir}/median_znorms.csv ".
-  "< /home/m/mchakrav/patelmo6/MAGeTbrain/bin/barf_medians_driver.R ";
+  "< $PWD/barf_medians_driver.R ";
 do_cmd($R_command_normals);
   #"< /projects/mallar/NIH_COS_2/Median_surface_code/barf_medians_driver.R ";
 
