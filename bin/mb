@@ -432,6 +432,8 @@ def command_status(options):
   p.stage_vote()
   p.stage_morpho()
 
+  #tempdir = p.temp_dir
+  #print tempdir
   #x = p.model[0]
   #modelname = x.stem
   #print modelname
@@ -443,7 +445,6 @@ def command_status(options):
 #  testpath = '/scratch/m/mchakrav/patelmo6/shapetest/input/atlases/brains/brain2.mnc'
 #  if not os.path.exists(testpath):
 #    print testpath
-
 #  commands = []
 #  if not commands:
 #    print testpath
@@ -587,6 +588,7 @@ class MAGeTBrain(object):
     self.subjects = subjects
     self.model = model
     self.temp_dir = tempfile.mkdtemp()
+    print self.temp_dir
 
   def set_queue(self, queue): 
     self.queue = queue
