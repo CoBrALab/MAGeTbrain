@@ -874,8 +874,9 @@ class MAGeTBrain(object):
           for o in a.objects:
             opath = os.path.realpath(o)
             kind = os.path.basename(os.path.splitext(opath)[0])
-            #object='{0}/{1}.obj'.format(xfmdir, kind)
-            object='{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
+            object='{0}/{1}.obj'.format(xfmdir, kind)
+            #object='{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
+            #mkdirp(dirname(object))
             #stage('model.subject.objects.transform').command(
             #'transform_objects',o,lin_xfm,object)
             if not os.path.exists(object):
