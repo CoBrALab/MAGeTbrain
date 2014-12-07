@@ -63,10 +63,10 @@ stage_queue_hints = {
   STAGE_SUBJECTGRID_AVG: {'procs': 8, 'walltime': '0:30:00'},
   STAGE_M_S_OBJ_XFM: {'procs': 8, 'walltime': '1:00:00'},
   STAGE_OBJ_MEDIAN: {'procs': 8, 'walltime': '1:00:00'},
-  STAGE_NORMALS: {'procs': 8, 'walltime': '0:30:00'},
-  STAGE_VORN: {'procs': 8, 'walltime': '0:30:00'},
-  STAGE_MATH: {'procs': 8, 'walltime': '0:30:00'},
-  STAGE_BLUR: {'procs': 8, 'walltime': '1:00:00'}}
+  STAGE_NORMALS: {'procs': 8, 'walltime': '0:16:00'},
+  STAGE_VORN: {'procs': 8, 'walltime': '0:16:00'},
+  STAGE_MATH: {'procs': 8, 'walltime': '0:16:00'},
+  STAGE_BLUR: {'procs': 8, 'walltime': '0:16:00'}}
   
 
 # stage descriptions
