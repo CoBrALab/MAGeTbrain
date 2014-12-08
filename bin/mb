@@ -959,8 +959,8 @@ class MAGeTBrain(object):
           kernel = kind.startswith('gp_') and 3 or 5
           #kernel = 5
           vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
-          command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth 5 {0} {1} {2}'.format(
-		     vorn_sa, ref_obj, vorn_blur) 
+          command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
+		     kernel, vorn_sa, ref_obj, vorn_blur) 
           self.queue.append_commands(STAGE_BLUR, [command])
 
 
