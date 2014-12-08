@@ -132,11 +132,11 @@ if __name__ == "__main__":
 
         if options.batch_system == 'pbs':
             script.write("cd $PBS_O_WORKDIR\n") 
-            script.write("parallel -j%i <<TASKS\n" % options.processes) 
+            script.write("parallel -v -j%i <<TASKS\n" % options.processes) 
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
             script.write("\nTASKS\n") 
         else:
-            script.write("parallel -j%i <<TASKS\n" % options.processes) 
+            script.write("parallel -v -j%i <<TASKS\n" % options.processes) 
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
             script.write("\nTASKS\n") 
 
