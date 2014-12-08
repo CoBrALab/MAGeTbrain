@@ -48,9 +48,9 @@ STAGE_BLUR = 'mb_blur' #compute blurred surface
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
 stage_queue_hints = {  
-  STAGE_IMAGEPREP: {'procs':    4, 'walltime': '2:00:00'},
+  STAGE_IMAGEPREP: {'procs':    100, 'walltime': '3:00:00'},
   STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
-  STAGE_REG_TEMPL: {'procs':    4, 'walltime': '6:00:00'},
+  STAGE_REG_TEMPL: {'procs':    4, 'walltime': '4:00:00'},
   STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
   STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
   STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
@@ -448,7 +448,7 @@ def command_status(options):
 #  commands = []
 #  if not commands:
 #    print testpath
-  print p.queue.commands
+  #print p.queue.commands
 
 def command_import(options): 
   """Entry point for the import command"""
