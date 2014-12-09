@@ -53,7 +53,7 @@ stage_queue_hints = {
   STAGE_REG_TEMPL: {'procs':    4, 'walltime': '4:00:00'},
   STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
   STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
-  STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
+  STAGE_VOTE:      {'procs':    8, 'walltime': '2:00:00'},
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'},
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 500, 'walltime': '0:30:00'},
@@ -961,9 +961,10 @@ class MAGeTBrain(object):
           kernel = kind.startswith('gp_') and 3 or 5
           #kernel = 5
           vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
-          command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
-		     kernel, vorn_sa, ref_obj, vorn_blur) 
-          self.queue.append_commands(STAGE_BLUR, [command])
+          if not os.path.exists(vorn_blur):
+            command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
+		       kernel, vorn_sa, ref_obj, vorn_blur) 
+            self.queue.append_commands(STAGE_BLUR, [command])
 
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
