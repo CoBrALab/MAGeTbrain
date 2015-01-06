@@ -448,7 +448,7 @@ def command_status(options):
 #  commands = []
 #  if not commands:
 #    print testpath
-  #print p.queue.commands
+  print p.queue.commands
 
 def command_import(options): 
   """Entry point for the import command"""
@@ -594,7 +594,7 @@ class MAGeTBrain(object):
     self.subjects = subjects
     self.model = model
     self.temp_dir = tempfile.mkdtemp()
-    print self.temp_dir
+    #print self.temp_dir
 
   def set_queue(self, queue): 
     self.queue = queue
