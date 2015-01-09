@@ -37,7 +37,7 @@ stage_queue_hints = {
   STAGE_REG_TEMPL: {'procs':    2, 'walltime': '8:00:00'},
   STAGE_XFM_JOIN:  {'procs':    8, 'walltime': '0:30:00'},
   STAGE_RESAMPLE:  {'procs':    1, 'walltime': '3:00:00'}, 
-  STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
+  STAGE_VOTE:      {'procs':    8, 'walltime': '2:00:00'},
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'}}
 
 # stage descriptions
@@ -284,7 +284,7 @@ def command_run(options):
       #else:
       #  commandline = commandline + ' -q parallel'
   
-      p.queue.append_commands(STAGE_VOTE, [commandline])
+      #p.queue.append_commands(STAGE_VOTE, [commandline])
 
   p.run()
  
