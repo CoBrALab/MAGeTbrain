@@ -180,6 +180,14 @@ def main():
           default=stage_queue_hints[STAGE_VOTE]['procs'], 
           metavar="<procs>", type=int,
           help="Number of processes to run per node when doing label fusion.")
+  group.add_argument("--stage-resample-walltime", 
+          default=stage_queue_hints[STAGE_RESAMPLE]['walltime'], 
+          metavar="<walltime>", 
+          help="Walltime for jobs submitted to do label propagation.")
+  group.add_argument("--stage-resample-procs", 
+          default=stage_queue_hints[STAGE_RESAMPLE]['procs'], 
+          metavar="<procs>", type=int,
+          help="Number of processes to run per node when doing label propagation.")
 
   # check : sanity checks on inputs and MAGeT run-state
   #####################################################
@@ -248,6 +256,8 @@ def command_run(options):
   stage_queue_hints[STAGE_REG_ATLAS]['procs'] = options.stage_templatelib_procs 
   stage_queue_hints[STAGE_VOTE]['walltime'] = options.stage_voting_walltime 
   stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs 
+  stage_queue_hints[STAGE_RESAMPLE]['walltime'] = options.stage_resample_walltime 
+  stage_queue_hints[STAGE_RESAMPLE]['procs'] = options.stage_resample_procs 
 
   # we could be running one of many different stages depending on what is
   # specified on the command line. 
