@@ -531,8 +531,10 @@ class MAGeTBrain(object):
     """Register all templates to subjects"""
     commands = []
     for template in self.templates:
-      reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
-      reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
+      #reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
+      #reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
+      reg_dir, transform_file = self.xfm_path(template, subject, self.options.subjreg_dir)
+      reg_cmd = self.register_images(self.options.register_cmd_subj, template, subject, transform_file)
       if reg_cmd: 
         mkdirp(reg_dir)
         commands.append(reg_cmd)
