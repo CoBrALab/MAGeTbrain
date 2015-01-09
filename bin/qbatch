@@ -89,7 +89,7 @@ if __name__ == "__main__":
     num_jobs       = int(math.ceil(len(task_list) / float(chunk_size)))
 
     if options.batch_system == 'pbs': 
-      qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime), 
+      qsub_options = ['-l nodes=2:m32g:ppn=%i,walltime=%s' % (options.processes, walltime), 
                       '-j oe',
                       '-o %s' % options.logs_dir,
                       '-V'] 
