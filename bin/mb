@@ -151,6 +151,12 @@ def main():
   group.add_argument("--clobber", default=False, 
       action="store_true",
       help="Overwrite output if it exists")
+  group.add_argument("--32g", default=False, 
+      action="store_true",
+      help="Submit jobs to 32gb nodes")
+  group.add_argument("--64g", default=False, 
+      action="store_true",
+      help="Submit jobs to 64gb nodes")
   group.add_argument("--stage-templatelib-walltime", 
           default=stage_queue_hints[STAGE_REG_ATLAS]['walltime'], 
           metavar="<walltime>", 
