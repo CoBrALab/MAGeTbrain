@@ -80,6 +80,11 @@ def main():
   parser = DefaultHelpParser()
   parser.add_argument("--save", default=False, action="store_true", 
     help="Save intermediate files (e.g. registrations, candidate labels)")
+  #group.add_argument("--thirty", default=False, 
+      #action="store_true",
+      #help="Submit jobs to 32gb nodes")
+  #group.add_argument("--memory", choices=[16,32,64], default=8,
+    #type=int, metavar='N', help="Indicate which nodes to submit jobs to")
 
   # In/out directory options
   group = parser.add_argument_group(title="Folder options")
@@ -151,12 +156,14 @@ def main():
   group.add_argument("--clobber", default=False, 
       action="store_true",
       help="Overwrite output if it exists")
-  group.add_argument("--32g", default=False, 
-      action="store_true",
-      help="Submit jobs to 32gb nodes")
-  group.add_argument("--64g", default=False, 
-      action="store_true",
-      help="Submit jobs to 64gb nodes")
+  group.add_argument('--memory', choices=[32,64], default=16,
+    type=int, metavar='', help="Indicate which nodes to submit jobs to")
+  #group.add_argument("--32g", default=False, 
+      #action="store_true",
+      #help="Submit jobs to 32gb nodes")
+  #group.add_argument("--sixty", default=False, 
+      #action="store_true",
+      #help="Submit jobs to 64gb nodes")
   group.add_argument("--stage-templatelib-walltime", 
           default=stage_queue_hints[STAGE_REG_ATLAS]['walltime'], 
           metavar="<walltime>", 
@@ -233,6 +240,8 @@ def command_run(options):
   else:
     queue = CommandQueue()
   queue.set_dry_run(options.dry_run)
+  queue.set_memory(options.memory)
+  print queue.memory
 
   # update the stage queue settings based on command-line options
   stage_queue_hints[STAGE_REG_ATLAS]['walltime'] = options.stage_templatelib_walltime 
@@ -358,6 +367,7 @@ def command_check(options):
 def command_status(options): 
   """Entry point from the command line to status command"""
   command_check(options)
+  #mem=options.memory
   atlases, templates, subjects = get_inputs(options)
   p = MAGeTBrain(options, atlases, templates, subjects)
   p.set_queue(CommandQueue()) 
@@ -365,6 +375,8 @@ def command_status(options):
   p.stage_register_atlases() 
   p.stage_vote()
   
+  #mem=options.processes
+  #print mem
   for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
     logger.info("{0} {1} commands left".format(
       len(p.queue.commands[stage]), stage_description[stage]))
@@ -410,6 +422,9 @@ class CommandQueue(object):
 
   def set_dry_run(self, state): 
     self.dry_run = state
+
+  def set_memory(self, memory):
+    self.memory = memory
 
   def append_commands(self, stage, commands):
     command_list = self.commands.get(stage, [])
@@ -494,7 +509,20 @@ class QBatchCommandQueue(CommandQueue):
     opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
     #batchsize   = min(self.processors, processors)
     batchsize = processors
-    self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
+    qbatch_version = 'qbatch'
+    
+    
+    if self.memory==32:
+      qbatch_version = 'qbatch_32'
+    if self.memory==64:
+      qbatch_version = 'qbatch_64' 
+
+    #if self.options.thirty:
+      #qbatch_version = 'qbatch_32g'
+    #if self.options.sixty:
+      #qbatch_version = 'qbatch_64g'
+    print qbatch_version
+    self.execute('{0} {1} {2} - {3} {4}'.format(qbatch_version, opt_name, opt_afterok, batchsize, walltime), 
         input='\n'.join(commands))
     #os.remove(cmdfilename)
     
