@@ -559,14 +559,14 @@ class MAGeTBrain(object):
           #label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
           label = join(self.options.pathways_dir, stems[0],stems[1],stems[2],'candidate_label.mnc')
           #self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems
-          self.resample_labels(self.options.subjreg_dir, atlas.labels, subject, label, stems)
+          self.resample_labels(self.options.reg_dir, self.options.subjreg_dir, atlas.labels, subject, label, stems)
           candidate_labels.append(label)
       command = 'voxel_vote.py {0} {1}'.format(
           ' '.join(candidate_labels), fused_lbl)
       if not exists(fused_lbl):
         self.queue.append_commands(STAGE_VOTE, [command])
 
-  def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
+  def resample_labels(self, templatedir, votingdir, source_lbl, target, output_lbl, stems):
     """resample a label via transforms from images stem_1 ... stem_n
 
        Looks for transforms in the registration directory, and if not found,
@@ -576,9 +576,13 @@ class MAGeTBrain(object):
        check should happen earlier on. """
     assert len(stems) > 1
     xfms = []
-    for s, t in zip(stems[:-1],stems[1:]):
-      _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
-      xfms.append(xfm)
+    xfm = join(templatedir, stems[0], stems[1], 'nl.xfm')
+    xfms.append(xfm)
+    xfm = join(votingdir, stems[1], stems[2], 'nl.xfm')
+    xfms.append(xfm)
+    #for s, t in zip(stems[:-1],stems[1:]):
+    #  _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
+    #  xfms.append(xfm)
     #joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     joined_xfm   = join(self.options.pathways_dir, stems[0],stems[1],stems[2], 'nl.xfm')
     if not exists(joined_xfm): 
