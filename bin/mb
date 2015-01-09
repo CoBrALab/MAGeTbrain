@@ -89,10 +89,15 @@ def main():
   group.add_argument("--input_dir",   default="input", 
     type=os.path.abspath, metavar='', 
     help="Directory containing atlas, template and subject libraries")
-  group.add_argument("--reg_dir",   default="output/registrations", 
+  group.add_argument("--reg_dir",   default="output/registrations/template_library",
     type=os.path.abspath, metavar='',
     help="Directory containing registrations")
-
+  group.add_argument("--subjreg_dir",   default="output/registrations/voting_library",
+    type=os.path.abspath, metavar='',
+    help="Directory containing template to subject registrations")
+  group.add_argument("--pathways_dir",   default="output/pathways",
+    type=os.path.abspath, metavar='',
+    help="Directory containing concatenated xfms from atlas to subject through ALL pathways")
   # subcommands
   subparsers = parser.add_subparsers(title='Commands', metavar='')
 
