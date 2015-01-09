@@ -186,7 +186,7 @@ def main():
     help="Subject ID (no file extension) to operate on")
   parser_status.set_defaults(func=command_status)
   parser_status.set_defaults(register_cmd='')
-
+  parser_status.set_defaults(register_cmd_subj='')
   # import : import atlases into the current project
   #####################################################
   parser_import = subparsers.add_parser('import', 
@@ -557,7 +557,8 @@ class MAGeTBrain(object):
         for template in self.templates:
           stems = [atlas.stem, template.stem, subject.stem]
           label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
-          self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems)
+          #self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems
+          self.resample_labels(self.options.subjreg_dir, atlas.labels, subject, label, stems)
           candidate_labels.append(label)
       command = 'voxel_vote.py {0} {1}'.format(
           ' '.join(candidate_labels), fused_lbl)
