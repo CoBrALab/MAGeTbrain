@@ -559,16 +559,19 @@ class MAGeTBrain(object):
         for template in self.templates:
           stems = [atlas.stem, template.stem, subject.stem]
           #label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
-          label = join(self.options.pathways_dir, stems[0],stems[1],stems[2],'candidate_label.mnc')
+          pathway = join(self.options.pathways_dir, stems[0],stems[1],stems[2])
+          mkdirp(pathway)
+          label = join(pathway, 'candidate_label.mnc')
+          #label = join(self.options.pathways_dir, stems[0],stems[1],stems[2],'candidate_label.mnc')
           #self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems
-          self.resample_labels(self.options.reg_dir, self.options.subjreg_dir, atlas.labels, subject, label, stems)
+          self.resample_labels(self.options.reg_dir, self.options.subjreg_dir, atlas.labels, subject, label, stems, pathway)
           candidate_labels.append(label)
       command = 'voxel_vote.py {0} {1}'.format(
           ' '.join(candidate_labels), fused_lbl)
       if not exists(fused_lbl):
         self.queue.append_commands(STAGE_VOTE, [command])
 
-  def resample_labels(self, templatedir, votingdir, source_lbl, target, output_lbl, stems):
+  def resample_labels(self, templatedir, votingdir, source_lbl, target, output_lbl, stems, cat_xfm_dir):
     """resample a label via transforms from images stem_1 ... stem_n
 
        Looks for transforms in the registration directory, and if not found,
@@ -586,7 +589,9 @@ class MAGeTBrain(object):
     #  _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
     #  xfms.append(xfm)
     #joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
-    joined_xfm   = join(self.options.pathways_dir, stems[0],stems[1],stems[2], 'nl.xfm')
+    #cat_xfm_dir = join(self.options.pathways_dir, stems[0],stems[1],stems[2])
+    #mkdirp(cat_xfm_dir)
+    joined_xfm   = join(cat_xfm_dir, 'nl.xfm')
     if not exists(joined_xfm): 
         self.queue.append_commands(STAGE_XFM_JOIN, 
             ['xfmjoin {0} {1}'.format(' '.join(xfms), joined_xfm)]) 
