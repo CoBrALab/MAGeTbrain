@@ -270,13 +270,14 @@ def command_run(options):
       if exists(label):
         continue
       # HACK the command line to run the voting stage next
-      commandline = ' '.join(sys.argv)
-      commandline = commandline.replace('vanilla', '')
-      commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
-      if ' -q ' in commandline:
-        commandline = commandline.replace('-q qbatch', '-q parallel')
-      else:
-        commandline = commandline + ' -q parallel'
+      p.stage_vote()
+      #commandline = ' '.join(sys.argv)
+      #commandline = commandline.replace('vanilla', '')
+      #commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
+      #if ' -q ' in commandline:
+      #  commandline = commandline.replace('-q qbatch', '-q parallel')
+      #else:
+      #  commandline = commandline + ' -q parallel'
   
       p.queue.append_commands(STAGE_VOTE, [commandline])
 
