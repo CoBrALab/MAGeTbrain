@@ -4,10 +4,10 @@ set -e
 
 subject=$1
 #nucsubject=$1
-resmodel=$3
-xfm=$4
-modelsubject=$5
-xfminvert=$6
+resmodel=$2
+xfm=$3
+modelsubject=$4
+xfminvert=$5
 
 #nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 {0} {1}'.format(subject.image, nuc_subject)
 #nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 $subject $nucsubject
