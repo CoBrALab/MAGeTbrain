@@ -26,6 +26,7 @@ mincANTS 3 -m MI[$subject,$resmodel,1,32] \
     --use-Histogram-Matching \
     --do-rigid true
 
+
 #xfminvert $xfm $xfminvert
 
 #mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
