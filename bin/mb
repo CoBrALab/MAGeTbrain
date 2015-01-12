@@ -148,6 +148,9 @@ def main():
   group.add_argument("--pathways_dir",   default="output/pathways", 
     type=os.path.abspath, metavar='',
     help="Directory containing concatenated xfms from model to subject through ALL pathways")
+  group.add_argument("--modelxfm_dir",   default="input/model/xfms", 
+    type=os.path.abspath, metavar='',
+    help="Directory containing model to atlas xfms")
 
   # subcommands
   subparsers = parser.add_subparsers(title='Commands', metavar='')
