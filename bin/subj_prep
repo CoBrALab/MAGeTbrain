@@ -18,7 +18,7 @@ bestlinreg.pl -noverbose -lsq12 $subject $resmodel $xfm
 xfminvert $xfm $xfminvert
 
 #mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
-mincresample -sinc -like $resmodel -2 -transform $xfm $nucsubject $modelsubject
+mincresample -sinc -like $resmodel -2 -transform $xfm $subject $modelsubject
 
 #if [ -e $modelsubject ]; then
 #  rm output/nuc/templates/*imp
