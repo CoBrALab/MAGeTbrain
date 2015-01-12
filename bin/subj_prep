@@ -3,7 +3,7 @@
 set -e
 
 subject=$1
-nucsubject=$1
+#nucsubject=$1
 resmodel=$3
 xfm=$4
 modelsubject=$5
@@ -14,7 +14,7 @@ xfminvert=$6
 
 
 #bestlinreg -noverbose -lsq12 {0} {1} {2}'.format(nuc_subject, res_model, transform_file)
-bestlinreg.pl -noverbose -lsq12 $nucsubject $resmodel $xfm
+bestlinreg.pl -noverbose -lsq12 $subject $resmodel $xfm
 xfminvert $xfm $xfminvert
 
 #mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
