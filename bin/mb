@@ -863,7 +863,7 @@ class MAGeTBrain(object):
           xfms.append(xfm)
           xfms_native.append(xfm)
 
-          xfms_native.append(join(self.options.reg_model_dir,'subjects', s.stem, 'nl_inv.xfm'))
+          xfms_native.append(join(self.options.reg_model_dir,'subjects', s.stem, 'nl_inverse.xfm'))
           # create concatenated xfm without linear parts
 
           #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
