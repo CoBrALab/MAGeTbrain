@@ -331,7 +331,7 @@ def command_run(options):
   if options.stage == "vanilla" and options.queue == 'qbatch':
     p.stage_imageprep()
     p.stage_register_atlases() 
-    p.stage_register_models()
+    #p.stage_register_models()
     p.stage_register_templates()
     for subject in subjects:
       _, label = p.fused_label_path(subject) 
@@ -430,7 +430,7 @@ def command_status(options):
   p.queue.set_dry_run(True)
   p.stage_imageprep()
   p.stage_register_atlases() 
-  p.stage_register_models()
+  #p.stage_register_models()
   p.stage_register_templates()
   p.stage_vote()
   p.stage_morpho()
