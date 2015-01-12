@@ -22,14 +22,14 @@ mincANTS 3 -m MI[$subject,$resmodel,1,32] \
     -o $xfm \
     --number-of-affine-iterations 10000x10000x10000x10000x10000 \
     --continue-affine true \
-    --affine-gradient-descent-option 0.5x0.95x1.e-4x1.e-4 \
     --MI-option 32x32000 \
-    --use-Histogram-Matching
+    --use-Histogram-Matching \
+    --do-rigid true
 
-xfminvert $xfm $xfminvert
+#xfminvert $xfm $xfminvert
 
 #mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
-mincresample -sinc -like $resmodel -2 -transform $xfm $subject $modelsubject
+mincresample -sinc -short -unsigned -like $resmodel -2 -transform $xfm $subject $modelsubject
 
 #if [ -e $modelsubject ]; then
 #  rm output/nuc/templates/*imp
