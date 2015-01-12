@@ -847,11 +847,13 @@ class MAGeTBrain(object):
           #add xfm from each stage to list
           #nl_only_xfm is from model to subj, for model obj displacement
           #xfms_native is for creation of subject object, from atlas objs, in native space
-          _,xfm = self.xfm_path(m, a, self.options.reg_model_atlas_dir)
+          #_,xfm = self.xfm_path(m, a, self.options.reg_model_atlas_dir)
           #xfm = join(self.options.model_reg_dir, 'model', a.stem, t.stem, s.stem, 'nl.xfm'
-          xfms.append(xfm)
+          #xfms.append(xfm)
           #xfms_native.append(xfm)
-
+          xfm = '{0}/to_{1}.xfm'.format(self.options.modelxfm_dir, a.stem)
+          xfms.append(xfm)
+   
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
           xfms.append(xfm)
