@@ -721,7 +721,7 @@ class MAGeTBrain(object):
     
     commands = []
     for subject in self.subjects:
-      nuc_subject = join('output/nuc/subjects',subject.stem + ".mnc")
+      #nuc_subject = join('output/nuc/subjects',subject.stem + ".mnc")
       #reg_dir, transform_file = self.xfm_path(model, subject, self.options.model_reg_dir)
       reg_dir = join(self.options.reg_model_dir,'subjects',subject.stem) 
       transform_file = join(reg_dir, 'nl.xfm')
@@ -729,10 +729,10 @@ class MAGeTBrain(object):
       transform_file_invert = join(reg_dir, 'nl_inv.xfm')
 
       mkdirp(reg_dir)
-      mkdirp(dirname(nuc_subject))
+      #mkdirp(dirname(nuc_subject))
 
       if not os.path.exists(modelsubject):
-        prep_cmd = 'subj_prep {0} {1} {2} {3} {4} {5}'.format(subject.image, nuc_subject, res_model, transform_file, modelsubject, transform_file_invert)
+        prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(subject.image, res_model, transform_file, modelsubject, transform_file_invert)
         commands.append(prep_cmd)
 
 
@@ -766,7 +766,7 @@ class MAGeTBrain(object):
     mkdirp(newtemplate_dir)
    
     for template in self.templates:
-      nuc_template = join('output/nuc/templates',template.stem + ".mnc")
+      #nuc_template = join('output/nuc/templates',template.stem + ".mnc")
       #reg_dir, transform_file = self.xfm_path(model, template, self.options.model_reg_dir)
       reg_dir = join(self.options.reg_model_dir,'templates',template.stem) 
       transform_file = join(reg_dir, 'nl.xfm')
@@ -774,10 +774,10 @@ class MAGeTBrain(object):
       transform_file_invert = join(reg_dir, 'nl_inv.xfm')
       
       mkdirp(reg_dir)
-      mkdirp(dirname(nuc_template))
+      #mkdirp(dirname(nuc_template))
 
       if not os.path.exists(modeltemplate):
-        prep_cmd = 'subj_prep {0} {1} {2} {3} {4} {5}'.format(template.image, nuc_template, res_model, transform_file, modeltemplate, transform_file_invert)
+        prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(template.image, res_model, transform_file, modeltemplate, transform_file_invert)
         commands.append(prep_cmd)
 
       #if not os.path.exists(nuc_template):
