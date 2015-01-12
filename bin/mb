@@ -688,7 +688,7 @@ class MAGeTBrain(object):
           commands.append(reg_cmd)
     self.queue.append_commands(STAGE_REG_MODEL, commands)
     return len(commands) == 0
-#####WORKING HERE
+
   def stage_imageprep(self):
     """Prep images by handling intensity inhomogeneity, move to model space"""
     commands = []
@@ -726,13 +726,13 @@ class MAGeTBrain(object):
       reg_dir = join(self.options.reg_model_dir,'subjects',subject.stem) 
       transform_file = join(reg_dir, 'nl.xfm')
       modelsubject = join(newsubject_dir, subject.stem + ".mnc")
-      transform_file_invert = join(reg_dir, 'nl_inv.xfm')
+      #transform_file_invert = join(reg_dir, 'nl_inv.xfm')
 
       mkdirp(reg_dir)
       #mkdirp(dirname(nuc_subject))
 
       if not os.path.exists(modelsubject):
-        prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(subject.image, res_model, transform_file, modelsubject, transform_file_invert)
+        prep_cmd = 'subj_prep {0} {1} {2} {3}'.format(subject.image, res_model, transform_file, modelsubject)
         commands.append(prep_cmd)
 
 
@@ -771,13 +771,13 @@ class MAGeTBrain(object):
       reg_dir = join(self.options.reg_model_dir,'templates',template.stem) 
       transform_file = join(reg_dir, 'nl.xfm')
       modeltemplate = join(newtemplate_dir, template.stem + ".mnc")
-      transform_file_invert = join(reg_dir, 'nl_inv.xfm')
+      #transform_file_invert = join(reg_dir, 'nl_inv.xfm')
       
       mkdirp(reg_dir)
       #mkdirp(dirname(nuc_template))
 
       if not os.path.exists(modeltemplate):
-        prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(template.image, res_model, transform_file, modeltemplate, transform_file_invert)
+        prep_cmd = 'subj_prep {0} {1} {2} {3}'.format(template.image, res_model, transform_file, modeltemplate)
         commands.append(prep_cmd)
 
       #if not os.path.exists(nuc_template):
