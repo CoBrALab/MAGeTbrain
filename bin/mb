@@ -58,15 +58,15 @@ stage_queue_hints = {
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 500, 'walltime': '0:30:00'},
   STAGE_MODELPREP: {'procs': 8, 'walltime': '0:15:00'},
-  STAGE_XFMJOIN_M: {'procs': 500, 'walltime': '0:20:00'},
-  STAGE_SUBJECTDISPLACE: {'procs': 200, 'walltime': '1:30:00'},
-  STAGE_SUBJECTGRID_AVG: {'procs': 500, 'walltime': '0:30:00'},
-  STAGE_M_S_OBJ_XFM: {'procs': 500, 'walltime': '0:30:00'},
-  STAGE_OBJ_MEDIAN: {'procs': 500, 'walltime': '0:30:00'},
-  STAGE_NORMALS: {'procs': 500, 'walltime': '0:16:00'},
-  STAGE_VORN: {'procs': 500, 'walltime': '0:16:00'},
-  STAGE_MATH: {'procs': 500, 'walltime': '0:16:00'},
-  STAGE_BLUR: {'procs': 500, 'walltime': '0:20:00'}}
+  STAGE_XFMJOIN_M: {'procs': 20000, 'walltime': '0:20:00'},
+  STAGE_SUBJECTDISPLACE: {'procs': 420, 'walltime': '1:30:00'},
+  STAGE_SUBJECTGRID_AVG: {'procs': 1000, 'walltime': '0:30:00'},
+  STAGE_M_S_OBJ_XFM: {'procs': 2000, 'walltime': '0:30:00'},
+  STAGE_OBJ_MEDIAN: {'procs': 2000, 'walltime': '0:30:00'},
+  STAGE_NORMALS: {'procs': 20000, 'walltime': '0:20:00'},
+  STAGE_VORN: {'procs': 10000, 'walltime': '0:16:00'},
+  STAGE_MATH: {'procs': 10000, 'walltime': '0:16:00'},
+  STAGE_BLUR: {'procs': 10000, 'walltime': '0:20:00'}}
   
 
 # stage descriptions
