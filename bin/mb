@@ -257,28 +257,33 @@ def command_run(options):
   
   if options.stage == "register": 
     p.stage_register_atlases() 
-  if options.stage == "vote" or (options.stage == 'vanilla' and options.queue == 'parallel'): 
+  elif options.stage == "vote": # or (options.stage == 'vanilla' and options.queue == 'parallel'): 
     #TODO assumes all atlases have been registered, but we should check here
     #that that's so.
     p.stage_vote()
-   
-
-  if options.stage == "vanilla" and options.queue == 'qbatch':
+  elif options.stage == "vanilla": 
     p.stage_register_atlases() 
-    for subject in subjects:
-      _, label = p.fused_label_path(subject) 
-      if exists(label):
-        continue
-      # HACK the command line to run the voting stage next
-      commandline = ' '.join(sys.argv)
-      commandline = commandline.replace('vanilla', '')
-      commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
-      if ' -q ' in commandline:
-        commandline = commandline.replace('-q qbatch', '-q parallel')
-      else:
-        commandline = commandline + ' -q parallel'
-  
-      p.queue.append_commands(STAGE_VOTE, [commandline])
+
+    if options.queue == 'qbatch':  # submit each subject's voting as a separate job
+      for subject in subjects:
+	_, label = p.fused_label_path(subject) 
+	if exists(label):
+	  continue
+	# HACK the command line to run the voting stage next
+	commandline = ' '.join(sys.argv)
+	commandline = commandline.replace('vanilla', '')
+	commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
+	if ' -q ' in commandline:
+	  commandline = commandline.replace('-q qbatch', '-q parallel')
+	else:
+	  commandline = commandline + ' -q parallel'
+    
+	p.queue.append_commands(STAGE_VOTE, [commandline])
+    else:  # we aren't in batch mode, so do all of the voting and whatnot directly
+	warning("'vanilla' mode only works for the 'qbatch' queue.")
+        warning("Other queues treat this as stage as 'register'. " + 
+                "You will need to run the 'voting' stage separately.") 
+        
 
   p.run()
  
@@ -562,7 +567,7 @@ class MAGeTBrain(object):
     assert len(stems) > 1
     xfms = []
     for s, t in zip(stems[:-1],stems[1:]):
-      _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
+      _, xfm = self.xfm_path(s, t, basedir=xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     if not exists(joined_xfm): 
@@ -578,7 +583,7 @@ class MAGeTBrain(object):
     return (output_dir, lbl)
 
   def xfm_path(self, source, target, basedir = None, check_reg_dir = False):
-    """Returns the XFM path for registration of between to images
+    """Returns the XFM path for registration between two images
 
        Expects that source and target are Template instances, and provides the
        output directory and transform path rooted at basedir. basedir defaults 
