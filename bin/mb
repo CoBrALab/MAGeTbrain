@@ -216,9 +216,16 @@ def command_run(options):
     queue = ParallelCommandQueue(processors=options.processes)
   elif options.queue == "files":
     queue = FilesCommandQueue(processors=options.processes)
+
+    # if using the 'files' queue, there is no point in making a temporary folder
+    # in /tmp, so we turn on the --save option
+    options.save = True
   else:
     queue = CommandQueue()
   queue.set_dry_run(options.dry_run)
+
+  if options.dry_run:
+    logging.root.setLevel(logging.DEBUG)
 
   # update the stage queue settings based on command-line options
   stage_queue_hints[STAGE_REG_ATLAS]['walltime'] = options.stage_templatelib_walltime 
@@ -255,17 +262,13 @@ def command_run(options):
 
   p = MAGeTBrain(options, atlases, templates, subjects)
   p.set_queue(queue) 
-  
-  
+
   if options.stage == "register": 
     p.stage_register_atlases() 
-  elif options.stage == "vote": # or (options.stage == 'vanilla' and options.queue == 'parallel'): 
-    #TODO assumes all atlases have been registered, but we should check here
-    #that that's so.
+  elif options.stage == "vote": 
     p.stage_vote()
   elif options.stage == "vanilla": 
     p.stage_register_atlases() 
-
     if options.queue == 'qbatch':  # submit each subject's voting as a separate job
       for subject in subjects:
 	_, label = p.fused_label_path(subject) 
@@ -281,12 +284,10 @@ def command_run(options):
 	  commandline = commandline + ' -q parallel'
     
 	p.queue.append_commands(STAGE_VOTE, [commandline])
-    else:  # we aren't in batch mode, so do all of the voting and whatnot directly
+    else:  # we aren't in batch mode
 	warning("'vanilla' mode only works for the 'qbatch' queue.")
         warning("Other queues treat this as stage as 'register'. " + 
                 "You will need to run the 'voting' stage separately.") 
-        
-
   p.run()
  
 def command_init(options): 
@@ -512,7 +513,11 @@ class MAGeTBrain(object):
     self.atlases = atlases
     self.templates = templates
     self.subjects = subjects
-    self.temp_dir = tempfile.mkdtemp()
+
+    if options.save:
+      self.temp_dir = mkdirp(self.options.output_dir, 'intermediate')
+    else:
+      self.temp_dir = tempfile.mkdtemp() 
 
   def set_queue(self, queue): 
     self.queue = queue
@@ -556,11 +561,6 @@ class MAGeTBrain(object):
   def stage_vote(self): 
     """Assumes all registrations are complete. """
     for subject in self.subjects:
-      if self.options.save:
-        i = mkdirp(self.options.output_dir, 'intermediate')
-        tarfile = join(i, "{0}.tar".format(subject.stem))
-        tar_cmd = "tar --remove-files -cvf {0} {1}".format(tarfile, self.temp_dir)
-        self.queue.append_commands(STAGE_TAR, [tar_cmd])
       self.stage_register_templates(subject)
       output_dir, fused_lbl = self.fused_label_path(subject)
       mkdirp(output_dir)
