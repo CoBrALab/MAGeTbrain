@@ -66,7 +66,7 @@ class SpecialFormatter(logging.Formatter):
 hdlr = logging.StreamHandler(sys.stderr)
 hdlr.setFormatter(SpecialFormatter())
 logging.root.addHandler(hdlr)
-logging.root.setLevel(logging.DEBUG)
+logging.root.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 def main(): 
@@ -130,7 +130,7 @@ def main():
            
   # Execution options
   group = parser_run.add_argument_group(title="Execution options")
-  group.add_argument('-q', '--queue', choices=['parallel', 'qbatch'],
+  group.add_argument('-q', '--queue', choices=['parallel', 'qbatch','files'],
                                    default = 'qbatch',
                                    help="Queueing method to use")
   group.add_argument("-n", dest="dry_run", default=False,
@@ -214,6 +214,8 @@ def command_run(options):
     queue = QBatchCommandQueue(processors=options.processes)
   elif options.queue == "parallel":
     queue = ParallelCommandQueue(processors=options.processes)
+  elif options.queue == "files":
+    queue = FilesCommandQueue(processors=options.processes)
   else:
     queue = CommandQueue()
   queue.set_dry_run(options.dry_run)
@@ -483,6 +485,24 @@ class QBatchCommandQueue(CommandQueue):
     self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
         input='\n'.join(commands))
     #os.remove(cmdfilename)
+
+class FilesCommandQueue(CommandQueue):
+  """Dumps the queue to a set of files that can be dealt with manually."""
+  def __init__(self, processors = 8): 
+    CommandQueue.__init__(self)
+    self.processors = processors
+
+  def run(self, stages):
+    if not stages: 
+      stages = self.commands.keys()
+     
+    for idx, stagename in enumerate(stages):
+        if stagename not in self.commands.keys() or not self.commands[stagename]: continue 
+    	filename = "{}_{}.sh".format(idx, stagename) 
+        commandlist = '\n'.join(self.commands[stagename])
+	logger.debug("Dumping commands to file {}:\n{}".format(filename,commandlist)) 
+	if self.dry_run: continue
+        open(filename,'w').write(commandlist)
     
 ### MAGeT Brain Stages
 ######################
