@@ -22,7 +22,7 @@ To [cite MAGeTbrain in publications](CITATION), please use:
 
 ## For the impatient:
 
-    git clone https://github.com/pipitone/MAGeTbrain
+    git clone https://github.com/CobraLab/MAGeTbrain.git
     source MAGeTbrain/bin/activate
     mb init segmentations
     cd segmentations
@@ -36,7 +36,7 @@ To [cite MAGeTbrain in publications](CITATION), please use:
 
 0. Check out a copy of this repository somewhere handy,
     
-        git clone git://github.com/pipitone/MAGeTbrain.git 
+        git clone https://github.com/CobraLab/MAGeTbrain.git
 
 1. Add the `MAGeTbrain/bin` folder to your path. This can be done easily by
 running, `source MAGeTbrain/bin/activate` (revert PATH by typing `deactivate`). 
