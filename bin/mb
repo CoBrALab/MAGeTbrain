@@ -696,9 +696,10 @@ class MAGeTBrain(object):
     newmodel_dir = join(self.options.modelspace_dir,'model')
     mkdirp(newmodel_dir)
    
-    #for model in self.model:
+    for model in self.model:
 
       #res_model is path to new model
+      res_model = model.image
       #res_model = join(newmodel_dir, model.stem + ".mnc")
       #prep_cmd = 'autocrop -isostep 1 $model.image $res_model'
       #if not os.path.exists(res_model):
@@ -734,7 +735,7 @@ class MAGeTBrain(object):
       if not os.path.exists(modelsubject):
         prep_cmd = 'subj_prep {0} {1} {2} {3}'.format(subject.image, res_model, transform_file, modelsubject)
         commands.append(prep_cmd)
-
+        #print prep_cmd
 
 
       #prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 subject.image nuc_subject'
