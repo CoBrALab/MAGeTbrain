@@ -852,12 +852,9 @@ class MAGeTBrain(object):
           #xfm = join(self.options.model_reg_dir, 'model', a.stem, t.stem, s.stem, 'nl.xfm'
           #xfms.append(xfm)
           #xfms_native.append(xfm)
-          #xfm = '{0}/to_{1}.xfm'.format(self.options.modelxfm_dir, a.stem)
-          #xfms.append(xfm)
-  
-          xfm = '{0}/{1}/native2average.xfm'.format(self.options.modelxfm_dir, a.stem)
+          xfm = '{0}/to_{1}.xfm'.format(self.options.modelxfm_dir, a.stem)
           xfms.append(xfm)
- 
+   
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
           xfms.append(xfm)
