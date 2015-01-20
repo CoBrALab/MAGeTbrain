@@ -430,7 +430,7 @@ class CommandQueue(object):
       raise Exception("Returns %i :: %s" %( proc.returncode, command ))
 
 class ParallelCommandQueue(CommandQueue):
-  def __init__(self, processors = 8): 
+  def __init__(self, processors): 
     CommandQueue.__init__(self)
     self.processors = processors
 
