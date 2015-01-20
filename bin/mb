@@ -223,6 +223,8 @@ def main():
           help="Number of processes to run per node when doing label fusion.")
   group.add_argument("--surfaces", default=False, action="store_true", 
     help="Compute surface objects for each subject")
+  group.add_argument("--voronoi", default=False, action="store_true", 
+    help="Compute voronoi for each output object")
 
   # check : sanity checks on inputs and MAGeT run-state
   #####################################################
@@ -236,6 +238,7 @@ def main():
   parser_status = subparsers.add_parser('status', 
     help='Show status of completed work')
   parser_status.add_argument('--surfaces', default=False, action="store_true")
+  parser_status.add_argument('--voronoi', default=False, action="store_true")
   parser_status.add_argument('folder', default='.', nargs='?')
   parser_status.add_argument_group(title="Subject selection")
   parser_status.add_argument("-s", "--subject", default=None,
