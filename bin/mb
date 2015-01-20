@@ -360,7 +360,7 @@ def command_init(options):
   mkdirp(options.folder, 'input', 'model', 'brains')
   mkdirp(options.folder, 'input', 'model', 'xfms')
   mkdirp(options.folder, 'input', 'model', 'objects')
-  mkdirp(options.folder, 'input', 'atlases', 'objects')
+  #mkdirp(options.folder, 'input', 'atlases', 'objects')
 
 def command_check(options): 
   """Entry point from the command line to init a folder for MAGeT brain"""
@@ -888,7 +888,7 @@ class MAGeTBrain(object):
         # transform objects from atlases
           #if self.config('surfaces'):
             #TODO: should transform to native space? 
-          for o in a.objects:
+          for o in m.objects:
             opath = os.path.realpath(o)
             kind = os.path.basename(os.path.splitext(opath)[0])
             object='{0}/{1}.obj'.format(xfmdir, kind)
