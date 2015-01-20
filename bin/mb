@@ -66,7 +66,7 @@ class SpecialFormatter(logging.Formatter):
 hdlr = logging.StreamHandler(sys.stderr)
 hdlr.setFormatter(SpecialFormatter())
 logging.root.addHandler(hdlr)
-logging.root.setLevel(logging.DEBUG)
+logging.root.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 def main(): 
@@ -130,7 +130,7 @@ def main():
            
   # Execution options
   group = parser_run.add_argument_group(title="Execution options")
-  group.add_argument('-q', '--queue', choices=['parallel', 'qbatch'],
+  group.add_argument('-q', '--queue', choices=['parallel', 'qbatch','files'],
                                    default = 'qbatch',
                                    help="Queueing method to use")
   group.add_argument("-n", dest="dry_run", default=False,
@@ -214,9 +214,18 @@ def command_run(options):
     queue = QBatchCommandQueue(processors=options.processes)
   elif options.queue == "parallel":
     queue = ParallelCommandQueue(processors=options.processes)
+  elif options.queue == "files":
+    queue = FilesCommandQueue(processors=options.processes)
+
+    # if using the 'files' queue, there is no point in making a temporary folder
+    # in /tmp, so we turn on the --save option
+    options.save = True
   else:
     queue = CommandQueue()
   queue.set_dry_run(options.dry_run)
+
+  if options.dry_run:
+    logging.root.setLevel(logging.DEBUG)
 
   # update the stage queue settings based on command-line options
   stage_queue_hints[STAGE_REG_ATLAS]['walltime'] = options.stage_templatelib_walltime 
@@ -253,33 +262,32 @@ def command_run(options):
 
   p = MAGeTBrain(options, atlases, templates, subjects)
   p.set_queue(queue) 
-  
-  
+
   if options.stage == "register": 
     p.stage_register_atlases() 
-  if options.stage == "vote" or (options.stage == 'vanilla' and options.queue == 'parallel'): 
-    #TODO assumes all atlases have been registered, but we should check here
-    #that that's so.
+  elif options.stage == "vote": 
     p.stage_vote()
-   
-
-  if options.stage == "vanilla" and options.queue == 'qbatch':
+  elif options.stage == "vanilla": 
     p.stage_register_atlases() 
-    for subject in subjects:
-      _, label = p.fused_label_path(subject) 
-      if exists(label):
-        continue
-      # HACK the command line to run the voting stage next
-      commandline = ' '.join(sys.argv)
-      commandline = commandline.replace('vanilla', '')
-      commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
-      if ' -q ' in commandline:
-        commandline = commandline.replace('-q qbatch', '-q parallel')
-      else:
-        commandline = commandline + ' -q parallel'
-  
-      p.queue.append_commands(STAGE_VOTE, [commandline])
-
+    if options.queue == 'qbatch':  # submit each subject's voting as a separate job
+      for subject in subjects:
+	_, label = p.fused_label_path(subject) 
+	if exists(label):
+	  continue
+	# HACK the command line to run the voting stage next
+	commandline = ' '.join(sys.argv)
+	commandline = commandline.replace('vanilla', '')
+	commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
+	if ' -q ' in commandline:
+	  commandline = commandline.replace('-q qbatch', '-q parallel')
+	else:
+	  commandline = commandline + ' -q parallel'
+    
+	p.queue.append_commands(STAGE_VOTE, [commandline])
+    else:  # we aren't in batch mode
+	warning("'vanilla' mode only works for the 'qbatch' queue.")
+        warning("Other queues treat this as stage as 'register'. " + 
+                "You will need to run the 'voting' stage separately.") 
   p.run()
  
 def command_init(options): 
@@ -478,6 +486,24 @@ class QBatchCommandQueue(CommandQueue):
     self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
         input='\n'.join(commands))
     #os.remove(cmdfilename)
+
+class FilesCommandQueue(CommandQueue):
+  """Dumps the queue to a set of files that can be dealt with manually."""
+  def __init__(self, processors = 8): 
+    CommandQueue.__init__(self)
+    self.processors = processors
+
+  def run(self, stages):
+    if not stages: 
+      stages = self.commands.keys()
+     
+    for idx, stagename in enumerate(stages):
+        if stagename not in self.commands.keys() or not self.commands[stagename]: continue 
+    	filename = "{}_{}.sh".format(idx, stagename) 
+        commandlist = '\n'.join(self.commands[stagename])
+	logger.debug("Dumping commands to file {}:\n{}".format(filename,commandlist)) 
+	if self.dry_run: continue
+        open(filename,'w').write(commandlist)
     
 ### MAGeT Brain Stages
 ######################
@@ -487,7 +513,11 @@ class MAGeTBrain(object):
     self.atlases = atlases
     self.templates = templates
     self.subjects = subjects
-    self.temp_dir = tempfile.mkdtemp()
+
+    if options.save:
+      self.temp_dir = mkdirp(self.options.output_dir, 'intermediate')
+    else:
+      self.temp_dir = tempfile.mkdtemp() 
 
   def set_queue(self, queue): 
     self.queue = queue
@@ -531,11 +561,6 @@ class MAGeTBrain(object):
   def stage_vote(self): 
     """Assumes all registrations are complete. """
     for subject in self.subjects:
-      if self.options.save:
-        i = mkdirp(self.options.output_dir, 'intermediate')
-        tarfile = join(i, "{0}.tar".format(subject.stem))
-        tar_cmd = "tar --remove-files -cvf {0} {1}".format(tarfile, self.temp_dir)
-        self.queue.append_commands(STAGE_TAR, [tar_cmd])
       self.stage_register_templates(subject)
       output_dir, fused_lbl = self.fused_label_path(subject)
       mkdirp(output_dir)
@@ -562,7 +587,7 @@ class MAGeTBrain(object):
     assert len(stems) > 1
     xfms = []
     for s, t in zip(stems[:-1],stems[1:]):
-      _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
+      _, xfm = self.xfm_path(s, t, basedir=xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     if not exists(joined_xfm): 
@@ -578,7 +603,7 @@ class MAGeTBrain(object):
     return (output_dir, lbl)
 
   def xfm_path(self, source, target, basedir = None, check_reg_dir = False):
-    """Returns the XFM path for registration of between to images
+    """Returns the XFM path for registration between two images
 
        Expects that source and target are Template instances, and provides the
        output directory and transform path rooted at basedir. basedir defaults 
