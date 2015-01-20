@@ -854,6 +854,7 @@ class MAGeTBrain(object):
           #xfms_native.append(xfm)
           xfm = '{0}/to_{1}.xfm'.format(self.options.modelxfm_dir, a.stem)
           xfms.append(xfm)
+          xfms_native.append(xfm)
    
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
