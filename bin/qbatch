@@ -52,7 +52,7 @@ if __name__ == "__main__":
         action="store_true", default=False,
         help="Dry run.  No commands are executed, but script files are generated.")
     parser.add_option("--processes", dest="processes",
-        default=8, type="int", 
+        default=12, type="int", 
         help="Number of processes to parallelize over.")
     parser.add_option("--afterok_pattern", dest="afterok_pattern", 
         type="string", help="Existing jobs matching the given pattern as dependencies.")
