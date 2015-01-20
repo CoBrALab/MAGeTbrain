@@ -221,6 +221,8 @@ def main():
           default=stage_queue_hints[STAGE_VOTE]['procs'], 
           metavar="<procs>", type=int,
           help="Number of processes to run per node when doing label fusion.")
+  group.add_argument("--surfaces", default=False, action="store_true", 
+    help="Compute surface objects for each subject")
 
   # check : sanity checks on inputs and MAGeT run-state
   #####################################################
@@ -233,6 +235,7 @@ def main():
   #####################################################
   parser_status = subparsers.add_parser('status', 
     help='Show status of completed work')
+  parser_status.add_argument('--surfaces', default=False, action="store_true")
   parser_status.add_argument('folder', default='.', nargs='?')
   parser_status.add_argument_group(title="Subject selection")
   parser_status.add_argument("-s", "--subject", default=None,
@@ -887,20 +890,20 @@ class MAGeTBrain(object):
           grids.append(grid)
 
         # transform objects from atlases
-          #if self.config('surfaces'):
+          if self.options.surfaces:
             #TODO: should transform to native space? 
-          for o in m.objects:
-            opath = os.path.realpath(o)
-            kind = os.path.basename(os.path.splitext(opath)[0])
-            object='{0}/{1}.obj'.format(xfmdir, kind)
-            #object='{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
-            #mkdirp(dirname(object))
-            #stage('model.subject.objects.transform').command(
-            #'transform_objects',o,lin_xfm,object)
-            if not os.path.exists(object):
-              command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
-              self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
-            objects[kind].append(object)
+            for o in m.objects:
+              opath = os.path.realpath(o)
+              kind = os.path.basename(os.path.splitext(opath)[0])
+              object='{0}/{1}.obj'.format(xfmdir, kind)
+              #object='{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
+              #mkdirp(dirname(object))
+              #stage('model.subject.objects.transform').command(
+              #'transform_objects',o,lin_xfm,object)
+              if not os.path.exists(object):
+                command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
+                self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
+              objects[kind].append(object)
           
 
         # compute average grid over all pathways to the subject
@@ -926,60 +929,60 @@ class MAGeTBrain(object):
             self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
           #print command
   
-              # operate on model..subject surfaces
-        #if self.config('surfaces'):
-        for kind in objects.keys():
-          # median surface per subject
-          kind_dir  = '{0}/{1}'.format(self.options.output_dir, kind)
-          mkdirp(kind_dir)
+        # operate on model..subject surfaces
+        if self.options.surfaces:
+          for kind in objects.keys():
+            # median surface per subject
+            kind_dir  = '{0}/{1}'.format(self.options.output_dir, kind)
+            mkdirp(kind_dir)
  
-          #medianobj = '{kind_dir}/{s.stem}_median.obj'.format(**vars())
-          #voronoi   = '{kind_dir}/{s.stem}_vorn.txt'.format(**vars())
-          #vorn_sa   = '{kind_dir}/{s.stem}_vorn_SA.txt'.format(**vars())
+            #medianobj = '{kind_dir}/{s.stem}_median.obj'.format(**vars())
+            #voronoi   = '{kind_dir}/{s.stem}_vorn.txt'.format(**vars())
+            #vorn_sa   = '{kind_dir}/{s.stem}_vorn_SA.txt'.format(**vars())
           
-          medianobj = '{0}/{1}_median.obj'.format(kind_dir, s.stem)
-          voronoi   = '{0}/{1}_vorn.txt'.format(kind_dir, s.stem)
-          vorn_sa   = '{0}/{1}_vorn_SA.txt'.format(kind_dir, s.stem)
-          recompute= '{0}/{1}_recomputed.obj'.format(kind_dir, s.stem)
+            medianobj = '{0}/{1}_median.obj'.format(kind_dir, s.stem)
+            voronoi   = '{0}/{1}_vorn.txt'.format(kind_dir, s.stem)
+            vorn_sa   = '{0}/{1}_vorn_SA.txt'.format(kind_dir, s.stem)
+            recompute= '{0}/{1}_recomputed.obj'.format(kind_dir, s.stem)
              
-          if not os.path.exists(recompute):
-            command = 'morpho_make_median_surfaces_new.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
-            self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
+            if not os.path.exists(recompute):
+              command = 'morpho_make_median_surfaces_new.pl {0} {1}'.format(medianobj, ' '.join(objects[kind]))
+              self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
 
-            command = 'recompute_normals {0} {1}'.format(medianobj, recompute)
-            self.queue.append_commands(STAGE_NORMALS, [command])
+              command = 'recompute_normals {0} {1}'.format(medianobj, recompute)
+              self.queue.append_commands(STAGE_NORMALS, [command])
           
-          #stage('objects.median').command(
-            #"make_median_surfaces.pl",out(medianobj),*objects[kind])
-          #stage('objects.normals').command(
-            #"recompute_normals",medianobj,medianobj) #fix: not out()
+            #stage('objects.median').command(
+              #"make_median_surfaces.pl",out(medianobj),*objects[kind])
+            #stage('objects.normals').command(
+              #"recompute_normals",medianobj,medianobj) #fix: not out()
 
-          #if self.config('voronoi'):
-          # voronoi of median surface
-          #stage('objects.voronoi').command(
-          #'depth_potential', '-area_voronoi',medianobj,out(voronoi))
-          #ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
-          if not os.path.exists(vorn_sa):
-            command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -area_voronoi {0} {1}'.format(recompute, voronoi)
-            self.queue.append_commands(STAGE_VORN, [command])
+            #if self.config('voronoi'):
+            # voronoi of median surface
+            #stage('objects.voronoi').command(
+            #'depth_potential', '-area_voronoi',medianobj,out(voronoi))
+            #ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
+            if not os.path.exists(vorn_sa):
+              command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -area_voronoi {0} {1}'.format(recompute, voronoi)
+              self.queue.append_commands(STAGE_VORN, [command])
 
-          #TODO: need to confirm that it is _rot_vorn.txt thati want
-            ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
-            command = 'vertstats_math -old_style_file -div {0} {1} {2}'.format(voronoi, ref, vorn_sa)
-            self.queue.append_commands(STAGE_MATH, [command])
-            #hack: determine the blurring kernal to use:
-            #kernel = kind.startswith('gp_') and 3 or 5
-            #vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
-                #**vars())
-            #todo: blur surface
-          ref_obj = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot.obj')
-          kernel = kind.startswith('gp_') and 3 or 5
-          #kernel = 5
-          vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
-          if not os.path.exists(vorn_blur):
-            command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
-		       kernel, vorn_sa, ref_obj, vorn_blur) 
-            self.queue.append_commands(STAGE_BLUR, [command])
+            #TODO: need to confirm that it is _rot_vorn.txt thati want
+              ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
+              command = 'vertstats_math -old_style_file -div {0} {1} {2}'.format(voronoi, ref, vorn_sa)
+              self.queue.append_commands(STAGE_MATH, [command])
+              #hack: determine the blurring kernal to use:
+              #kernel = kind.startswith('gp_') and 3 or 5
+              #vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
+                  #**vars())
+              #todo: blur surface
+            ref_obj = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot.obj')
+            kernel = kind.startswith('gp_') and 3 or 5
+            #kernel = 5
+            vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
+            if not os.path.exists(vorn_blur):
+              command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
+		         kernel, vorn_sa, ref_obj, vorn_blur) 
+              self.queue.append_commands(STAGE_BLUR, [command])
 
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
