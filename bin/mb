@@ -405,8 +405,8 @@ def command_check(options):
     "{0} folder does not exist.")
   error_if_dne(join(options.input_dir, 'model', 'objects'), 
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'atlases', 'objects'), 
-    "{0} folder does not exist.")
+  #error_if_dne(join(options.input_dir, 'atlases', 'objects'), 
+    #"{0} folder does not exist.")
 
   # check that atlases exist, and have labels
   atlas_dir = join(options.input_dir, 'atlases')
