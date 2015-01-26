@@ -48,7 +48,7 @@ STAGE_BLUR = 'mb_blur' #compute blurred surface
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
 stage_queue_hints = {  
-  STAGE_IMAGEPREP: {'procs':    48, 'walltime': '3:00:00'},
+  STAGE_IMAGEPREP: {'procs':    24, 'walltime': '4444:00:00'},
   STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_REG_TEMPL: {'procs':    4, 'walltime': '4:00:00'},
   STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
