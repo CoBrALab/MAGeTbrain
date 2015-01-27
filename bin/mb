@@ -188,6 +188,14 @@ def main():
           default=stage_queue_hints[STAGE_RESAMPLE]['procs'], 
           metavar="<procs>", type=int,
           help="Number of processes to run per node when doing label propagation.")
+  group.add_argument("--stage-votinglib-walltime", 
+          default=stage_queue_hints[STAGE_REG_TEMPL]['walltime'], 
+          metavar="<walltime>", 
+          help="Walltime for jobs submitted to build the voting library.") 
+  group.add_argument("--stage-votinglib-procs", 
+          default=stage_queue_hints[STAGE_REG_TEMPL]['procs'], 
+          metavar="<procs>", type=int,
+          help="Number of processes to run per node when building the voting library.")
 
   # check : sanity checks on inputs and MAGeT run-state
   #####################################################
@@ -258,6 +266,8 @@ def command_run(options):
   stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs 
   stage_queue_hints[STAGE_RESAMPLE]['walltime'] = options.stage_resample_walltime 
   stage_queue_hints[STAGE_RESAMPLE]['procs'] = options.stage_resample_procs 
+  stage_queue_hints[STAGE_REG_TEMPL]['walltime'] = options.stage_votinglib_walltime 
+  stage_queue_hints[STAGE_REG_TEMPL]['procs'] = options.stage_votinglib_procs
 
   # we could be running one of many different stages depending on what is
   # specified on the command line. 
