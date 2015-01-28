@@ -628,7 +628,7 @@ class MAGeTBrain(object):
     self.subjects = subjects
     self.stage_vote()
     self.subjects = all_subjects
-
+    
   def stage_register_atlases(self):
     """Register atlases to templates"""
     commands = []
