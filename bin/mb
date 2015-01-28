@@ -1013,7 +1013,7 @@ class MAGeTBrain(object):
       _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
     
-    invert_xfm = join(self.options.reg_model_dir,'subjects',stems[2],"nl_inv.xfm")
+    invert_xfm = join(self.options.reg_model_dir,'subjects',stems[2],"nl_inverse.xfm")
     xfms.append(invert_xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
     if not exists(joined_xfm): 
