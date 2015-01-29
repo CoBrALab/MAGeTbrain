@@ -41,6 +41,7 @@ STAGE_NORMALS = 'mb_recomputenorms' #recompute normals of median surface
 STAGE_VORN = 'mb_vorn' #compute voronoi
 STAGE_MATH = 'mb_vornSA' #compute voronoi sa
 STAGE_BLUR = 'mb_blur' #compute blurred surface
+STAGE_MORPHO = 'mb_morph'
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -1090,7 +1091,10 @@ class MAGeTBrain(object):
   def _get_stage_order(self):
     return [STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
         STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN,
-        STAGE_NORMALS, STAGE_VORN, STAGE_MATH, STAGE_BLUR]
+        STAGE_NORMALS, STAGE_VORN, STAGE_MATH, STAGE_BLUR, STAGE_MORPHO]
+    #return [STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
+        #STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN,
+        #STAGE_NORMALS, STAGE_VORN, STAGE_MATH, STAGE_BLUR]
 
 ### utility functions
 def mkdirp(*p):
