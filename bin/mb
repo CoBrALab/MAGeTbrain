@@ -884,7 +884,8 @@ class MAGeTBrain(object):
           #nl_only_xfm = join(xfmdir, 'nl_only.xfm')
           #lin_xfm = join(xfmdir, 'lin_native.xfm') 
         # grid = '{0}/grid.mnc'.format(xfmdir)
-          grid = join(xfmdir, 'grid.mnc')
+          grid = join(self.temp_dir, ".".join(stems) + '.grid.mnc')
+          #grid = join(xfmdir, 'grid.mnc')
 
           #list of individual transforms from each stage
           xfms = []
@@ -937,7 +938,8 @@ class MAGeTBrain(object):
             for o in m.objects:
               opath = os.path.realpath(o)
               kind = os.path.basename(os.path.splitext(opath)[0])
-              object='{0}/{1}.obj'.format(xfmdir, kind)
+              object = '{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
+              #object='{0}/{1}.obj'.format(xfmdir, kind)
               #object='{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
               #mkdirp(dirname(object))
               #stage('model.subject.objects.transform').command(
