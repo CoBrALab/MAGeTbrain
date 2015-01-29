@@ -877,9 +877,12 @@ class MAGeTBrain(object):
 
           xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
           mkdirp(xfmdir)
+          stems = [a.stem, t.stem, s.stem]
           #return path for final, concatenated model -> subject transform
-          nl_only_xfm = join(xfmdir, 'nl_only.xfm')
-          lin_xfm = join(xfmdir, 'lin_native.xfm') 
+          nl_only_xfm = join(self.temp_dir, ".".join(stems) + '.nl_only.xfm')
+          lin_xfm = join(self.temp_dir, ".".join(stems) + '.lin_native.xfm')
+          #nl_only_xfm = join(xfmdir, 'nl_only.xfm')
+          #lin_xfm = join(xfmdir, 'lin_native.xfm') 
         # grid = '{0}/grid.mnc'.format(xfmdir)
           grid = join(xfmdir, 'grid.mnc')
 
