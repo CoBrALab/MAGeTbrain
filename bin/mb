@@ -236,6 +236,8 @@ def main():
     help="Compute surface objects for each subject")
   group.add_argument("--voronoi", default=False, action="store_true", 
     help="Compute voronoi for each output object")
+  group.add_argument("--separate-voting", default=False, action="store_true", 
+    help="Separate the template-subj registration and voting steps into two stages")
 
   # check : sanity checks on inputs and MAGeT run-state
   #####################################################
@@ -255,6 +257,8 @@ def main():
   parser_status.add_argument("-s", "--subject", default=None,
     metavar="ID", 
     help="Subject ID (no file extension) to operate on")
+  parser_status.add_argument("--separate-voting", default=False, action="store_true", 
+    help="Separate the template-subj registration and voting steps into two stages")
   parser_status.set_defaults(func=command_status)
   parser_status.set_defaults(register_cmd='')
   parser_status.set_defaults(register_cmd_subj='')
