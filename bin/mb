@@ -166,7 +166,7 @@ def main():
   parser_run = subparsers.add_parser('run', help='Start the MAGeT brain pipeline')
   parser_run.add_argument('stage', choices=['vanilla',
                                             'register', 
-                                            'vote'],
+                                            'vote', 'morpho'],
                                    nargs='?', # makes stage optional
                                    default = 'vanilla',
                                    help="stage to run")
@@ -342,6 +342,9 @@ def command_run(options):
     #TODO assumes all atlases have been registered, but we should check here
     #that that's so.
     p.stage_vote()
+
+  if options.stage == "morpho":
+    p.stage.morpho()
    
 
   if options.stage == "vanilla" and options.queue == 'qbatch':
