@@ -347,7 +347,7 @@ def command_run(options):
     p.stage_vote()
 
   if options.stage == "morpho":
-    p.stage.morpho()
+    p.stage_morpho()
    
 
   if options.stage == "vanilla" and options.queue == 'qbatch':
