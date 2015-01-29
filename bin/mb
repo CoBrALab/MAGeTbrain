@@ -66,7 +66,8 @@ stage_queue_hints = {
   STAGE_NORMALS: {'procs': None, 'walltime': '0:20:00'},
   STAGE_VORN: {'procs': None, 'walltime': '0:16:00'},
   STAGE_MATH: {'procs': None, 'walltime': '0:16:00'},
-  STAGE_BLUR: {'procs': None, 'walltime': '0:20:00'}}
+  STAGE_BLUR: {'procs': None, 'walltime': '0:20:00'},
+  STAGE_MORPHO: {'procs': 1, 'walltime': '4:00:00'}}
   
 
 # stage descriptions
@@ -89,7 +90,8 @@ stage_description = {
   STAGE_NORMALS: 'recompute normals for median surface',
   STAGE_VORN: 'calculate voronoi',
   STAGE_MATH: 'calculate voronoi sa',
-  STAGE_BLUR: 'surface blurring'
+  STAGE_BLUR: 'surface blurring',
+  STAGE_MORPHO: 'morphology'
 }
 # file/folder defaults
 XFM = "nl.xfm"
