@@ -676,6 +676,19 @@ class MAGeTBrain(object):
   def stage_register_templates(self):
     """Register all templates to subjects"""
     commands = []
+    if not self.options.separate:
+      for template in self.templates:
+        #modeltemplate = '{0}/templates/{3}.mnc'.format(self.options.modelspace_dir, template.stem)
+        modeltemplate = join(self.options.modelspace_dir, 'templates', template.stem + ".mnc")
+        template.image = modeltemplate
+        templateimage_path = os.path.realpath(template.image)
+        template.stem = os.path.basename(os.path.splitext(templateimage_path)[0])    
+      for subject in self.subjects:
+        #modeltemplate = '{0}/templates/{3}.mnc'.format(self.options.modelspace_dir, template.stem)
+        modelsubject = join(self.options.modelspace_dir, 'subjects', subject.stem + ".mnc")
+        subject.image = modelsubject
+        subjectimage_path = os.path.realpath(subject.image)
+        subject.stem = os.path.basename(os.path.splitext(subjectimage_path)[0])    
     for template in self.templates:
       for subject in self.subjects:
         reg_dir, transform_file = self.xfm_path(template, subject, self.options.subjreg_dir)
@@ -706,7 +719,8 @@ class MAGeTBrain(object):
         tarfile = join(i, "{0}.tar".format(subject.stem))
         tar_cmd = "tar --remove-files -cvf {0} {1}".format(tarfile, self.temp_dir)
         self.queue.append_commands(STAGE_TAR, [tar_cmd])
-      #self.stage_register_templates(subject)
+      if not self.options.separate:
+        self.stage_register_templates()
       output_dir, fused_lbl = self.fused_label_path(subject)
       mkdirp(output_dir)
       candidate_labels = []
