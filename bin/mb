@@ -316,6 +316,8 @@ def command_run(options):
     #stage_queue_hints[STAGE_REG_TEMPL]['walltime'] = options.stage_votinglib_walltime 
     stage_queue_hints[STAGE_REG_TEMPL]['procs'] = None 
 
+  if options.separate:
+    stage_queue_hints[STAGE_VOTE]['walltime'] = '2:00:00' 
 
   print stage_queue_hints[STAGE_REG_TEMPL]['procs'] 
 
