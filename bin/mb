@@ -51,7 +51,7 @@ STAGE_MORPHO = 'mb_morph'
 stage_queue_hints = {  
   STAGE_IMAGEPREP: {'procs':    24, 'walltime': '4:00:00'},
   STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
-  STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
+  STAGE_REG_TEMPL: {'procs':    4, 'walltime': '4:00:00'},
   STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
   STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
   STAGE_VOTE:      {'procs':    1, 'walltime': '6:00:00'},
@@ -311,6 +311,13 @@ def command_run(options):
   stage_queue_hints[STAGE_REG_TEMPL]['procs'] = options.stage_votinglib_procs 
   stage_queue_hints[STAGE_VOTE]['walltime'] = options.stage_voting_walltime 
   stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs 
+
+  if not options.separate:
+    #stage_queue_hints[STAGE_REG_TEMPL]['walltime'] = options.stage_votinglib_walltime 
+    stage_queue_hints[STAGE_REG_TEMPL]['procs'] = None 
+
+
+  print stage_queue_hints[STAGE_REG_TEMPL]['procs'] 
 
   # we could be running one of many different stages depending on what is
   # specified on the command line. 
