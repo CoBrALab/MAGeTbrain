@@ -1043,7 +1043,8 @@ class MAGeTBrain(object):
                 self.queue.append_commands(STAGE_VORN, [command])
 
               #TODO: need to confirm that it is _rot_vorn.txt thati want
-                ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
+                ref = ''.join('/home/m/mchakrav/patelmo6/morph_reference/' + kind + '_rot_vorn.txt')
+                #ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
                 command = 'vertstats_math -old_style_file -div {0} {1} {2}'.format(voronoi, ref, vorn_sa)
                 self.queue.append_commands(STAGE_MATH, [command])
                 #hack: determine the blurring kernal to use:
@@ -1051,7 +1052,8 @@ class MAGeTBrain(object):
                 #vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
                     #**vars())
                 #todo: blur surface
-              ref_obj = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot.obj')
+              ref_obj = ''.join('/home/m/mchakrav/mchakrav/patelmo6/morph_reference/' + kind + '_rot.obj')
+              #ref_obj = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot.obj')
               kernel = kind.startswith('gp_') and 3 or 5
               #kernel = 5
               vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
