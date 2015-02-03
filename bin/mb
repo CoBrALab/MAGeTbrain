@@ -733,6 +733,11 @@ class MAGeTBrain(object):
         self.queue.append_commands(STAGE_TAR, [tar_cmd])
       if not self.options.separate:
         self.stage_register_templates()
+        origsubject = join(self.options.input_dir, 'subjects', 'brains', subject.stem + ".mnc")
+        print origsubject
+        subject.image = origsubject
+        subjectimage_path = os.path.realpath(subject.image)
+        subject.stem = os.path.basename(os.path.splitext(subjectimage_path)[0])    
       output_dir, fused_lbl = self.fused_label_path(subject)
       mkdirp(output_dir)
       candidate_labels = []
