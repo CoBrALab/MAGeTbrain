@@ -319,7 +319,7 @@ def command_run(options):
   if options.separate:
     stage_queue_hints[STAGE_VOTE]['walltime'] = '2:00:00' 
 
-  print stage_queue_hints[STAGE_REG_TEMPL]['procs'] 
+  #print stage_queue_hints[STAGE_REG_TEMPL]['procs'] 
 
   # we could be running one of many different stages depending on what is
   # specified on the command line. 
@@ -400,8 +400,8 @@ def command_run(options):
 
       p.queue.append_commands(STAGE_MORPHO, [commandline])
 
-      print len(morphos)
-      print len(model_morphos)
+      #print len(morphos)
+      #print len(model_morphos)
     
     #p.stage_morpho()
   p.run()
@@ -734,7 +734,7 @@ class MAGeTBrain(object):
       if not self.options.separate:
         self.stage_register_templates()
         origsubject = join(self.options.input_dir, 'subjects', 'brains', subject.stem + ".mnc")
-        print origsubject
+        #print origsubject
         subject.image = origsubject
         subjectimage_path = os.path.realpath(subject.image)
         subject.stem = os.path.basename(os.path.splitext(subjectimage_path)[0])    
