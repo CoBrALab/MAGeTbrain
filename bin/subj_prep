@@ -22,7 +22,7 @@ mincANTS 3 -m MI[$subject,$resmodel,1,32] \
     --number-of-affine-iterations 10000x10000x10000x10000x10000 \
     --continue-affine true \
     --MI-option 32x32000 \
-    --use-Histogram-Matching \
+    --use-Histogram-Matching
     
 
 
