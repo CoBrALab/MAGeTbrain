@@ -7,16 +7,18 @@ subject=$1
 resmodel=$2
 xfm=$3
 modelsubject=$4
-
+cropmodel=$5
 #nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 {0} {1}'.format(subject.image, nuc_subject)
 #nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 $subject $nucsubject
+
+autocrop -from $resmodel -step $(mincinfo -attvalue xspace:step $subject) $(mincinfo -attvalue yspace:step $subject) $(mincinfo -attvalue zspace:step $subject) $resmodel $cropmodel
 
 
 #bestlinreg -noverbose -lsq12 {0} {1} {2}'.format(nuc_subject, res_model, transform_file)
 #bestlinreg.pl -noverbose -lsq12 $subject $resmodel $xfm
 #xfminvert $xfm $xfminvert
 
-mincANTS 3 -m MI[$subject,$resmodel,1,32] \
+mincANTS 3 -m MI[$subject,$cropmodel,1,32] \
     -i 0 \
     -o $xfm \
     --number-of-affine-iterations 10000x10000x10000x10000x10000 \
@@ -28,8 +30,10 @@ mincANTS 3 -m MI[$subject,$resmodel,1,32] \
 
 #xfminvert $xfm $xfminvert
 
+#autocrop -from $resmodel -step $(mincinfo -attvalue xspace:step $subject) $(mincinfo -attvalue yspace:step $subject) $(mincinfo -attvalue zspace:step $subject) $resmodel $cropmodel
+
 #mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
-mincresample -sinc -short -unsigned -like $resmodel -2 -transform $xfm $subject $modelsubject
+mincresample -sinc -short -unsigned -like $cropmodel -2 -transform $xfm $subject $modelsubject
 
 #if [ -e $modelsubject ]; then
 #  rm output/nuc/templates/*imp
