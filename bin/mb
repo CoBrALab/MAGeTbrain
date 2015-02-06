@@ -805,6 +805,8 @@ class MAGeTBrain(object):
       reg_dir = join(self.options.reg_model_dir,'subjects',subject.stem) 
       transform_file = join(reg_dir, 'nl.xfm')
       modelsubject = join(newsubject_dir, subject.stem + ".mnc")
+      #cropmodel = join(self.temp_dir, subject.stem + "model.mnc")
+      #print cropmodel
       #transform_file_invert = join(reg_dir, 'nl_inv.xfm')
 
       mkdirp(reg_dir)
@@ -850,6 +852,7 @@ class MAGeTBrain(object):
       reg_dir = join(self.options.reg_model_dir,'templates',template.stem) 
       transform_file = join(reg_dir, 'nl.xfm')
       modeltemplate = join(newtemplate_dir, template.stem + ".mnc")
+      #cropmodel = join(self.temp_dir, template.stem + "model.mnc")
       #transform_file_invert = join(reg_dir, 'nl_inv.xfm')
       
       mkdirp(reg_dir)
