@@ -42,6 +42,7 @@ STAGE_VORN = 'mb_vorn' #compute voronoi
 STAGE_MATH = 'mb_vornSA' #compute voronoi sa
 STAGE_BLUR = 'mb_blur' #compute blurred surface
 STAGE_MORPHO = 'mb_morph'
+STAGE_XFMJOIN_NATIVE = 'mb_xfm_native'
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -62,6 +63,7 @@ stage_queue_hints = {
   STAGE_XFMJOIN_M: {'procs': None, 'walltime': '0:25:00'},
   STAGE_SUBJECTDISPLACE: {'procs': None, 'walltime': '1:30:00'},
   STAGE_SUBJECTGRID_AVG: {'procs': None, 'walltime': '0:30:00'},
+  STAGE_XFMJOIN_NATIVE: {'procs': None, 'walltime': '00:15:00'},
   STAGE_M_S_OBJ_XFM: {'procs': None, 'walltime': '0:30:00'},
   STAGE_OBJ_MEDIAN: {'procs': None, 'walltime': '0:30:00'},
   STAGE_NORMALS: {'procs': None, 'walltime': '0:20:00'},
@@ -86,6 +88,7 @@ stage_description = {
   STAGE_XFMJOIN_M: 'model to subj transform merging',
   STAGE_SUBJECTDISPLACE: 'subject grid',
   STAGE_SUBJECTGRID_AVG: 'grid average calculation',
+  STAGE_XFMJOIN_NATIVE: 'native xfm',
   STAGE_M_S_OBJ_XFM: 'model to subject object transformation',
   STAGE_OBJ_MEDIAN: 'median surface calculations',
   STAGE_NORMALS: 'recompute normals for median surface',
