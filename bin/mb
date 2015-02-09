@@ -959,7 +959,7 @@ class MAGeTBrain(object):
             command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
           if not os.path.exists(lin_xfm):
-            command = 'xfmjoin {0} {1}'.format(' '.join(xfms_native), lin_xfm)
+            command = 'xfmjoin_morpho {0} {1}'.format(' '.join(xfms_native), lin_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
           
           # compute non-lin grid for the entire path
