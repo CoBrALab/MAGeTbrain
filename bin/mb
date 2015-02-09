@@ -61,7 +61,7 @@ stage_queue_hints = {
   STAGE_MODEL_SUBJECT_DISPLACE: {'procs': None, 'walltime': '0:30:00'},
   STAGE_MODELPREP: {'procs': 8, 'walltime': '0:15:00'},
   STAGE_XFMJOIN_M: {'procs': 10000, 'walltime': '0:25:00'},
-  STAGE_SUBJECTDISPLACE: {'procs': None, 'walltime': '1:30:00'},
+  STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '1:00:00'},
   STAGE_SUBJECTGRID_AVG: {'procs': None, 'walltime': '0:30:00'},
   STAGE_XFMJOIN_NATIVE: {'procs': None, 'walltime': '00:15:00'},
   STAGE_M_S_OBJ_XFM: {'procs': None, 'walltime': '0:30:00'},
