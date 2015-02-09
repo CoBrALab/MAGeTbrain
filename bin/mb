@@ -59,7 +59,7 @@ stage_queue_hints = {
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_MODEL_SUBJECT_DISPLACE: {'procs': None, 'walltime': '0:30:00'},
   STAGE_MODELPREP: {'procs': 8, 'walltime': '0:15:00'},
-  STAGE_XFMJOIN_M: {'procs': None, 'walltime': '0:20:00'},
+  STAGE_XFMJOIN_M: {'procs': None, 'walltime': '0:25:00'},
   STAGE_SUBJECTDISPLACE: {'procs': None, 'walltime': '1:30:00'},
   STAGE_SUBJECTGRID_AVG: {'procs': None, 'walltime': '0:30:00'},
   STAGE_M_S_OBJ_XFM: {'procs': None, 'walltime': '0:30:00'},
@@ -68,7 +68,7 @@ stage_queue_hints = {
   STAGE_VORN: {'procs': None, 'walltime': '0:16:00'},
   STAGE_MATH: {'procs': None, 'walltime': '0:16:00'},
   STAGE_BLUR: {'procs': None, 'walltime': '0:20:00'},
-  STAGE_MORPHO: {'procs': 1, 'walltime': '0:20:00'}}
+  STAGE_MORPHO: {'procs': 1, 'walltime': '3:00:00'}}
   
 
 # stage descriptions
@@ -491,6 +491,10 @@ def command_status(options):
   p.stage_vote()
   p.stage_morpho()
 
+  #string = "'mincinfo', '-attvalue', 'xspace:step', 'input/subjects/brains/subject1.mnc'"
+  #print string
+  #test = subprocess.call(["string"])  
+  
   #tempdir = p.temp_dir
   #print tempdir
   #x = p.model[0]
@@ -909,8 +913,18 @@ class MAGeTBrain(object):
 
         gridavgdir = dirname(gridavg)
         mkdirp(gridavgdir)
+#subprocess.call(["mincinfo", "-attvalue", "xspace:step", "input/subjects/brains/subject1.mnc"])
+ 
+        #croppedmodel = join(self.temp_dir, s.stem + 'model.mnc')
+        
+        #command = 'crop_model {0} {1} {2}'.format(m.image, s.image, croppedmodel)
+        #proc = supbrocess.Popen(["mincinfo", "-attvalue", "xspace:step", "input/subjects/brains/subject1.mnc"])
 
-      
+        #self.queue.append_commands(STAGE_XFMJOIN_M, [command])
+        #command = 'autocrop -from {0} -step {1}$(mincinfo -attvalue xspace:step $subject) 
+                  #{2}$(mincinfo -attvalue yspace:step $subject) {3}$(mincinfo -attvalue zspace:step $subject) 
+                  #{4} {5}'.format(m.image, xstep, ystep, zstep, m.image, cropmodel)   
+  
         for a,t in product(self.atlases,self.templates):
           #create folder for model->atlas->template->subject transform
 
@@ -966,7 +980,8 @@ class MAGeTBrain(object):
 
           #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
           if not os.path.exists(grid):
-            command = 'minc_displacement {0} {1} {2}'.format(m.image, nl_only_xfm, grid)
+            command = 'minc_displacement {0} {1} {2}'.format(croppedmodel, nl_only_xfm, grid)
+            #command = 'minc_displacement {0} {1} {2}'.format(m.image, nl_only_xfm, grid)
             self.queue.append_commands(STAGE_SUBJECTDISPLACE, [command])
 #          print command
           grids.append(grid)
