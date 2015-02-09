@@ -7,12 +7,13 @@ subject=$1
 resmodel=$2
 xfm=$3
 modelsubject=$4
+cropmodel=$5
 
-cropmodel=$(mktemp -d)/model.mnc
+#cropmodel=$(mktemp -d)/model.mnc
 #nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 {0} {1}'.format(subject.image, nuc_subject)
 #nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 $subject $nucsubject
 
-autocrop -from $resmodel -step $(mincinfo -attvalue xspace:step $subject) $(mincinfo -attvalue yspace:step $subject) $(mincinfo -attvalue zspace:step $subject) $resmodel $cropmodel
+#autocrop -from $resmodel -step $(mincinfo -attvalue xspace:step $subject) $(mincinfo -attvalue yspace:step $subject) $(mincinfo -attvalue zspace:step $subject) $resmodel $cropmodel
 
 
 #bestlinreg -noverbose -lsq12 {0} {1} {2}'.format(nuc_subject, res_model, transform_file)
