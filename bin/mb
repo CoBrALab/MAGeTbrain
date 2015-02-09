@@ -383,7 +383,10 @@ def command_run(options):
         commandline = commandline + ' -q parallel'
   
       p.queue.append_commands(STAGE_VOTE, [commandline])
-      
+     
+
+    p.stage_grids()
+ 
     for subject in subjects:
       morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*blur.txt'))
       model_morphos = glob.glob(join(options.input_dir, 'model', 'objects', '*.obj'))
@@ -899,7 +902,8 @@ class MAGeTBrain(object):
     
       catxfm_dir = join(self.options.pathways_dir, m.stem)
       mkdirp(catxfm_dir)
-    
+      croppedmodel = join(self.options.modelspace_dir,'model', 'croppedmodel.mnc')
+       
       for s in self.subjects:
         for a,t in product(self.atlases,self.templates):
           #create folder for model->atlas->template->subject transform
