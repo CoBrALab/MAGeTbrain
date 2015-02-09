@@ -633,13 +633,13 @@ class QBatchCommandQueue(CommandQueue):
         unique_stage = "{0}_{1}".format(stage, timestamp) 
         walltime   = stage_queue_hints[stage]['walltime']
         processors = stage_queue_hints[stage]['procs']
-        if stage == 'mb_xfm_join_morpho':
-          self.qbatch(self.commands[stage], batch_name=unique_stage, afterok="mb_subject_reg_{0}*".format(timestamp),
+        #if stage == 'mb_xfm_join_morpho':
+          #self.qbatch(self.commands[stage], batch_name=unique_stage, afterok="mb_subject_reg_{0}*".format(timestamp),
+            #walltime=walltime, processors = processors)  
+          #print stage
+        #else:
+        self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
             walltime=walltime, processors = processors)  
-          print stage
-        else:
-          self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
-              walltime=walltime, processors = processors)  
         previous_stage = unique_stage
 
   def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None):
