@@ -950,7 +950,7 @@ class MAGeTBrain(object):
     for m in self.model:
     
       catxfm_dir = join(self.options.pathways_dir, m.stem)
-      mkdirp(catxfm_dir)
+      #mkdirp(catxfm_dir)
 
       for s in self.subjects:
 
@@ -976,19 +976,19 @@ class MAGeTBrain(object):
           #create folder for model->atlas->template->subject transform
 
           xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
-          mkdirp(xfmdir)
+          #mkdirp(xfmdir)
           stems = [a.stem, t.stem, s.stem]
           #return path for final, concatenated model -> subject transform
-          nl_only_xfm = join(self.temp_dir, ".".join(stems) + '.nl_only.xfm')
+          #nl_only_xfm = join(self.temp_dir, ".".join(stems) + '.nl_only.xfm')
           lin_xfm = join(self.temp_dir, ".".join(stems) + '.lin_native.xfm')
           #nl_only_xfm = join(xfmdir, 'nl_only.xfm')
           #lin_xfm = join(xfmdir, 'lin_native.xfm') 
         # grid = '{0}/grid.mnc'.format(xfmdir)
-          grid = join(self.temp_dir, ".".join(stems) + '.grid.mnc')
+          #grid = join(self.temp_dir, ".".join(stems) + '.grid.mnc')
           #grid = join(xfmdir, 'grid.mnc')
 
           #list of individual transforms from each stage
-          xfms = []
+          #xfms = []
           xfms_native = []
 
           #add xfm from each stage to list
@@ -999,16 +999,16 @@ class MAGeTBrain(object):
           #xfms.append(xfm)
           #xfms_native.append(xfm)
           xfm = '{0}/to_{1}.xfm'.format(self.options.modelxfm_dir, a.stem)
-          xfms.append(xfm)
+          #xfms.append(xfm)
           xfms_native.append(xfm)
    
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
-          xfms.append(xfm)
+          #xfms.append(xfm)
           xfms_native.append(xfm)
         
           _,xfm = self.xfm_path(t,s,self.options.subjreg_dir)
-          xfms.append(xfm)
+          #xfms.append(xfm)
           xfms_native.append(xfm)
 
           xfms_native.append(join(self.options.reg_model_dir,'subjects', s.stem, 'nl_inverse.xfm'))
@@ -1016,9 +1016,9 @@ class MAGeTBrain(object):
 
           #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
           #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
-          if not os.path.exists(nl_only_xfm):
-            command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
-            self.queue.append_commands(STAGE_XFMJOIN_M, [command])
+          #if not os.path.exists(nl_only_xfm):
+            #command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
+            #self.queue.append_commands(STAGE_XFMJOIN_M, [command])
           if not os.path.exists(lin_xfm):
             command = 'xfmjoin_morpho {0} {1}'.format(' '.join(xfms_native), lin_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
@@ -1026,10 +1026,10 @@ class MAGeTBrain(object):
           # compute non-lin grid for the entire path
 
           #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
-          if not os.path.exists(grid):
-            command = 'minc_displacement {0} {1} {2}'.format(croppedmodel, nl_only_xfm, grid)
+          #if not os.path.exists(grid):
+            #command = 'minc_displacement {0} {1} {2}'.format(croppedmodel, nl_only_xfm, grid)
             #command = 'minc_displacement {0} {1} {2}'.format(m.image, nl_only_xfm, grid)
-            self.queue.append_commands(STAGE_SUBJECTDISPLACE, [command])
+            #self.queue.append_commands(STAGE_SUBJECTDISPLACE, [command])
 #          print command
           grids.append(grid)
 
