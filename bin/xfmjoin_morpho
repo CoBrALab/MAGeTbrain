@@ -44,6 +44,10 @@ def _pop(l):
 
 class Transform():
     def __repr__(self): 
+        if self.type == "Transform_Type = Grid_Transform;":
+          if self.invert:
+            return "\n".join([self.type] + [self.invertvalue] + self.transform)        
+
         return "\n".join([self.type] + self.transform)
 
 class GridTransform(Transform):
@@ -53,7 +57,15 @@ class GridTransform(Transform):
         else: 
             relative_to_path = relative_to
         
-        key, grid = map(lambda x: x.strip().strip(';'), self.transform[0].split("="))
+        xfmval = 0
+        self.invert = False
+        
+        if len(self.transform) == 2:
+          self.invert = True
+          self.invertvalue = self.transform[0]
+          xfmval = 1
+
+        key, grid = map(lambda x: x.strip().strip(';'), self.transform[xfmval].split("="))
         grid = normpath(join(relative_to_path, grid))
         self.transform = ["%s = %s;" % (key, grid)]
 
@@ -83,7 +95,14 @@ class XFM():
                 transform = GridTransform() 
                 transform.fromfile = xfmfile_path
                 transform.type = line
-                transform.transform = [_pop(lines)]
+                next = _pop(lines)
+                #print next
+                if next.startswith("Invert_Flag = True;"):
+                  transform.transform = [ next, _pop(lines) ]
+                  #print transform.transform[0]
+                  #print transform.transform[1]
+                else:
+                  transform.transform = [next]
                 self.transforms.append(transform)
                 continue
             if line.startswith("Transform_Type = Linear;"):
