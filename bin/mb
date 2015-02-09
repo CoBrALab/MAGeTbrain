@@ -821,9 +821,14 @@ class MAGeTBrain(object):
 
       mkdirp(reg_dir)
       #mkdirp(dirname(nuc_subject))
+      crop_model = join(newmodel_dir, subject.stem + ".mnc")
+      if not os.path.exists(crop_model):
+        command = 'crop_model {0} {1} {2}'.format(model.image, subject.image, crop_model)
+        self.queue.append_commands(STAGE_MODELPREP, [command])
+
 
       if not os.path.exists(modelsubject):
-        prep_cmd = 'subj_prep {0} {1} {2} {3}'.format(subject.image, res_model, transform_file, modelsubject)
+        prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(subject.image, res_model, transform_file, modelsubject, crop_model)
         commands.append(prep_cmd)
         #print prep_cmd
 
@@ -867,9 +872,13 @@ class MAGeTBrain(object):
       
       mkdirp(reg_dir)
       #mkdirp(dirname(nuc_template))
+      crop_model = join(newmodel_dir, template.stem + ".mnc")
+      if not os.path.exists(crop_model):
+        command = 'crop_model {0} {1} {2}'.format(model.image, template.image, crop_model)
+        self.queue.append_commands(STAGE_MODELPREP, [command])
 
       if not os.path.exists(modeltemplate):
-        prep_cmd = 'subj_prep {0} {1} {2} {3}'.format(template.image, res_model, transform_file, modeltemplate)
+        prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(template.image, res_model, transform_file, modeltemplate, crop_model)
         commands.append(prep_cmd)
 
       #if not os.path.exists(nuc_template):
