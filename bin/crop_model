@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+resmodel=$1
+subject=$2
+cropmodel=$3
+
+autocrop -from $resmodel -step $(mincinfo -attvalue xspace:step $subject) $(mincinfo -attvalue yspace:step $subject) $(mincinfo -attvalue zspace:step $subject) $resmodel $cropmodel

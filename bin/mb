@@ -892,7 +892,50 @@ class MAGeTBrain(object):
      # print template.stem
     if commands:  
       self.queue.append_commands(STAGE_IMAGEPREP, commands)
+
+  def stage_grids(self):
+  
+    for m in self.model:
     
+      catxfm_dir = join(self.options.pathways_dir, m.stem)
+      mkdirp(catxfm_dir)
+    
+      for s in self.subjects:
+        for a,t in product(self.atlases,self.templates):
+          #create folder for model->atlas->template->subject transform
+
+          xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
+          mkdirp(xfmdir)
+          stems = [a.stem, t.stem, s.stem]
+          #return path for final, concatenated model -> subject transform
+          nl_only_xfm = join(xfmdir, 'nl_only.xfm')
+          grid = join(xfmdir, 'grid.mnc')
+
+          #list of individual transforms from each stage
+          xfms = []
+
+          #add xfm from each stage to list
+          #nl_only_xfm is from model to subj, for model obj displacement
+          #xfms_native is for creation of subject object, from atlas objs, in native space
+          xfm = '{0}/to_{1}.xfm'.format(self.options.modelxfm_dir, a.stem)
+          xfms.append(xfm)
+   
+          _,xfm = self.xfm_path(a, t)
+          xfms.append(xfm)
+        
+          _,xfm = self.xfm_path(t,s,self.options.subjreg_dir)
+          xfms.append(xfm)
+
+          # create concatenated xfm without linear parts
+          if not os.path.exists(nl_only_xfm):
+            command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
+            self.queue.append_commands(STAGE_XFMJOIN_M, [command])
+          
+          # compute non-lin grid for the entire path
+          if not os.path.exists(grid):
+            command = 'minc_displacement {0} {1} {2}'.format(croppedmodel, nl_only_xfm, grid)
+            self.queue.append_commands(STAGE_SUBJECTDISPLACE, [command])
+  
   def stage_morpho(self):
     """Assumes all registrations complete. Carries out morpho analysis"""
     commands = []
