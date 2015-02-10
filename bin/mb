@@ -59,9 +59,9 @@ stage_queue_hints = {
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'},
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_MODEL_SUBJECT_DISPLACE: {'procs': None, 'walltime': '0:30:00'},
-  STAGE_MODELPREP: {'procs': 8, 'walltime': '0:15:00'},
+  STAGE_MODELPREP: {'procs': 8, 'walltime': '0:30:00'},
   STAGE_XFMJOIN_M: {'procs': 10000, 'walltime': '0:25:00'},
-  STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '1:00:00'},
+  STAGE_SUBJECTDISPLACE: {'procs': 4, 'walltime': '0:15:00'},
   STAGE_SUBJECTGRID_AVG: {'procs': None, 'walltime': '0:30:00'},
   STAGE_XFMJOIN_NATIVE: {'procs': None, 'walltime': '00:15:00'},
   STAGE_M_S_OBJ_XFM: {'procs': None, 'walltime': '0:30:00'},
@@ -70,7 +70,7 @@ stage_queue_hints = {
   STAGE_VORN: {'procs': None, 'walltime': '0:16:00'},
   STAGE_MATH: {'procs': None, 'walltime': '0:16:00'},
   STAGE_BLUR: {'procs': None, 'walltime': '0:20:00'},
-  STAGE_MORPHO: {'procs': 1, 'walltime': '3:00:00'}}
+  STAGE_MORPHO: {'procs': 1, 'walltime': '1:00:00'}}
   
 
 # stage descriptions
@@ -914,9 +914,12 @@ class MAGeTBrain(object):
     
       catxfm_dir = join(self.options.pathways_dir, m.stem)
       mkdirp(catxfm_dir)
-      croppedmodel = join(self.options.modelspace_dir,'model', 'croppedmodel.mnc')
+      #croppedmodel = join(self.options.modelspace_dir,'model', 'croppedmodel.mnc')
        
       for s in self.subjects:
+
+        croppedmodel = join(self.options.modelspace_dir,'model', s.stem + ".mnc")
+
         for a,t in product(self.atlases,self.templates):
           #create folder for model->atlas->template->subject transform
 
@@ -1058,7 +1061,8 @@ class MAGeTBrain(object):
               #mkdirp(dirname(object))
               #stage('model.subject.objects.transform').command(
               #'transform_objects',o,lin_xfm,object)
-              if not os.path.exists(object):
+              med= '{0}/{1}/{2}_median.obj'.format(self.options.output_dir,kind, s.stem)
+              if not os.path.exists(med):
                 command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
                 self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
               objects[kind].append(object)
