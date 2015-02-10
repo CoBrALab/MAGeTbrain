@@ -390,26 +390,26 @@ def command_run(options):
 
     p.stage_grids()
  
-    for subject in subjects:
-      morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*blur.txt'))
-      model_morphos = glob.glob(join(options.input_dir, 'model', 'objects', '*.obj'))
-      #tester = join(options.output_dir, '*',subject.stem + '*blur.txt')
-      if (len(morphos)==len(model_morphos)):
-        continue  
-      commandline = ' '.join(sys.argv)
-      commandline = commandline.replace('vanilla', '')
-      commandline = commandline.replace('run', 'run morpho -s ' + subject.stem)
-      if ' -q ' in commandline:
-        commandline = commandline.replace('-q qbatch', '-q parallel')
-      else:
-        commandline = commandline + ' -q parallel'
+    #for subject in subjects:
+      #morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*blur.txt'))
+      #model_morphos = glob.glob(join(options.input_dir, 'model', 'objects', '*.obj'))
+      ##tester = join(options.output_dir, '*',subject.stem + '*blur.txt')
+      #if (len(morphos)==len(model_morphos)):
+        #continue  
+      #commandline = ' '.join(sys.argv)
+      #commandline = commandline.replace('vanilla', '')
+      #commandline = commandline.replace('run', 'run morpho -s ' + subject.stem)
+      #if ' -q ' in commandline:
+        #commandline = commandline.replace('-q qbatch', '-q parallel')
+      #else:
+        #commandline = commandline + ' -q parallel'
 
-      p.queue.append_commands(STAGE_MORPHO, [commandline])
+      #p.queue.append_commands(STAGE_MORPHO, [commandline])
 
       #print len(morphos)
       #print len(model_morphos)
     
-    #p.stage_morpho()
+    p.stage_morpho()
   p.run()
  
 def command_init(options): 
