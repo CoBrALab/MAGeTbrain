@@ -495,6 +495,7 @@ def command_status(options):
   #p.stage_register_models()
   p.stage_register_templates()
   p.stage_vote()
+  p.stage_grids()
   p.stage_morpho()
 
   #string = "'mincinfo', '-attvalue', 'xspace:step', 'input/subjects/brains/subject1.mnc'"
