@@ -58,18 +58,18 @@ stage_queue_hints = {
   STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'},
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
-  STAGE_MODEL_SUBJECT_DISPLACE: {'procs': None, 'walltime': '0:30:00'},
+  STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 24, 'walltime': '0:30:00'},
   STAGE_MODELPREP: {'procs': 8, 'walltime': '0:30:00'},
   STAGE_XFMJOIN_M: {'procs': 10000, 'walltime': '0:25:00'},
-  STAGE_SUBJECTDISPLACE: {'procs': 4, 'walltime': '0:15:00'},
-  STAGE_SUBJECTGRID_AVG: {'procs': None, 'walltime': '0:30:00'},
+  STAGE_SUBJECTDISPLACE: {'procs': 8, 'walltime': '0:30:00'},
+  STAGE_SUBJECTGRID_AVG: {'procs': 4, 'walltime': '2:00:00'},
   STAGE_XFMJOIN_NATIVE: {'procs': None, 'walltime': '00:15:00'},
-  STAGE_M_S_OBJ_XFM: {'procs': None, 'walltime': '0:30:00'},
-  STAGE_OBJ_MEDIAN: {'procs': None, 'walltime': '0:30:00'},
-  STAGE_NORMALS: {'procs': None, 'walltime': '0:20:00'},
-  STAGE_VORN: {'procs': None, 'walltime': '0:16:00'},
-  STAGE_MATH: {'procs': None, 'walltime': '0:16:00'},
-  STAGE_BLUR: {'procs': None, 'walltime': '0:20:00'},
+  STAGE_M_S_OBJ_XFM: {'procs': 24, 'walltime': '1:00:00'},
+  STAGE_OBJ_MEDIAN: {'procs': 24, 'walltime': '1:00:00'},
+  STAGE_NORMALS: {'procs': 24, 'walltime': '0:20:00'},
+  STAGE_VORN: {'procs': 1000, 'walltime': '0:16:00'},
+  STAGE_MATH: {'procs': 1000, 'walltime': '0:16:00'},
+  STAGE_BLUR: {'procs': 1000, 'walltime': '0:20:00'},
   STAGE_MORPHO: {'procs': 1, 'walltime': '1:00:00'}}
   
 
@@ -1056,8 +1056,8 @@ class MAGeTBrain(object):
             for o in m.objects:
               opath = os.path.realpath(o)
               kind = os.path.basename(os.path.splitext(opath)[0])
-              object = '{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
-              #object='{0}/{1}.obj'.format(xfmdir, kind)
+              #object = '{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
+              object='{0}/{1}.obj'.format(xfmdir, kind)
               #object='{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
               #mkdirp(dirname(object))
               #stage('model.subject.objects.transform').command(
