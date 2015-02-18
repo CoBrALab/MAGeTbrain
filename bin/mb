@@ -643,24 +643,30 @@ class QBatchCommandQueue(CommandQueue):
         unique_stage = "{0}_{1}".format(stage, timestamp) 
         walltime   = stage_queue_hints[stage]['walltime']
         processors = stage_queue_hints[stage]['procs']
+        parlevel = 8
+        if stage == 'mb_model_subj_object_transform':
+          parlevel = 4
         #if stage == 'mb_xfm_join_morpho':
           #self.qbatch(self.commands[stage], batch_name=unique_stage, afterok="mb_subject_reg_{0}*".format(timestamp),
             #walltime=walltime, processors = processors)  
           #print stage
         #else:
         self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
-            walltime=walltime, processors = processors)  
+            walltime=walltime, processors = processors, parlevel=parlevel)  
         previous_stage = unique_stage
 
-  def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None):
+  def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None, parlevel = 8):
     logger.info('running {0} commands after stage {1}'.format(len(commands), afterok))
     
     opt_name    = batch_name and '-N {0}'.format(batch_name) or ''
     opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
     #batchsize   = min(self.processors, processors)
     batchsize = processors
-    self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
+    opt_processes = '--processes {0}'.format(parlevel)
+    self.execute('qbatch {0} {1} {2} - {3} {4}'.format(opt_processes, opt_name, opt_afterok, batchsize, walltime), 
         input='\n'.join(commands))
+    #self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
+        #input='\n'.join(commands))
     #os.remove(cmdfilename)
     
 ### MAGeT Brain Stages
