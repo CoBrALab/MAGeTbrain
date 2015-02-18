@@ -51,6 +51,9 @@ if __name__ == "__main__":
     parser.add_option("-n", dest="dry_run",
         action="store_true", default=False,
         help="Dry run.  No commands are executed, but script files are generated.")
+    parser.add_option("--ppn", dest="ppn",
+        default=8, type="int", 
+        help="Number of processors per node to request")
     parser.add_option("--processes", dest="processes",
         default=8, type="int", 
         help="Number of processes to parallelize over.")
@@ -89,7 +92,7 @@ if __name__ == "__main__":
     num_jobs       = int(math.ceil(len(task_list) / float(chunk_size)))
 
     if options.batch_system == 'pbs': 
-      qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime), 
+      qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.ppn, walltime), 
                       '-j oe',
                       '-o %s' % options.logs_dir,
                       '-V'] 
