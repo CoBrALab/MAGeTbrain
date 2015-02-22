@@ -62,10 +62,10 @@ stage_queue_hints = {
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'},
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 24, 'walltime': '0:30:00'},
-  STAGE_MODELPREP: {'procs': 24, 'walltime': '0:30:00'},
+  STAGE_MODELPREP: {'procs': 400, 'walltime': '0:15:00'},
   STAGE_XFMJOIN_M: {'procs': 10000, 'walltime': '0:25:00'},
   STAGE_SUBJECTDISPLACE: {'procs': 100, 'walltime': '2:00:00'},
-  STAGE_SUBJECTGRID_AVG: {'procs': 4, 'walltime': '2:00:00'},
+  STAGE_SUBJECTGRID_AVG: {'procs': 4, 'walltime': '4:00:00'},
   STAGE_XFMJOIN_NATIVE: {'procs': None, 'walltime': '00:15:00'},
   STAGE_M_S_OBJ_XFM: {'procs': 1000, 'walltime': '2:00:00'},
   STAGE_OBJ_MEDIAN: {'procs': 200, 'walltime': '1:00:00'},
@@ -619,12 +619,16 @@ class ParallelCommandQueue(CommandQueue):
     previous_stage = STAGE_NONE
     for stage in [s for s in stages if s in self.commands.keys()]:
       if self.commands[stage]:
-        self.parallel(self.commands[stage])
+        parlevel = 8
+        if stage == 'mb_model_subj_object_transform':
+          parlevel = 4
+        self.parallel(self.commands[stage], parlevel)
         previous_stage = stage
 
-  def parallel(self, commands):
+  def parallel(self, commands, parlevel = 8):
     "Runs the list of commands through parallel"
-    command = 'parallel -j%i' % self.processors
+    command = 'parallel -j%i' % parlevel
+    #command = 'parallel -j%i' % self.processors
     self.execute(command, input='\n'.join(commands))
 
 class QBatchCommandQueue(CommandQueue):
