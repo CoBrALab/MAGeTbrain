@@ -401,6 +401,7 @@ def command_run(options):
  
     for subject in subjects:
       morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*blur.txt'))
+      #morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*recomputed.obj'))
       model_morphos = glob.glob(join(options.input_dir, 'model', 'objects', '*.obj'))
       #tester = join(options.output_dir, '*',subject.stem + '*blur.txt')
       if (len(morphos)==len(model_morphos)):
