@@ -321,6 +321,7 @@ def command_run(options):
   stage_queue_hints[STAGE_REG_TEMPL]['procs'] = options.stage_votinglib_procs 
   stage_queue_hints[STAGE_VOTE]['walltime'] = options.stage_voting_walltime 
   stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs 
+  stage_queue_hints[STAGE_MORPHO]['walltime'] = options.stage_morpho_walltime
 
   if not options.separate:
     #stage_queue_hints[STAGE_REG_TEMPL]['walltime'] = options.stage_votinglib_walltime 
