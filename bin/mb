@@ -655,10 +655,10 @@ class QBatchCommandQueue(CommandQueue):
           #print stage
         #else:
         self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
-            walltime=walltime, processors = processors, parlevel=parlevel)  
+            walltime=walltime, processors = processors, parlevel=parlevel, stage=stage)  
         previous_stage = unique_stage
 
-  def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None, parlevel = 8):
+  def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None, parlevel = 8, stage=None):
     logger.info('running {0} commands after stage {1}'.format(len(commands), afterok))
     
     opt_name    = batch_name and '-N {0}'.format(batch_name) or ''
@@ -666,8 +666,15 @@ class QBatchCommandQueue(CommandQueue):
     #batchsize   = min(self.processors, processors)
     batchsize = processors
     opt_processes = '--processes {0}'.format(parlevel)
-    self.execute('qbatch {0} {1} {2} - {3} {4}'.format(opt_processes, opt_name, opt_afterok, batchsize, walltime), 
-        input='\n'.join(commands))
+    if stage=='mb_voting':
+      self.execute('qbatch_vote {0} {1} {2} - {3} {4}'.format(opt_processes, opt_name, opt_afterok, batchsize, walltime),
+          input='\n'.join(commands))
+    elif stage=='mb_morph':
+      self.execute('qbatch_morph {0} {1} {2} - {3} {4}'.format(opt_processes, opt_name, opt_afterok, batchsize, walltime),
+          input='\n'.join(commands))
+    else:
+      self.execute('qbatch {0} {1} {2} - {3} {4}'.format(opt_processes, opt_name, opt_afterok, batchsize, walltime),
+          input='\n'.join(commands))
     #self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
         #input='\n'.join(commands))
     #os.remove(cmdfilename)
