@@ -43,9 +43,6 @@ STAGE_MATH = 'mb_vornSA' #compute voronoi sa
 STAGE_BLUR = 'mb_blur' #compute blurred surface
 STAGE_MORPHO = 'mb_morph'
 STAGE_XFMJOIN_NATIVE = 'mb_xfm_native'
-STAGE_FIXNAN = 'mb_fixnan'
-STAGE_FIXNAN_1 = 'mb_fixnan_1'
-STAGE_FIXNAN_2 = 'mb_fixnan_2'
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -73,9 +70,6 @@ stage_queue_hints = {
   STAGE_VORN: {'procs': 1000, 'walltime': '0:16:00'},
   STAGE_MATH: {'procs': 1000, 'walltime': '0:16:00'},
   STAGE_BLUR: {'procs': 1000, 'walltime': '0:20:00'},
-  STAGE_FIXNAN: {'procs': 10000, 'walltime': '0:15:00'},
-  STAGE_FIXNAN_1: {'procs': 10000, 'walltime': '0:15:00'},
-  STAGE_FIXNAN_2: {'procs': 10000, 'walltime': '0:15:00'},
   STAGE_MORPHO: {'procs': 1, 'walltime': '4:00:00'}}
   
 
@@ -102,9 +96,6 @@ stage_description = {
   STAGE_MATH: 'calculate voronoi sa',
   STAGE_BLUR: 'surface blurring',
   STAGE_MORPHO: 'morphology',
-  STAGE_FIXNAN: 'nan swaps',
-  STAGE_FIXNAN_1: 'nan swaps',
-  STAGE_FIXNAN_2: 'nan swaps'
 }
 # file/folder defaults
 XFM = "nl.xfm"
@@ -1155,8 +1146,6 @@ class MAGeTBrain(object):
                 command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -area_voronoi {0} {1}'.format(recompute,voronoi)
                 self.queue.append_commands(STAGE_VORN, [command])
 
-                command = 'fixnan.sh {0}'.format(voronoi)
-                self.queue.append_commands(STAGE_FIXNAN, [command])
               #TODO: need to confirm that it is _rot_vorn.txt thati want
                 #ref = ''.join('/home/m/mchakrav/patelmo6/morph_reference/' + kind + '_rot_vorn.txt')
                 #ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
@@ -1169,8 +1158,6 @@ class MAGeTBrain(object):
                 #vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
                     #**vars())
                 #todo: blur surface
-                command = 'fixnan.sh {0}'.format(vorn_sa)
-                self.queue.append_commands(STAGE_FIXNAN_1, [command])
               ref_obj = ''.join('/home/m/mchakrav/patelmo6/morph_reference/' + kind + '_rot.obj')
               #ref_obj = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot.obj')
               kernel = kind.startswith('gp_') and 3 or 5
@@ -1180,8 +1167,6 @@ class MAGeTBrain(object):
                 command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
 		           kernel, vorn_sa, ref_obj, vorn_blur) 
                 self.queue.append_commands(STAGE_BLUR, [command])
-                command = 'fixnan.sh {0}'.format(vorn_blur)
-                self.queue.append_commands(STAGE_FIXNAN_2, [command])
 
 
   def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
@@ -1249,7 +1234,8 @@ class MAGeTBrain(object):
 
   def _get_stage_order(self):
     return [STAGE_MODELPREP,STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
-        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_XFMJOIN_NATIVE,                     STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN, STAGE_NORMALS, STAGE_VORN, STAGE_FIXNAN, STAGE_MATH, STAGE_FIXNAN_1, STAGE_BLUR, STAGE_FIXNAN_2, STAGE_MORPHO]
+        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_XFMJOIN_NATIVE,
+         STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN, STAGE_NORMALS, STAGE_VORN, STAGE_MATH, STAGE_BLUR, STAGE_MORPHO]
     #return [STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
         #STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN,
         #STAGE_NORMALS, STAGE_VORN, STAGE_MATH, STAGE_BLUR]
