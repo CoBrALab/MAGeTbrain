@@ -1110,7 +1110,14 @@ class MAGeTBrain(object):
             command = 'object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)
             self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
           #print command
-  
+          ref_obj = ''.join('/home/m/mchakrav/patelmo6/morph_reference/' + ostem + '_rot.obj')
+          kernel = ostem.startswith('gp_') and 3 or 5
+          dp_blur='{0}/{1}_{2}_{3}mm_blur.txt'.format(displacement_dir, s.stem, ostem, kernel)
+          if not os.path.exists(dp_blur):
+            command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
+	               kernel, obj_displace, ref_obj, dp_blur) 
+            self.queue.append_commands(STAGE_BLURDP, [command])
+                        
         # operate on model..subject surfaces
         if self.options.surfaces:
           for kind in objects.keys():
