@@ -31,6 +31,7 @@ STAGE_VOTE      = 'mb_voting'      # vote
 STAGE_TAR       = 'mb_tar'         # tar up
 STAGE_REG_MODEL = 'mb_regmodel'    # register model to atlases
 STAGE_MODEL_SUBJECT_DISPLACE = 'mb_model_displace' #compute displacement of model objects
+STAGE_BLURDP = 'mb_blurdp' #compute blurred displacement
 STAGE_MODELPREP = 'mb_modelprep' #autocrop model
 STAGE_XFMJOIN_M = 'mb_xfm_join_morpho' #model to subject xfm concat
 STAGE_SUBJECTDISPLACE = 'mb_subjgrid' #calculate transform grid for each subject
@@ -59,6 +60,7 @@ stage_queue_hints = {
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'},
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 24, 'walltime': '0:30:00'},
+  STAGE_BLURDP: {'procs': 1000, 'walltime': '0:20:00'},
   STAGE_MODELPREP: {'procs': 400, 'walltime': '0:15:00'},
   STAGE_XFMJOIN_M: {'procs': 10000, 'walltime': '0:25:00'},
   STAGE_SUBJECTDISPLACE: {'procs': 100, 'walltime': '2:00:00'},
@@ -84,6 +86,7 @@ stage_description = {
   STAGE_TAR:       'tar intermediate files', 
   STAGE_REG_MODEL: 'model-atlas registration',
   STAGE_MODEL_SUBJECT_DISPLACE: 'model object displacement calculation',
+  STAGE_BLURDP: 'displacement blurring',
   STAGE_MODELPREP: 'model prep',
   STAGE_XFMJOIN_M: 'model to subj transform merging',
   STAGE_SUBJECTDISPLACE: 'subject grid',
@@ -1234,7 +1237,7 @@ class MAGeTBrain(object):
 
   def _get_stage_order(self):
     return [STAGE_MODELPREP,STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
-        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_XFMJOIN_NATIVE,
+        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_BLURDP, STAGE_XFMJOIN_NATIVE,
          STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN, STAGE_NORMALS, STAGE_VORN, STAGE_MATH, STAGE_BLUR, STAGE_MORPHO]
     #return [STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
         #STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN,
