@@ -244,6 +244,10 @@ def main():
           default=stage_queue_hints[STAGE_REG_TEMPL]['procs'], 
           metavar="<procs>", type=int,
           help="Number of processes to run per node when building the voting library.")
+  group.add_argument("--stage-morpho-walltime",
+          default=stage_queue_hints[STAGE_MORPHO]['walltime'],
+          metavar="<walltime>",
+          help="Walltime for morpho stage jobs.")
   group.add_argument("--surfaces", default=False, action="store_true", 
     help="Compute surface objects for each subject")
   group.add_argument("--voronoi", default=False, action="store_true", 
