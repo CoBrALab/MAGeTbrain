@@ -415,8 +415,8 @@ def command_run(options):
 
       p.queue.append_commands(STAGE_MORPHO, [commandline])
 
-      print len(morphos)
-      print len(model_morphos)
+      #print len(morphos)
+      #print len(model_morphos)
     
     #p.stage_morpho()
   p.run()
