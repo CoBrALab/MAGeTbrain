@@ -399,7 +399,7 @@ def command_run(options):
     #p.stage_grids()
  
     for subject in subjects:
-      morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*blur.txt'))
+      morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*SA*blur.txt'))
       #morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*recomputed.obj'))
       model_morphos = glob.glob(join(options.input_dir, 'model', 'objects', '*.obj'))
       #tester = join(options.output_dir, '*',subject.stem + '*blur.txt')
@@ -415,8 +415,8 @@ def command_run(options):
 
       p.queue.append_commands(STAGE_MORPHO, [commandline])
 
-      #print len(morphos)
-      #print len(model_morphos)
+      print len(morphos)
+      print len(model_morphos)
     
     #p.stage_morpho()
   p.run()
