@@ -1018,8 +1018,8 @@ class MAGeTBrain(object):
         for a,t in product(self.atlases,self.templates):
           #create folder for model->atlas->template->subject transform
 
-          xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
-          mkdirp(xfmdir)
+          #xfmdir = join(catxfm_dir, a.stem, t.stem, s.stem)
+          #mkdirp(xfmdir)
           stems = [a.stem, t.stem, s.stem]
           #grid = join(xfmdir, 'grid.mnc')
           #return path for final, concatenated model -> subject transform
