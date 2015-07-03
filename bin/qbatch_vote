@@ -126,9 +126,9 @@ if __name__ == "__main__":
 
     for chunk in range(num_jobs):
         command=task_list[chunk*chunk_size:chunk*chunk_size+chunk_size]
-        print command[0]
+        #print command[0]
         splitcommand=re.split('\s', command[0])
-        print splitcommand
+        #print splitcommand
         stem=splitcommand[splitcommand.index('-s') + 1]
 
         #stem=re.split('\s', command)[re.split('\s', command).index('-s') + 1]
