@@ -991,8 +991,8 @@ class MAGeTBrain(object):
 
     for m in self.model:
     
-      catxfm_dir = join(self.options.pathways_dir, m.stem)
-      mkdirp(catxfm_dir)
+      #catxfm_dir = join(self.options.pathways_dir, m.stem)
+      #mkdirp(catxfm_dir)
 
       for s in self.subjects:
 
