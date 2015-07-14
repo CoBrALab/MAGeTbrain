@@ -38,9 +38,9 @@ if __name__ == '__main__':
                 labels = [ line.split(" ")[1] for line in o.strip().split("\n") ]
                 print ",".join(["file"] + labels)
 
-            o, e = execute("volume_stats -binvalue %s -volume %s" % \
+            o, e = execute("mincstats -quiet -binvalue %s -volume %s" % \
                 (",".join(labels), f), stdout = subprocess.PIPE)
-            volumes = [ line.split(" ")[2] for line in o.split("\n") if line.startswith("Volume") ] 
+            volumes = o.split("\n")
             print ",".join([f] + volumes)
         except: 
             pass
