@@ -786,7 +786,7 @@ class MAGeTBrain(object):
           #self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems)
           self.resample_labels(self.options.subjreg_dir, atlas.labels, subject, label, stems)
           candidate_labels.append(label)
-      command = 'voxel_vote.py {0} {1}'.format(
+      command = 'voxel_vote {0} {1}'.format(
           ' '.join(candidate_labels), fused_lbl)
       if not exists(fused_lbl):
         self.queue.append_commands(STAGE_VOTE, [command])
