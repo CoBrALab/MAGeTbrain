@@ -20,7 +20,16 @@ To [cite MAGeTbrain in publications](CITATION), please use:
 > Pipitone J, Park MT, Winterburn J, et al. Multi-atlas segmentation of the whole hippocampus
 > and subfields using multiple automatically generated templates. Neuroimage. 2014;
 
-## For the impatient:
+## Dependencies
+
+In order to use MAGeTBrain, you will need to install: 
+- Python 2.7, we recommend you install the [anaconda python 2.7 distribution](https://www.continuum.io/downloads)
+- If you didn't install anaconda, you will need the python packages [NumPy and SciPy](http://www.scipy.org/scipylib/download.html)
+- [minc-toolkit 1.0.07](http://www.bic.mni.mcgill.ca/ServicesSoftware/ServicesSoftwareMincToolKit#1.0.07)
+- [pyminc](https://github.com/Mouse-Imaging-Centre/pyminc)
+- [minc-stuffs](https://github.com/Mouse-Imaging-Centre/minc-stuffs)
+
+## Getting started, for the impatient:
 
     git clone https://github.com/CobraLab/MAGeTbrain.git
     source MAGeTbrain/bin/activate
