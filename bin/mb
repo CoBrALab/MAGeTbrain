@@ -1143,7 +1143,7 @@ class MAGeTBrain(object):
             recompute= '{0}/{1}_recomputed.obj'.format(kind_dir, s.stem)
              
             if not os.path.exists(medianobj):
-              command = 'Rscript $MB_ENV/robust_object_average.R {0} {1}'.format(medianobj, ' '.join(objects[kind]))
+              command = 'Rscript $MB_ENV/bin/robust_object_average.R {0} {1}'.format(medianobj, ' '.join(objects[kind]))
               self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
             if not os.path.exists(recompute):
               command = 'smooth_normals {0} {1} 0'.format(medianobj, recompute)
