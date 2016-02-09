@@ -4,6 +4,7 @@ from optparse import OptionParser
 import math
 import logging
 import sys
+import os
 import os.path
 from os.path import basename
 import subprocess
@@ -134,6 +135,7 @@ if __name__ == "__main__":
         if options.batch_system == 'pbs':
             script.write("module use -a /project/m/mchakrav/quarantine/modules\n")
             script.write("module load scinet\n")
+            script.write("export PATH=%s/bin:$PATH\n" % os.environ.get("MB_ENV", "~/MAGeTbrain"))
             script.write("cd $PBS_O_WORKDIR\n")
             script.write("parallel -j%i <<TASKS\n" % options.processes)
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
