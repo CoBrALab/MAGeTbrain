@@ -4,6 +4,7 @@ from optparse import OptionParser
 import math
 import logging
 import sys
+import os
 import os.path
 from os.path import basename
 import subprocess
@@ -91,8 +92,7 @@ if __name__ == "__main__":
     if options.batch_system == 'pbs': 
       qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime), 
                       '-j oe',
-                      '-o %s' % options.logs_dir,
-                      '-V'] 
+                      '-o %s' % options.logs_dir] 
       qsub_option_prefix = '#PBS'
 
       if options.afterok_pattern: 
@@ -130,6 +130,9 @@ if __name__ == "__main__":
             script.write("%s %s\n" % (qsub_option_prefix,opt))
 
         if options.batch_system == 'pbs':
+            script.write("module use -a /project/m/mchakrav/quarantine/modules\n")
+            script.write("module load scinet\n")
+            script.write("export PATH=%s/bin:$PATH\n" % os.environ.get("MB_ENV", "~/MAGeTbrain"))
             script.write("cd $PBS_O_WORKDIR\n") 
             script.write("parallel -j%i <<TASKS\n" % options.processes) 
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
