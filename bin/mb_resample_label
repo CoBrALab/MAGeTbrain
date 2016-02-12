@@ -8,7 +8,7 @@ like_image=$2
 source_label=$3
 output_file=$4
 
-mincresample -2 -near -byte -keep \
-  -transform $transform \
-  -like $like_image \
+itk_resample --clobber --label --byte \
+  --transform $transform \
+  --like $like_image \
   $source_label $output_file
