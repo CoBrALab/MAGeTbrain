@@ -2,8 +2,7 @@
 
 ---
 
-Looking for the MAGeT morphology pipeline? Go here: 
-    https://github.com/CobraLab/MAGeTbrain/tree/morpho
+Looking for the MAGeT Morphology pipeline? Use the `mb_morpho_tmp` branch instead.
     
 ---
 
@@ -28,6 +27,10 @@ In order to use MAGeTBrain, you will need to install:
 - [minc-toolkit 1.0.07](http://www.bic.mni.mcgill.ca/ServicesSoftware/ServicesSoftwareMincToolKit#1.0.07)
 - [pyminc](https://github.com/Mouse-Imaging-Centre/pyminc)
 - [minc-stuffs](https://github.com/Mouse-Imaging-Centre/minc-stuffs)
+
+or
+
+Just use the pipeline on Scinet.
 
 ## Getting started, for the impatient:
 
@@ -135,6 +138,11 @@ Reports on the progress of MAGeT brain and shows the number of remaining tasks.
 ### `mb run`
 
 Starts the MAGeT brain pipeline. 
+
+
+## Tutorials
+
+For an in-depth guideline, follow the [MAGeTbrain](https://github.com/CobraLab/documentation/wiki/MAGeT-Brain) and the [MAGeTmorph](https://github.com/CobraLab/documentation/wiki/MAGeT-Morph) tutorials. 
 
 ---
     http://tinysong.com/y9lO
