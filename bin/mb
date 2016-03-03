@@ -1100,7 +1100,7 @@ class MAGeTBrain(object):
         grids.append(gridavg)
         #stage('model.subject.gridavg').command('mincaverage',*grids)
         if not os.path.exists(gridavg):
-          command = 'mincaverage {0}'.format(' '.join(grids))
+          command = 'mincbigaverage --verbose --robust {0}'.format(' '.join(grids))
           self.queue.append_commands(STAGE_SUBJECTGRID_AVG, [command])
         #avgcommand = 'mincaverage {0}'.format(' '.join(grids))
         #print command
