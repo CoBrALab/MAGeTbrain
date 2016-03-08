@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
             o, e = execute("mincstats -quiet -binvalue %s -volume %s" % \
                 (",".join(labels), f), stdout = subprocess.PIPE)
-            volumes = o.split("\n")
+            volumes = o.split("\n")[:-1]
             print ",".join([f] + volumes)
         except: 
             pass
