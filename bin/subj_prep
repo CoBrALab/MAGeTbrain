@@ -20,14 +20,15 @@ cropmodel=$5
 #bestlinreg.pl -noverbose -lsq12 $subject $resmodel $xfm
 #xfminvert $xfm $xfminvert
 
-mincANTS 3 -m MI[$subject,$cropmodel,1,32] \
-    -i 0 \
-    -o $xfm \
-    --number-of-affine-iterations 10000x10000x10000x10000x10000 \
-    --continue-affine true \
-    --MI-option 32x32000 \
-    --use-Histogram-Matching
-    
+#mincANTS 3 -m MI[$subject,$cropmodel,1,32] \
+#    -i 0 \
+#    -o $xfm \
+#    --number-of-affine-iterations 10000x10000x10000x10000x10000 \
+#    --continue-affine true \
+#    --MI-option 32x32000 \
+#    --use-Histogram-Matching
+
+bestlinreg_g -clobber -noverbose -nmi -lsq12 $subject $cropmodel $xfm
 
 
 #xfminvert $xfm $xfminvert
@@ -35,7 +36,8 @@ mincANTS 3 -m MI[$subject,$cropmodel,1,32] \
 #autocrop -from $resmodel -step $(mincinfo -attvalue xspace:step $subject) $(mincinfo -attvalue yspace:step $subject) $(mincinfo -attvalue zspace:step $subject) $resmodel $cropmodel
 
 #mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
-mincresample -sinc -short -unsigned -like $cropmodel -2 -transform $xfm $subject $modelsubject
+#mincresample -sinc -short -unsigned -like $cropmodel -2 -transform $xfm $subject $modelsubject
+itk_resample --like $cropmodel --transform $xfm $subject $modelsubject
 
 #if [ -e $modelsubject ]; then
 #  rm output/nuc/templates/*imp

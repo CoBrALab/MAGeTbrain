@@ -1,6 +1,6 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 #
-# Perform MAGeT brain segmentation 
+# Perform MAGeT brain segmentation
 #
 #
 import glob
@@ -47,15 +47,15 @@ STAGE_XFMJOIN_NATIVE = 'mb_xfm_native'
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
-# Until then, this is dictionary containing: 
+# Until then, this is dictionary containing:
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
-stage_queue_hints = {  
+stage_queue_hints = {
   STAGE_IMAGEPREP: {'procs':    50, 'walltime': '00:40:00'},
   STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
   STAGE_REG_TEMPL: {'procs':    4, 'walltime': '4:00:00'},
   STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
-  STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
+  STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'},
   STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
   STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'},
   STAGE_REG_MODEL: {'procs':    4, 'walltime': '6:00:00'},
@@ -73,17 +73,17 @@ stage_queue_hints = {
   STAGE_MATH: {'procs': 1000, 'walltime': '0:16:00'},
   STAGE_BLUR: {'procs': 1000, 'walltime': '0:20:00'},
   STAGE_MORPHO: {'procs': 1, 'walltime': '4:00:00'}}
-  
+
 
 # stage descriptions
 stage_description = {
   STAGE_IMAGEPREP: 'preprocessing of images',
-  STAGE_REG_ATLAS: 'atlas-to-template registration', 
+  STAGE_REG_ATLAS: 'atlas-to-template registration',
   STAGE_REG_TEMPL: 'template-to-subject registration',
   STAGE_XFM_JOIN:  'transform merging',
-  STAGE_RESAMPLE:  'label propagation', 
-  STAGE_VOTE:      'label fusion', 
-  STAGE_TAR:       'tar intermediate files', 
+  STAGE_RESAMPLE:  'label propagation',
+  STAGE_VOTE:      'label fusion',
+  STAGE_TAR:       'tar intermediate files',
   STAGE_REG_MODEL: 'model-atlas registration',
   STAGE_MODEL_SUBJECT_DISPLACE: 'model object displacement calculation',
   STAGE_BLURDP: 'displacement blurring',
@@ -119,7 +119,7 @@ logging.root.addHandler(hdlr)
 logging.root.setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-def main(): 
+def main():
   """Main driver."""
   class DefaultHelpParser(argparse.ArgumentParser):
       def error(self, message):
@@ -128,36 +128,36 @@ def main():
           sys.exit(2)
 
   parser = DefaultHelpParser()
-  parser.add_argument("--save", default=False, action="store_true", 
+  parser.add_argument("--save", default=False, action="store_true",
     help="Save intermediate files (e.g. registrations, candidate labels)")
 
   # In/out directory options
   group = parser.add_argument_group(title="Folder options")
-  group.add_argument("--output_dir", default="output", 
-    type=os.path.abspath, metavar='', 
+  group.add_argument("--output_dir", default="output",
+    type=os.path.abspath, metavar='',
     help="Top-level folder for all output")
-  group.add_argument("--input_dir",   default="input", 
-    type=os.path.abspath, metavar='', 
+  group.add_argument("--input_dir",   default="input",
+    type=os.path.abspath, metavar='',
     help="Directory containing model, atlas, template and subject libraries")
-  group.add_argument("--reg_dir",   default="output/registrations/template_library", 
+  group.add_argument("--reg_dir",   default="output/registrations/template_library",
     type=os.path.abspath, metavar='',
     help="Directory containing registrations")
-  group.add_argument("--reg_model_atlas_dir",   default="output/registrations/model/atlases", 
+  group.add_argument("--reg_model_atlas_dir",   default="output/registrations/model/atlases",
     type=os.path.abspath, metavar='',
     help="Directory containing model to atlas registrations")
-  group.add_argument("--modelspace_dir",   default="output/modelspace/input", 
+  group.add_argument("--modelspace_dir",   default="output/modelspace/input",
     type=os.path.abspath, metavar='',
     help="Directory containing model, atlas, template, subject libraries after image prep stage")
-  group.add_argument("--subjreg_dir",   default="output/registrations/voting_library", 
+  group.add_argument("--subjreg_dir",   default="output/registrations/voting_library",
     type=os.path.abspath, metavar='',
     help="Directory containing template to subject registrations")
-  group.add_argument("--reg_model_dir",   default="output/registrations/model", 
+  group.add_argument("--reg_model_dir",   default="output/registrations/model",
     type=os.path.abspath, metavar='',
     help="Directory containing registrations from model to atlases, templates, subjects")
-  group.add_argument("--pathways_dir",   default="output/pathways", 
+  group.add_argument("--pathways_dir",   default="output/pathways",
     type=os.path.abspath, metavar='',
     help="Directory containing concatenated xfms from model to subject through ALL pathways")
-  group.add_argument("--modelxfm_dir",   default="input/model/xfms", 
+  group.add_argument("--modelxfm_dir",   default="input/model/xfms",
     type=os.path.abspath, metavar='',
     help="Directory containing model to atlas xfms")
 
@@ -174,7 +174,7 @@ def main():
   ############################################
   parser_run = subparsers.add_parser('run', help='Start the MAGeT brain pipeline')
   parser_run.add_argument('stage', choices=['vanilla',
-                                            'register', 
+                                            'register',
                                             'vote', 'morpho'],
                                    nargs='?', # makes stage optional
                                    default = 'vanilla',
@@ -185,22 +185,22 @@ def main():
   # subject selection options
   group = parser_run.add_argument_group(title="Subject selection")
   group.add_argument("-s", "--subject", default=None,
-      metavar="ID", 
+      metavar="ID",
       help="Subject ID (no file extension) to operate on")
 
   # Registration options
   group = parser_run.add_argument_group(title="Registration")
-  group.add_argument("--register_cmd", default="mb_register", 
+  group.add_argument("--register_cmd", default="mb_register",
     metavar='CMD',
     help="Command to register two images and output a transform. "
          "This command needs to accept the source image, target image "
          "and output transformation file as arguments, in this order.")
-  group.add_argument("--register_cmd_subj", default="mb_subjregister", 
+  group.add_argument("--register_cmd_subj", default="mb_modelspaceregister",
     metavar='CMD',
     help="Command to register templates to subjects. deletes nonessential transforms"
          "This command needs to accept the source image, target image "
          "and output transformation file as arguments, in this order.")
-           
+
   # Execution options
   group = parser_run.add_argument_group(title="Execution options")
   group.add_argument('-q', '--queue', choices=['parallel', 'qbatch'],
@@ -208,75 +208,75 @@ def main():
                                    help="Queueing method to use")
   group.add_argument("-n", dest="dry_run", default=False,
     action="store_true", help="Dry run. Show what would happen.")
-  group.add_argument("-j", "--processes", default=8, 
+  group.add_argument("-j", "--processes", default=8,
     type=int, metavar='N',
     help="Number of processes to parallelize over.")
-  group.add_argument("--clobber", default=False, 
+  group.add_argument("--clobber", default=False,
       action="store_true",
       help="Overwrite output if it exists")
-  group.add_argument("--stage-templatelib-walltime", 
-          default=stage_queue_hints[STAGE_REG_ATLAS]['walltime'], 
-          metavar="<walltime>", 
+  group.add_argument("--stage-templatelib-walltime",
+          default=stage_queue_hints[STAGE_REG_ATLAS]['walltime'],
+          metavar="<walltime>",
           help="Walltime for jobs submitted to build the template library.")
-  group.add_argument("--stage-templatelib-procs", 
-          default=stage_queue_hints[STAGE_REG_ATLAS]['procs'], 
+  group.add_argument("--stage-templatelib-procs",
+          default=stage_queue_hints[STAGE_REG_ATLAS]['procs'],
           metavar="<procs>", type=int,
           help="Number of processes to run per node when building the template library.")
-  group.add_argument("--stage-voting-walltime", 
-          default=stage_queue_hints[STAGE_VOTE]['walltime'], 
-          metavar="<walltime>", 
+  group.add_argument("--stage-voting-walltime",
+          default=stage_queue_hints[STAGE_VOTE]['walltime'],
+          metavar="<walltime>",
           help="Walltime for jobs submitted to do label fusion.")
-  group.add_argument("--stage-voting-procs", 
-          default=stage_queue_hints[STAGE_VOTE]['procs'], 
+  group.add_argument("--stage-voting-procs",
+          default=stage_queue_hints[STAGE_VOTE]['procs'],
           metavar="<procs>", type=int,
           help="Number of processes to run per node when doing label fusion.")
-  group.add_argument("--stage-votinglib-walltime", 
-          default=stage_queue_hints[STAGE_REG_TEMPL]['walltime'], 
-          metavar="<walltime>", 
-          help="Walltime for jobs submitted to build the voting library.") 
-  group.add_argument("--stage-votinglib-procs", 
-          default=stage_queue_hints[STAGE_REG_TEMPL]['procs'], 
+  group.add_argument("--stage-votinglib-walltime",
+          default=stage_queue_hints[STAGE_REG_TEMPL]['walltime'],
+          metavar="<walltime>",
+          help="Walltime for jobs submitted to build the voting library.")
+  group.add_argument("--stage-votinglib-procs",
+          default=stage_queue_hints[STAGE_REG_TEMPL]['procs'],
           metavar="<procs>", type=int,
           help="Number of processes to run per node when building the voting library.")
   group.add_argument("--stage-morpho-walltime",
           default=stage_queue_hints[STAGE_MORPHO]['walltime'],
           metavar="<walltime>",
           help="Walltime for morpho stage jobs.")
-  group.add_argument("--surfaces", default=False, action="store_true", 
+  group.add_argument("--surfaces", default=False, action="store_true",
     help="Compute surface objects for each subject")
-  group.add_argument("--voronoi", default=False, action="store_true", 
+  group.add_argument("--voronoi", default=False, action="store_true",
     help="Compute voronoi for each output object")
-  group.add_argument("--separate", default=False, action="store_true", 
+  group.add_argument("--separate", default=False, action="store_true",
     help="Separate the template-subj registration and voting steps into two stages")
 
   # check : sanity checks on inputs and MAGeT run-state
   #####################################################
-  parser_check = subparsers.add_parser('check', 
+  parser_check = subparsers.add_parser('check',
     help='Run sanity checks on the inputs and configuration')
   parser_check.add_argument('folder', default='.', nargs='?')
   parser_check.set_defaults(func=command_check)
 
   # status : output status of each stage
   #####################################################
-  parser_status = subparsers.add_parser('status', 
+  parser_status = subparsers.add_parser('status',
     help='Show status of completed work')
   parser_status.add_argument('--surfaces', default=False, action="store_true")
   parser_status.add_argument('--voronoi', default=False, action="store_true")
   parser_status.add_argument('folder', default='.', nargs='?')
   parser_status.add_argument_group(title="Subject selection")
   parser_status.add_argument("-s", "--subject", default=None,
-    metavar="ID", 
+    metavar="ID",
     help="Subject ID (no file extension) to operate on")
-  parser_status.add_argument("--separate", default=False, action="store_true", 
+  parser_status.add_argument("--separate", default=False, action="store_true",
     help="Separate the template-subj registration and voting steps into two stages")
   parser_status.set_defaults(func=command_status)
   parser_status.set_defaults(register_cmd='')
   parser_status.set_defaults(register_cmd_subj='')
   # import : import atlases into the current project
   #####################################################
-  parser_import = subparsers.add_parser('import', 
+  parser_import = subparsers.add_parser('import',
     help='Import an atlas into the current project')
-  parser_import.add_argument('-l', '--link', default=False, 
+  parser_import.add_argument('-l', '--link', default=False,
     action='store_true', help="Symlink, rather than, copy files.")
   parser_import.add_argument('image')
   parser_import.add_argument('label_file')
@@ -291,22 +291,22 @@ def get_inputs(options):
   subjects  = Template.get_templates(join(options.input_dir, 'subjects'))
   model     = Template.get_templates(join(options.input_dir, 'model'))
 
-  if options.subject: 
+  if options.subject:
     subjects = [s for s in subjects if s.stem == options.subject]
-   
+
   logger.info('{0} models, {1} atlases, {2} templates, {3} subjects found'.format(
     len(model), len(atlases), len(templates), len(subjects)))
 
   return (model, atlases, templates, subjects)
 
-def command_run(options): 
+def command_run(options):
   """Entry point from the command line to start the MAGeT pipeline"""
-    
+
   # Run through sanity checks
   command_check(options)
   model, atlases, templates, subjects = get_inputs(options)
 
-  if options.queue == "qbatch": 
+  if options.queue == "qbatch":
     queue = QBatchCommandQueue(processors=options.processes)
   elif options.queue == "parallel":
     queue = ParallelCommandQueue(processors=options.processes)
@@ -315,73 +315,73 @@ def command_run(options):
   queue.set_dry_run(options.dry_run)
 
   # update the stage queue settings based on command-line options
-  stage_queue_hints[STAGE_REG_ATLAS]['walltime'] = options.stage_templatelib_walltime 
-  stage_queue_hints[STAGE_REG_ATLAS]['procs'] = options.stage_templatelib_procs 
-  stage_queue_hints[STAGE_REG_TEMPL]['walltime'] = options.stage_votinglib_walltime 
-  stage_queue_hints[STAGE_REG_TEMPL]['procs'] = options.stage_votinglib_procs 
-  stage_queue_hints[STAGE_VOTE]['walltime'] = options.stage_voting_walltime 
-  stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs 
+  stage_queue_hints[STAGE_REG_ATLAS]['walltime'] = options.stage_templatelib_walltime
+  stage_queue_hints[STAGE_REG_ATLAS]['procs'] = options.stage_templatelib_procs
+  stage_queue_hints[STAGE_REG_TEMPL]['walltime'] = options.stage_votinglib_walltime
+  stage_queue_hints[STAGE_REG_TEMPL]['procs'] = options.stage_votinglib_procs
+  stage_queue_hints[STAGE_VOTE]['walltime'] = options.stage_voting_walltime
+  stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs
   stage_queue_hints[STAGE_MORPHO]['walltime'] = options.stage_morpho_walltime
 
   if not options.separate:
-    #stage_queue_hints[STAGE_REG_TEMPL]['walltime'] = options.stage_votinglib_walltime 
-    stage_queue_hints[STAGE_REG_TEMPL]['procs'] = None 
+    #stage_queue_hints[STAGE_REG_TEMPL]['walltime'] = options.stage_votinglib_walltime
+    stage_queue_hints[STAGE_REG_TEMPL]['procs'] = None
 
   if options.separate:
-    stage_queue_hints[STAGE_VOTE]['walltime'] = '2:00:00' 
+    stage_queue_hints[STAGE_VOTE]['walltime'] = '2:00:00'
 
-  #print stage_queue_hints[STAGE_REG_TEMPL]['procs'] 
+  #print stage_queue_hints[STAGE_REG_TEMPL]['procs']
 
   # we could be running one of many different stages depending on what is
-  # specified on the command line. 
-  # 
+  # specified on the command line.
+  #
   #   vanilla  - run the basic MAGeT brain pipeline
   #   register - run the register stage (atlas to template)
   #   vote     - vote on subjects
   #
   # Depending on the stage chosen, and configuration options, we might submit
-  # jobs to a queue or simply run jobs locally. 
-  # 
+  # jobs to a queue or simply run jobs locally.
+  #
   # Additionally, we may even submit jobs that re-run the pipeline (or specific
   # stages of it).
   #
-  # The plan: 
+  # The plan:
   # run atlas registration jobs
   # all following jobs depend on these jobs being completed
   # CASE: we're submitting jobs to a batch queue
     # for each subject, submit a voting job to the queue that runs locally
   # CASE: we're running locally
-    # for each subject, run each stage in sequence  
-  # CASE: we're submitting jobs to a non-batching queue 
+    # for each subject, run each stage in sequence
+  # CASE: we're submitting jobs to a non-batching queue
     # for each subject, submit jobs from stage in sequence, depending on the
     # former stages
-  # IN ALL CASES (optional): 
+  # IN ALL CASES (optional):
     # on error, re-run ourselves at least n times to handle any errors
     # that are due to flakey filesystems, etc..
 
   p = MAGeTBrain(options, atlases, templates, subjects, model)
-  p.set_queue(queue) 
-  
-  
-  if options.stage == "register": 
-    p.stage_register_atlases() 
-  if options.stage == "vote" or (options.stage == 'vanilla' and options.queue == 'parallel'): 
+  p.set_queue(queue)
+
+
+  if options.stage == "register":
+    p.stage_register_atlases()
+  if options.stage == "vote" or (options.stage == 'vanilla' and options.queue == 'parallel'):
     #TODO assumes all atlases have been registered, but we should check here
     #that that's so.
     p.stage_vote()
 
   if options.stage == "morpho":
     p.stage_morpho()
-   
+
 
   if options.stage == "vanilla" and options.queue == 'qbatch':
     p.stage_imageprep()
-    p.stage_register_atlases() 
+    p.stage_register_atlases()
     #p.stage_register_models()
     if options.separate:
       p.stage_register_templates()
     for subject in subjects:
-      _, label = p.fused_label_path(subject) 
+      _, label = p.fused_label_path(subject)
       if exists(label):
         continue
       # HACK the command line to run the voting stage next
@@ -392,19 +392,19 @@ def command_run(options):
         commandline = commandline.replace('-q qbatch', '-q parallel')
       else:
         commandline = commandline + ' -q parallel'
-  
+
       p.queue.append_commands(STAGE_VOTE, [commandline])
-     
+
 
     #p.stage_grids()
- 
+
     for subject in subjects:
       morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*SA*blur.txt'))
       #morphos = glob.glob(join(options.output_dir, '*',subject.stem + '*recomputed.obj'))
       model_morphos = glob.glob(join(options.input_dir, 'model', 'objects', '*.obj'))
       #tester = join(options.output_dir, '*',subject.stem + '*blur.txt')
       if (len(morphos)==len(model_morphos)):
-        continue  
+        continue
       commandline = ' '.join(sys.argv)
       commandline = commandline.replace('vanilla', '')
       commandline = commandline.replace('run', 'run morpho -s ' + subject.stem)
@@ -417,11 +417,11 @@ def command_run(options):
 
       #print len(morphos)
       #print len(model_morphos)
-    
+
     #p.stage_morpho()
   p.run()
- 
-def command_init(options): 
+
+def command_init(options):
   """Entry point from the command line to init a folder for MAGeT brain"""
   mkdirp(options.folder, 'input', 'atlases', 'brains')
   mkdirp(options.folder, 'input', 'atlases', 'labels')
@@ -433,63 +433,63 @@ def command_init(options):
   mkdirp(options.folder, 'input', 'model', 'objects')
   #mkdirp(options.folder, 'input', 'atlases', 'objects')
 
-def command_check(options): 
+def command_check(options):
   """Entry point from the command line to init a folder for MAGeT brain"""
   projectdir = options.folder
 
   # check that input folders exist
-  error_if_dne(options.input_dir, 
+  error_if_dne(options.input_dir,
     "The root input folder: {0} does not exist.")
-  error_if_dne(join(options.input_dir, 'atlases'), 
+  error_if_dne(join(options.input_dir, 'atlases'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'atlases', 'brains'), 
+  error_if_dne(join(options.input_dir, 'atlases', 'brains'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'atlases', 'labels'), 
+  error_if_dne(join(options.input_dir, 'atlases', 'labels'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'templates'), 
+  error_if_dne(join(options.input_dir, 'templates'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'templates', 'brains'), 
+  error_if_dne(join(options.input_dir, 'templates', 'brains'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'subjects'), 
+  error_if_dne(join(options.input_dir, 'subjects'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'subjects', 'brains'), 
+  error_if_dne(join(options.input_dir, 'subjects', 'brains'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'model', 'brains'), 
+  error_if_dne(join(options.input_dir, 'model', 'brains'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'model', 'xfms'), 
+  error_if_dne(join(options.input_dir, 'model', 'xfms'),
     "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'model', 'objects'), 
+  error_if_dne(join(options.input_dir, 'model', 'objects'),
     "{0} folder does not exist.")
-  #error_if_dne(join(options.input_dir, 'atlases', 'objects'), 
+  #error_if_dne(join(options.input_dir, 'atlases', 'objects'),
     #"{0} folder does not exist.")
 
   # check that atlases exist, and have labels
   atlas_dir = join(options.input_dir, 'atlases')
   atlases   = Template.get_templates(atlas_dir)
-  if len(atlases) == 0: 
+  if len(atlases) == 0:
     error("No atlases found in input folder {0}".format(atlas_dir))
-  if len(atlases) % 2 == 0: 
+  if len(atlases) % 2 == 0:
     warning("{0} atlases found. Use an odd number for best results".format(
         len(atlases)))
-  for a in atlases: 
-    if not a.labels: 
+  for a in atlases:
+    if not a.labels:
       error("Labels for atlas image {0} not found".format(a.image))
-    
+
   # check that templates and subjects exist
   templates_dir = join(options.input_dir, 'templates')
   templates     = Template.get_templates(templates_dir)
-  if len(templates) == 0: 
+  if len(templates) == 0:
     error("No templates found in input folder {0}".format(templates_dir))
-  if len(templates) % 2 == 0: 
+  if len(templates) % 2 == 0:
     warning("{0} templates found. Use an odd number for best results".format(
         len(templates)))
 
   subjects_dir = join(options.input_dir, 'subjects')
   subjects     = Template.get_templates(subjects_dir)
-  if len(subjects) == 0: 
+  if len(subjects) == 0:
     error("No subjects found in input folder {0}".format(subjects_dir))
 
-def command_status(options): 
+def command_status(options):
   """Entry point from the command line to status command"""
   command_check(options)
   model, atlases, templates, subjects = get_inputs(options)
@@ -497,10 +497,10 @@ def command_status(options):
     #print a.stem
     #print a.objects
   p = MAGeTBrain(options, atlases, templates, subjects, model)
-  p.set_queue(CommandQueue()) 
+  p.set_queue(CommandQueue())
   p.queue.set_dry_run(True)
   p.stage_imageprep()
-  p.stage_register_atlases() 
+  p.stage_register_atlases()
   #p.stage_register_models()
   p.stage_register_templates()
   p.stage_vote()
@@ -509,8 +509,8 @@ def command_status(options):
 
   #string = "'mincinfo', '-attvalue', 'xspace:step', 'input/subjects/brains/subject1.mnc'"
   #print string
-  #test = subprocess.call(["string"])  
-  
+  #test = subprocess.call(["string"])
+
   #tempdir = p.temp_dir
   #print tempdir
   #x = p.model[0]
@@ -529,7 +529,7 @@ def command_status(options):
 #    print testpath
   #print p.queue.commands
 
-def command_import(options): 
+def command_import(options):
   """Entry point for the import command"""
   atlases_brains = join(options.input_dir, 'atlases', 'brains')
   atlases_labels = join(options.input_dir, 'atlases', 'labels')
@@ -550,13 +550,13 @@ def command_import(options):
     shutil.copyfile(options.label_file, dest_labels)
 
 def error_if_dne(path, message, errno = 1):
-  if not exists(path): 
+  if not exists(path):
     error(message.format(path), errno)
 
 def error(message, errno = 1):
   """Print the error message and exit"""
   logger.error(message)
-  sys.exit(errno) 
+  sys.exit(errno)
 
 def warning(message):
   """Print the warning message"""
@@ -564,11 +564,11 @@ def warning(message):
 
 ### Pipeline construction
 class CommandQueue(object):
-  def __init__(self): 
+  def __init__(self):
     self.commands = {}  # stage -> [command, ...]
-    self.dry_run = False 
+    self.dry_run = False
 
-  def set_dry_run(self, state): 
+  def set_dry_run(self, state):
     self.dry_run = state
 
   def append_commands(self, stage, commands):
@@ -578,14 +578,14 @@ class CommandQueue(object):
 
   def run(self, stages = []):
     """Runs the given stages, in order, or all if none are supplied"""
-    if not stages: 
+    if not stages:
       stages = self.commands.keys()
 
     for stage in [s for s in stages if s in self.commands.keys()]:
       for command in self.commands[stage]:
         self.execute(command)
 
-  def __str__(self): 
+  def __str__(self):
     __str = 'Pipeline:\n'
     for stage, commands in self.commands.items():
       __str += 'STAGE: {0}\n'.format(stage)
@@ -597,23 +597,23 @@ class CommandQueue(object):
     if input:
       logger.debug("exec: {0}\n\t{1}".format(command, input.replace('\n','\n\t')))
     else:
-      logger.debug("exec: " + command) 
+      logger.debug("exec: " + command)
 
-    if self.dry_run: 
+    if self.dry_run:
       return
-    proc = subprocess.Popen(command.split(), 
+    proc = subprocess.Popen(command.split(),
              stdin = subprocess.PIPE, stdout = 2, stderr = 2)
     proc.communicate(input)
-    if proc.returncode != 0: 
+    if proc.returncode != 0:
       raise Exception("Returns %i :: %s" %( proc.returncode, command ))
 
 class ParallelCommandQueue(CommandQueue):
-  def __init__(self, processors = 8): 
+  def __init__(self, processors = 8):
     CommandQueue.__init__(self)
     self.processors = processors
 
   def run(self, stages):
-    if not stages: 
+    if not stages:
       stages = self.commands.keys()
 
     previous_stage = STAGE_NONE
@@ -632,19 +632,19 @@ class ParallelCommandQueue(CommandQueue):
     self.execute(command, input='\n'.join(commands))
 
 class QBatchCommandQueue(CommandQueue):
-  def __init__(self, processors = 8): 
+  def __init__(self, processors = 8):
     CommandQueue.__init__(self)
     self.processors = processors
 
   def run(self, stages):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    if not stages: 
+    if not stages:
       stages = self.commands.keys()
 
     previous_stage = STAGE_NONE
     for stage in [s for s in stages if s in self.commands.keys()]:
       if self.commands[stage]:
-        unique_stage = "{0}_{1}".format(stage, timestamp) 
+        unique_stage = "{0}_{1}".format(stage, timestamp)
         walltime   = stage_queue_hints[stage]['walltime']
         processors = stage_queue_hints[stage]['procs']
         parlevel = 8
@@ -652,16 +652,16 @@ class QBatchCommandQueue(CommandQueue):
           parlevel = 4
         #if stage == 'mb_xfm_join_morpho':
           #self.qbatch(self.commands[stage], batch_name=unique_stage, afterok="mb_subject_reg_{0}*".format(timestamp),
-            #walltime=walltime, processors = processors)  
+            #walltime=walltime, processors = processors)
           #print stage
         #else:
         self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
-            walltime=walltime, processors = processors, parlevel=parlevel, stage=stage)  
+            walltime=walltime, processors = processors, parlevel=parlevel, stage=stage)
         previous_stage = unique_stage
 
   def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None, parlevel = 8, stage=None):
     logger.info('running {0} commands after stage {1}'.format(len(commands), afterok))
-    
+
     opt_name    = batch_name and '-N {0}'.format(batch_name) or ''
     opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
     #batchsize   = min(self.processors, processors)
@@ -676,14 +676,14 @@ class QBatchCommandQueue(CommandQueue):
     else:
       self.execute('qbatch {0} {1} {2} - {3} {4}'.format(opt_processes, opt_name, opt_afterok, batchsize, walltime),
           input='\n'.join(commands))
-    #self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
+    #self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime),
         #input='\n'.join(commands))
     #os.remove(cmdfilename)
-    
+
 ### MAGeT Brain Stages
 ######################
 class MAGeTBrain(object):
-  def __init__(self, options, atlases, templates, subjects, model): 
+  def __init__(self, options, atlases, templates, subjects, model):
     self.options = options
     self.atlases = atlases
     self.templates = templates
@@ -692,7 +692,7 @@ class MAGeTBrain(object):
     self.temp_dir = tempfile.mkdtemp()
     #print self.temp_dir
 
-  def set_queue(self, queue): 
+  def set_queue(self, queue):
     self.queue = queue
 
   def run(self):
@@ -705,18 +705,18 @@ class MAGeTBrain(object):
     self.subjects = subjects
     self.stage_vote()
     self.subjects = all_subjects
-    
+
   def stage_register_atlases(self):
     """Register atlases to templates"""
     commands = []
-    for atlas in self.atlases: 
-      for template in self.templates: 
+    for atlas in self.atlases:
+      for template in self.templates:
         reg_dir, transform_file = self.xfm_path(atlas, template)
-        reg_cmd = self.register_images(self.options.register_cmd, atlas, template, transform_file)
-        if reg_cmd: 
+        reg_cmd = self.register_images(self.options.register_cmd_subj, atlas, template, transform_file)
+        if reg_cmd:
           mkdirp(reg_dir)
           commands.append(reg_cmd)
-    self.queue.append_commands(STAGE_REG_ATLAS, commands) 
+    self.queue.append_commands(STAGE_REG_ATLAS, commands)
     return len(commands) == 0
 
   def stage_register_templates(self):
@@ -728,13 +728,13 @@ class MAGeTBrain(object):
         modeltemplate = join(self.options.modelspace_dir, 'templates', template.stem + ".mnc")
         template.image = modeltemplate
         templateimage_path = os.path.realpath(template.image)
-        template.stem = os.path.basename(os.path.splitext(templateimage_path)[0])    
+        template.stem = os.path.basename(os.path.splitext(templateimage_path)[0])
       for subject in self.subjects:
         #modeltemplate = '{0}/templates/{3}.mnc'.format(self.options.modelspace_dir, template.stem)
         modelsubject = join(self.options.modelspace_dir, 'subjects', subject.stem + ".mnc")
         subject.image = modelsubject
         subjectimage_path = os.path.realpath(subject.image)
-        subject.stem = os.path.basename(os.path.splitext(subjectimage_path)[0])    
+        subject.stem = os.path.basename(os.path.splitext(subjectimage_path)[0])
     for template in self.templates:
       for subject in self.subjects:
         #reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
@@ -742,25 +742,25 @@ class MAGeTBrain(object):
         #if self.options.separate:
         reg_dir, transform_file = self.xfm_path(template, subject, self.options.subjreg_dir)
         reg_cmd = self.register_images(self.options.register_cmd_subj, template, subject, transform_file)
-        if reg_cmd: 
+        if reg_cmd:
           mkdirp(reg_dir)
           commands.append(reg_cmd)
-    self.queue.append_commands(STAGE_REG_TEMPL, commands) 
+    self.queue.append_commands(STAGE_REG_TEMPL, commands)
     return len(commands) == 0
-  
+
   #def stage_register_templates(self, subject):
    # """Register all templates to subjects"""
    # commands = []
    # for template in self.templates:
      # reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
      # reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
-     # if reg_cmd: 
+     # if reg_cmd:
        # mkdirp(reg_dir)
        # commands.append(reg_cmd)
-    #self.queue.append_commands(STAGE_REG_TEMPL, commands) 
+    #self.queue.append_commands(STAGE_REG_TEMPL, commands)
     #return len(commands) == 0
 
-  def stage_vote(self): 
+  def stage_vote(self):
     """Assumes all registrations are complete. """
     for subject in self.subjects:
       if self.options.save:
@@ -774,12 +774,12 @@ class MAGeTBrain(object):
         #print origsubject
         subject.image = origsubject
         subjectimage_path = os.path.realpath(subject.image)
-        subject.stem = os.path.basename(os.path.splitext(subjectimage_path)[0])    
+        subject.stem = os.path.basename(os.path.splitext(subjectimage_path)[0])
       output_dir, fused_lbl = self.fused_label_path(subject)
       mkdirp(output_dir)
       candidate_labels = []
       #m = self.model.pop()
-      for atlas in self.atlases: 
+      for atlas in self.atlases:
         for template in self.templates:
           stems = [atlas.stem, template.stem, subject.stem]
           label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
@@ -810,7 +810,7 @@ class MAGeTBrain(object):
     #autocrop the model and place the output in output/modelspace/input/model/
     newmodel_dir = join(self.options.modelspace_dir,'model')
     mkdirp(newmodel_dir)
-   
+
     for model in self.model:
 
       #res_model is path to new model
@@ -825,21 +825,21 @@ class MAGeTBrain(object):
       #model.image = res_model
       #modelimage_path = os.path.realpath(model.image)
       #model.stem = os.path.basename(os.path.splitext(modelimage_path)[0])
-      
-    if commands:  
+
+    if commands:
       self.queue.append_commands(STAGE_MODELPREP, commands)
-  
+
     #  print model.image
      # print model.stem
       #nucorrect, register to model space each subject and place them in modelspace/input/subjects
     newsubject_dir = join(self.options.modelspace_dir,'subjects')
     mkdirp(newsubject_dir)
-    
+
     commands = []
     for subject in self.subjects:
       #nuc_subject = join('output/nuc/subjects',subject.stem + ".mnc")
       #reg_dir, transform_file = self.xfm_path(model, subject, self.options.model_reg_dir)
-      reg_dir = join(self.options.reg_model_dir,'subjects',subject.stem) 
+      reg_dir = join(self.options.reg_model_dir,'subjects',subject.stem)
       transform_file = join(reg_dir, 'nl.xfm')
       modelsubject = join(newsubject_dir, subject.stem + ".mnc")
       #cropmodel = join(self.temp_dir, subject.stem + "model.mnc")
@@ -864,14 +864,14 @@ class MAGeTBrain(object):
       #if not os.path.exists(nuc_subject):
        # prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 {0} {1}'.format(subject.image, nuc_subject)
        # commands.append(prep_cmd)
-    
+
       #if not os.path.exists(transform_file):
       #prep_cmd = 'bestlinreg -noverbose -lsq12 nuc_subject res_model transform_file'
        # prep_cmd = 'bestlinreg -noverbose -lsq12 {0} {1} {2}'.format(nuc_subject, res_model, transform_file)
         #if prep_cmd:
          # mkdirp(reg_dir)
           #commands.append(prep_cmd)
-        
+
       #if not os.path.exists(modelsubject):
       #prep_cmd = 'mincresample -sinc -like res_model -2 -transform transform_file nuc_subject modelsubject'
        # prep_cmd = 'mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_subject, modelsubject)
@@ -887,16 +887,16 @@ class MAGeTBrain(object):
     #nucorrect, register to model space each template and put in modelspace/input/templates
     newtemplate_dir = join(self.options.modelspace_dir,'templates')
     mkdirp(newtemplate_dir)
-   
+
     for template in self.templates:
       #nuc_template = join('output/nuc/templates',template.stem + ".mnc")
       #reg_dir, transform_file = self.xfm_path(model, template, self.options.model_reg_dir)
-      reg_dir = join(self.options.reg_model_dir,'templates',template.stem) 
+      reg_dir = join(self.options.reg_model_dir,'templates',template.stem)
       transform_file = join(reg_dir, 'nl.xfm')
       modeltemplate = join(newtemplate_dir, template.stem + ".mnc")
       #cropmodel = join(self.temp_dir, template.stem + "model.mnc")
       #transform_file_invert = join(reg_dir, 'nl_inv.xfm')
-      
+
       mkdirp(reg_dir)
       #mkdirp(dirname(nuc_template))
       crop_model = join(newmodel_dir, template.stem + ".mnc")
@@ -912,14 +912,14 @@ class MAGeTBrain(object):
       #prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 template.image nuc_template'
        # prep_cmd = 'nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 {0} {1}'.format(template.image, nuc_template)
         #commands.append(prep_cmd)
-    
+
       #if not os.path.exists(transform_file):
       #prep_cmd = 'bestlinreg -noverbose -lsq12 nuc_template res_model transform_file'
        # prep_cmd = 'bestlinreg -noverbose -lsq12 {0} {1} {2}'.format(nuc_template, res_model, transform_file)
         #if prep_cmd:
          # mkdirp(reg_dir)
           #commands.append(prep_cmd)
-        
+
       #if not os.path.exists(modeltemplate):
       #prep_cmd = 'mincresample -sinc -like res_model -2 -transform transform_file nuc_template modeltemplate'
        # prep_cmd = 'mincresample -sinc -like {0} -2 -transform {1} {2} {3}'.format(res_model, transform_file, nuc_template, modeltemplate)
@@ -929,20 +929,20 @@ class MAGeTBrain(object):
       template.image = modeltemplate
       templateimage_path = os.path.realpath(template.image)
       template.stem = os.path.basename(os.path.splitext(templateimage_path)[0])
-    
+
      # print template.image
      # print template.stem
-    if commands:  
+    if commands:
       self.queue.append_commands(STAGE_IMAGEPREP, commands)
 
   def stage_grids(self):
-  
+
     for m in self.model:
-    
+
       catxfm_dir = join(self.options.pathways_dir, m.stem)
       mkdirp(catxfm_dir)
       #croppedmodel = join(self.options.modelspace_dir,'model', 'croppedmodel.mnc')
-       
+
       for s in self.subjects:
 
         croppedmodel = join(self.options.modelspace_dir,'model', s.stem + ".mnc")
@@ -965,10 +965,10 @@ class MAGeTBrain(object):
           #xfms_native is for creation of subject object, from atlas objs, in native space
           xfm = '{0}/to_{1}.xfm'.format(self.options.modelxfm_dir, a.stem)
           xfms.append(xfm)
-   
+
           _,xfm = self.xfm_path(a, t)
           xfms.append(xfm)
-        
+
           _,xfm = self.xfm_path(t,s,self.options.subjreg_dir)
           xfms.append(xfm)
 
@@ -976,12 +976,12 @@ class MAGeTBrain(object):
           if not os.path.exists(nl_only_xfm):
             command = 'xfmjoin_morpho --nl-only {0} {1}'.format(' '.join(xfms), nl_only_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
-          
+
           # compute non-lin grid for the entire path
           if not os.path.exists(grid):
             command = 'minc_displacement {0} {1} {2}'.format(croppedmodel, nl_only_xfm, grid)
             self.queue.append_commands(STAGE_SUBJECTDISPLACE, [command])
-  
+
   def stage_morpho(self):
     """Assumes all registrations complete. Carries out morpho analysis"""
     commands = []
@@ -990,7 +990,7 @@ class MAGeTBrain(object):
     #mkdirp(catxfm_dir)
 
     for m in self.model:
-    
+
       #catxfm_dir = join(self.options.pathways_dir, m.stem)
       #mkdirp(catxfm_dir)
 
@@ -1004,17 +1004,17 @@ class MAGeTBrain(object):
         gridavgdir = dirname(gridavg)
         mkdirp(gridavgdir)
 #subprocess.call(["mincinfo", "-attvalue", "xspace:step", "input/subjects/brains/subject1.mnc"])
- 
+
         #croppedmodel = join(self.temp_dir, s.stem + 'model.mnc')
-        
+
         #command = 'crop_model {0} {1} {2}'.format(m.image, s.image, croppedmodel)
         #proc = supbrocess.Popen(["mincinfo", "-attvalue", "xspace:step", "input/subjects/brains/subject1.mnc"])
 
         #self.queue.append_commands(STAGE_XFMJOIN_M, [command])
-        #command = 'autocrop -from {0} -step {1}$(mincinfo -attvalue xspace:step $subject) 
-                  #{2}$(mincinfo -attvalue yspace:step $subject) {3}$(mincinfo -attvalue zspace:step $subject) 
-                  #{4} {5}'.format(m.image, xstep, ystep, zstep, m.image, cropmodel)   
-  
+        #command = 'autocrop -from {0} -step {1}$(mincinfo -attvalue xspace:step $subject)
+                  #{2}$(mincinfo -attvalue yspace:step $subject) {3}$(mincinfo -attvalue zspace:step $subject)
+                  #{4} {5}'.format(m.image, xstep, ystep, zstep, m.image, cropmodel)
+
         for a,t in product(self.atlases,self.templates):
           #create folder for model->atlas->template->subject transform
 
@@ -1026,7 +1026,7 @@ class MAGeTBrain(object):
           nl_only_xfm = join(self.temp_dir, ".".join(stems) + '.nl_only.xfm')
           lin_xfm = join(self.temp_dir, ".".join(stems) + '.lin_native.xfm')
           #nl_only_xfm = join(xfmdir, 'nl_only.xfm')
-          #lin_xfm = join(xfmdir, 'lin_native.xfm') 
+          #lin_xfm = join(xfmdir, 'lin_native.xfm')
         # grid = '{0}/grid.mnc'.format(xfmdir)
           grid = join(self.temp_dir, ".".join(stems) + '.grid.mnc')
           #grid = join(xfmdir, 'grid.mnc')
@@ -1045,12 +1045,12 @@ class MAGeTBrain(object):
           xfm = '{0}/to_{1}.xfm'.format(self.options.modelxfm_dir, a.stem)
           xfms.append(xfm)
           xfms_native.append(xfm)
-   
+
           #xfms.append(self.xfm_path(self.model, a, self.options.model_reg_dir))
           _,xfm = self.xfm_path(a, t)
           xfms.append(xfm)
           xfms_native.append(xfm)
-        
+
           _,xfm = self.xfm_path(t,s,self.options.subjreg_dir)
           xfms.append(xfm)
           xfms_native.append(xfm)
@@ -1066,7 +1066,7 @@ class MAGeTBrain(object):
           if not os.path.exists(lin_xfm):
             command = 'xfmjoin_morpho {0} {1}'.format(' '.join(xfms_native), lin_xfm)
             self.queue.append_commands(STAGE_XFMJOIN_M, [command])
-          
+
           # compute non-lin grid for the entire path
 
           #stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
@@ -1079,7 +1079,7 @@ class MAGeTBrain(object):
 
         # transform objects from atlases
           if self.options.surfaces:
-            #TODO: should transform to native space? 
+            #TODO: should transform to native space?
             for o in m.objects:
               opath = os.path.realpath(o)
               kind = os.path.basename(os.path.splitext(opath)[0])
@@ -1094,7 +1094,7 @@ class MAGeTBrain(object):
                 command = 'transform_objects {0} {1} {2}'.format(o, lin_xfm, object)
                 self.queue.append_commands(STAGE_M_S_OBJ_XFM, [command])
               objects[kind].append(object)
-          
+
 
         # compute average grid over all pathways to the subject
         grids.append(gridavg)
@@ -1108,7 +1108,7 @@ class MAGeTBrain(object):
         # calculate displacement of model objects
         displacement_dir = join(self.options.output_dir, 'displacement')
         mkdirp(displacement_dir)
-  
+
         for o in m.objects:
           opath = os.path.realpath(o)
           ostem = os.path.basename(os.path.splitext(opath)[0])
@@ -1123,32 +1123,32 @@ class MAGeTBrain(object):
           dp_blur='{0}/{1}_{2}_{3}mm_blur.txt'.format(displacement_dir, s.stem, ostem, kernel)
           if not os.path.exists(dp_blur):
             command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
-	               kernel, obj_displace, ref_obj, dp_blur) 
+	               kernel, obj_displace, ref_obj, dp_blur)
             self.queue.append_commands(STAGE_BLURDP, [command])
-                        
+
         # operate on model..subject surfaces
         if self.options.surfaces:
           for kind in objects.keys():
             # median surface per subject
             kind_dir  = '{0}/{1}'.format(self.options.output_dir, kind)
             mkdirp(kind_dir)
- 
+
             #medianobj = '{kind_dir}/{s.stem}_median.obj'.format(**vars())
             #voronoi   = '{kind_dir}/{s.stem}_vorn.txt'.format(**vars())
             #vorn_sa   = '{kind_dir}/{s.stem}_vorn_SA.txt'.format(**vars())
-          
+
             medianobj = '{0}/{1}_median.obj'.format(kind_dir, s.stem)
             voronoi   = '{0}/{1}_vorn.txt'.format(kind_dir, s.stem)
             vorn_sa   = '{0}/{1}_vorn_SA.txt'.format(kind_dir, s.stem)
             recompute= '{0}/{1}_recomputed.obj'.format(kind_dir, s.stem)
-             
+
             if not os.path.exists(medianobj):
               command = 'Rscript $MB_ENV/bin/object_average.R {0} {1}'.format(medianobj, ' '.join(objects[kind]))
               self.queue.append_commands(STAGE_OBJ_MEDIAN, [command])
             if not os.path.exists(recompute):
               command = 'smooth_normals {0} {1} 0'.format(medianobj, recompute)
               self.queue.append_commands(STAGE_NORMALS, [command])
-          
+
             #stage('objects.median').command(
               #"make_median_surfaces.pl",out(medianobj),*objects[kind])
             #stage('objects.normals').command(
@@ -1183,7 +1183,7 @@ class MAGeTBrain(object):
               vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(kind_dir, s.stem, kernel)
               if not os.path.exists(vorn_blur):
                 command = '/project/m/mchakrav/quarantine/CIVET/1.1.12/build/Linux-x86_64/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
-		           kernel, vorn_sa, ref_obj, vorn_blur) 
+		           kernel, vorn_sa, ref_obj, vorn_blur)
                 self.queue.append_commands(STAGE_BLUR, [command])
 
 
@@ -1200,15 +1200,15 @@ class MAGeTBrain(object):
     for s, t in zip(stems[:-1],stems[1:]):
       _, xfm = self.xfm_path(s, t, xfmbasedir, check_reg_dir = True)
       xfms.append(xfm)
-    
+
     invert_xfm = join(self.options.reg_model_dir,'subjects',stems[2],"nl_inverse.xfm")
     xfms.append(invert_xfm)
     joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
-    if not exists(joined_xfm): 
-        self.queue.append_commands(STAGE_XFM_JOIN, 
-            ['xfmjoin {0} {1}'.format(' '.join(xfms), joined_xfm)]) 
+    if not exists(joined_xfm):
+        self.queue.append_commands(STAGE_XFM_JOIN,
+            ['xfmjoin {0} {1}'.format(' '.join(xfms), joined_xfm)])
     if not exists(output_lbl):
-        self.queue.append_commands(STAGE_RESAMPLE, 
+        self.queue.append_commands(STAGE_RESAMPLE,
             [' '.join(['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
 
   def fused_label_path(self, subject):
@@ -1220,24 +1220,24 @@ class MAGeTBrain(object):
     """Returns the XFM path for registration of between to images
 
        Expects that source and target are Template instances, and provides the
-       output directory and transform path rooted at basedir. basedir defaults 
+       output directory and transform path rooted at basedir. basedir defaults
        to the default registration directory (output/registration).
 
        If check_reg_dir is set, then the registration directory is checked to
        see if a transform exists there and that path is returned.  If the
        transform doesn't exist in the registration directory, then a path
-       rooted at basedir is used. 
+       rooted at basedir is used.
     """
 
     source = isinstance(source, Template) and source.stem or source
     target = isinstance(target, Template) and target.stem or target
 
-    if check_reg_dir: 
+    if check_reg_dir:
         reg_dir, xfm = self.xfm_path(source, target)
-        if exists(xfm):                
+        if exists(xfm):
             return (reg_dir, xfm)
 
-    if basedir == None: 
+    if basedir == None:
         basedir = self.options.reg_dir
 
     reg_dir = join(basedir, source, target)
@@ -1264,7 +1264,7 @@ def mkdirp(*p):
   path = join(*p)
   try:
     os.makedirs(path)
-  except OSError as exc: 
+  except OSError as exc:
     if exc.errno == errno.EEXIST:
       pass
     else: raise
@@ -1277,7 +1277,7 @@ def execute(cmd,*args):
   #return subprocess.check_output(wholecommand, shell=True, cwd=os.cwd(), universal_newlines=True)
 
 #### Guts
-class Template: 
+class Template:
   """Represents an MR image with labels, optionally, with objects and xfms, optionally"""
   def __init__(self, image, labels = None, objects = None, xfms = None):
     image_path      = os.path.realpath(image)
@@ -1289,17 +1289,17 @@ class Template:
 
     expected_labels = os.path.join(dirname(dirname(image_path)), 'labels', self.stem + "_labels.mnc")
     if not labels and os.path.exists(expected_labels):
-      self.labels = expected_labels 
+      self.labels = expected_labels
 
     objects_path = os.path.join(dirname(dirname(image_path)), 'objects')
     if not objects and os.path.exists(objects_path):
       #self.objects = glob.glob(join(objects_path, "{0}*.obj".format(self.stem)))
       self.objects = glob.glob(join(objects_path, "*.obj"))
-   
+
     xfms_path = os.path.join(dirname(dirname(image_path)), 'xfms')
     if not xfms and os.path.exists(xfms_path):
       self.xfms = glob.glob(join(xfms_path, "*.xfm"))
-        
+
   @classmethod
   def get_templates(cls, path):
     """return a list of MR image Templates from the given path.  Expect to find
