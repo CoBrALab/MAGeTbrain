@@ -1102,7 +1102,7 @@ class MAGeTBrain(object):
         if not os.path.exists(gridavg):
           command = 'mincaverage {0}'.format(' '.join(grids))
           self.queue.append_commands(STAGE_SUBJECTGRID_AVG, [command])
-        #avgcommand = 'mincaverage {0}'.format(' '.join(grids))
+        #avgcommand = 'mincbigaverage --robust {0}'.format(' '.join(grids))
         #print command
 
         # calculate displacement of model objects
