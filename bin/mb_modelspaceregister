@@ -50,10 +50,10 @@ if [ ! -e $output_xfm ]; then
   xfmconcat $AT_lin_xfm $AT_nl_xfm $output_xfm
 fi
 
-if [ -e $output_xfm ]; then
-  rm -f $AT_lin_xfm
-  rm -f $TA_lin_xfm
-  rm -f $TA_nl_xfm
-  rm -f $AT_nl_xfm
-  rm -f $atlas_res
-fi
+#if [ -e $output_xfm ]; then
+#  rm -f $AT_lin_xfm
+#  rm -f $TA_lin_xfm
+#  rm -f $TA_nl_xfm
+#  rm -f $AT_nl_xfm
+#  rm -f $atlas_res
+#fi
