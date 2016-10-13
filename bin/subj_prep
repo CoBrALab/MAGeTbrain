@@ -9,6 +9,8 @@ xfm=$3
 modelsubject=$4
 cropmodel=$5
 
+xfminvert=$(dirname $xfm)/$(basename $xfm .xfm)_inverse.xfm
+
 #cropmodel=$(mktemp -d)/model.mnc
 #nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 {0} {1}'.format(subject.image, nuc_subject)
 #nu_correct -quiet -iter 100 -stop 0.0001 -fwhm 0.1 $subject $nucsubject
@@ -30,8 +32,7 @@ cropmodel=$5
 
 bestlinreg_g -clobber -noverbose -nmi -lsq12 $subject $cropmodel $xfm
 
-
-#xfminvert $xfm $xfminvert
+xfminvert $xfm $xfminvert
 
 #autocrop -from $resmodel -step $(mincinfo -attvalue xspace:step $subject) $(mincinfo -attvalue yspace:step $subject) $(mincinfo -attvalue zspace:step $subject) $resmodel $cropmodel
 
