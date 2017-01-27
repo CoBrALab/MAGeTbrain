@@ -1118,7 +1118,7 @@ class MAGeTBrain(object):
             command = 'object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)
             self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
           #print command
-          ref_obj = ''.join('/home/m/mchakrav/patelmo6/morph_reference/' + ostem + '_rot.obj')
+          ref_obj = ''.join('/project/m/mchakrav/atlases/morph_reference/' + ostem + '_rot.obj')
           kernel = ostem.startswith('gp_') and 3 or 5
           dp_blur='{0}/{1}_{2}_{3}mm_blur.txt'.format(displacement_dir, s.stem, ostem, kernel)
           if not os.path.exists(dp_blur):
@@ -1165,10 +1165,10 @@ class MAGeTBrain(object):
                 self.queue.append_commands(STAGE_VORN, [command])
 
               #TODO: need to confirm that it is _rot_vorn.txt thati want
-                #ref = ''.join('/home/m/mchakrav/patelmo6/morph_reference/' + kind + '_rot_vorn.txt')
+                #ref = ''.join('/project/m/mchakrav/atlases/morph_reference/' + kind + '_rot_vorn.txt')
                 #ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
               if not os.path.exists(vorn_sa):
-                ref = ''.join('/home/m/mchakrav/patelmo6/morph_reference/' + kind + '_rot_vorn.txt')
+                ref = ''.join('/project/m/mchakrav/atlases/morph_reference/' + kind + '_rot_vorn.txt')
                 command = 'vertstats_math -old_style_file -div {0} {1} {2}'.format(voronoi, ref, vorn_sa)
                 self.queue.append_commands(STAGE_MATH, [command])
                 #hack: determine the blurring kernal to use:
@@ -1176,7 +1176,7 @@ class MAGeTBrain(object):
                 #vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
                     #**vars())
                 #todo: blur surface
-              ref_obj = ''.join('/home/m/mchakrav/patelmo6/morph_reference/' + kind + '_rot.obj')
+              ref_obj = ''.join('/project/m/mchakrav/atlases/morph_reference/' + kind + '_rot.obj')
               #ref_obj = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot.obj')
               kernel = kind.startswith('gp_') and 3 or 5
               #kernel = 5
