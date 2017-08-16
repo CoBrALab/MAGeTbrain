@@ -19,6 +19,9 @@ To [cite MAGeTbrain in publications](CITATION), please use:
 > Pipitone J, Park MT, Winterburn J, et al. Multi-atlas segmentation of the whole hippocampus
 > and subfields using multiple automatically generated templates. Neuroimage. 2014;
 
+> M Mallar Chakravarty, Patrick Steadman, Matthijs C van Eede, Rebecca D Calcott, Victoria Gu, Philip Shaw, Armin Raznahan, D Louis Collins, and Jason P Lerch.
+> Performing label-fusion-based segmentation using multiple automatically generated templates. Hum Brain Mapp, 34(10):2635–54, October 2013. (doi:10.1002/hbm.22092)
+
 ## Dependencies
 
 In order to use MAGeTBrain, you will need to install: 
