@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# This is the default registration script for MAGeT brain.
+#
+# Currently, it operates on MINC files only.
+#
+# Registers <atlas> to <target> and outputs the resulting xfm to output.xfm
+# Intermediate XFMs and other files to go `dirname output.xfm`
+#
+# if atlas is in grand/parent/atlas.mnc, then grand/mask/atlas-mask.mnc is
+# checked for existence.  If so, it's used as a mask during non-linear
+# registration.
+#
+# usage:
+#      register <atlas.mnc> <target.mnc> <output.xfm>
+#
+set -euo pipefail
+atlas=$1
+target=$2
+output_xfm=$3
+
+atlas_stem=$(basename $atlas .mnc)
+atlas_labels=$(dirname $(dirname $atlas))/labels/${atlas_stem}_labels.mnc
+output_dir=$(dirname $output_xfm)
+AT_lin_xfm=$output_dir/ATlin.xfm
+TA_lin_xfm=$output_dir/ATlin_inverse.xfm
+TA_nl_xfm=$output_dir/TAnl.xfm
+AT_nl_xfm=$output_dir/TAnl_inverse.xfm
+atlas_res=$output_dir/linres.mnc
+atlas_crop_labels=$output_dir/atlascroplabels.mnc
+atlas_crop_mask=$output_dir/atlascropmask.mnc
+atlas_label_mask=$output_dir/labelmask.mnc
+atlas_res_label_mask=$output_dir/labelmasklinres.mnc
+
+if [ -e $atlas_labels ]; then
+  #Construct a mask from the label file input
+  #Crop the labels to their bounding box, fill with 1, reshape back
+  autocrop -bbox ${atlas_labels} -isoexpand 10mm ${atlas_labels} ${atlas_crop_labels}
+  minccalc -expression '1' ${atlas_crop_labels} ${atlas_crop_mask}
+  mincresample -unsigned -byte -keep -near -like ${atlas_labels} ${atlas_crop_mask} ${atlas_label_mask}
+  ANTS_MASK_ARGS="-x ${atlas_res_label_mask}"
+  BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
+fi
+
+# LINEAR
+if [ ! -e $AT_lin_xfm ]; then
+	bestlinreg_maget -nmi -lsq12 ${BESTLIN_MASK_ARGS} $atlas $target $AT_lin_xfm
+  xfminvert $AT_lin_xfm $TA_lin_xfm
+fi
+
+if [ ! -e $atlas_res ]; then
+  mincresample -sinc -like $target -transform $AT_lin_xfm $atlas $atlas_res
+
+fi
+
+if [ -e $atlas_labels ]; then
+  mincresample -unsigned -byte -keep -near -like $target -transform $AT_lin_xfm ${atlas_label_mask} ${atlas_res_label_mask}
+fi
+
+
+# NONLINEAR
+if [ ! -e $TA_nl_xfm ]; then
+  mincANTS 3 -m CC[$target,$atlas_res,1,4] \
+    ${ANTS_MASK_ARGS} \
+    --continue-affine false \
+    --use-Histogram-Matching 1 \
+    -r Gauss[3,0] \
+    -t SyN[0.5] \
+    -o $TA_nl_xfm \
+    -i 800x400x200x100x50x25
+fi
+
+if [ ! -e $output_xfm ]; then
+  xfmconcat $AT_lin_xfm $AT_nl_xfm $output_xfm
+fi
