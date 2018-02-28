@@ -9,7 +9,7 @@ import os.path
 from os.path import basename
 import subprocess
 import errno
-import fnmatch 
+import fnmatch
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +18,13 @@ def execute(command, input = "", dry_run = False):
     logger.debug("Running: " + command)
 
     o, e = ("", "")
- 
+
     if not dry_run:
-        proc = subprocess.Popen(command.split(), 
+        proc = subprocess.Popen(command.split(),
                                 stdin = subprocess.PIPE, stdout = subprocess.PIPE , stderr = subprocess.PIPE)
         o, e = proc.communicate(input)
         logger.debug("STDOUT: %s\nRETURN CODE: %i\nSTDERR: %s\n", o, proc.returncode, e)
-        if proc.returncode != 0: 
+        if proc.returncode != 0:
             raise Exception("Returns %i :: %s" %( proc.returncode, command ))
 
     return (o,e)
@@ -32,10 +32,10 @@ def execute(command, input = "", dry_run = False):
 def mkdirp(*p):
     """Like mkdir -p"""
     path = os.path.join(*p)
-         
+
     try:
         os.makedirs(path)
-    except OSError as exc: 
+    except OSError as exc:
         if exc.errno == errno.EEXIST:
             pass
         else: raise
@@ -44,44 +44,44 @@ def mkdirp(*p):
 if __name__ == "__main__":
     FORMAT = '%(asctime)-15s - %(levelname)s - %(message)s'
     logging.basicConfig(format=FORMAT, level=logging.INFO)
-    
+
     parser = OptionParser()
-    parser.set_usage("""%prog [options] <task_list> <chunk_size> <walltime> 
+    parser.set_usage("""%prog [options] <task_list> <chunk_size> <walltime>
     eg.     %prog jobs 50 03:00:00
-""")        
+""")
     parser.add_option("-n", dest="dry_run",
         action="store_true", default=False,
         help="Dry run.  No commands are executed, but script files are generated.")
     parser.add_option("--processes", dest="processes",
-        default=8, type="int", 
+        default=8, type="int",
         help="Number of processes to parallelize over.")
-    parser.add_option("--afterok_pattern", dest="afterok_pattern", 
+    parser.add_option("--afterok_pattern", dest="afterok_pattern",
         type="string", help="Existing jobs matching the given pattern as dependencies.")
     parser.add_option("--output_dir", dest="output_dir",
-        default="output", type="string", 
+        default="output", type="string",
         help="Path to output folder")
     parser.add_option("--logs_dir", dest="logs_dir",
-        default="logs", type="string", 
+        default="logs", type="string",
         help="Path to logs folder")
     parser.add_option("--batch_system", dest="batch_system",
         default="pbs", type="choice", choices=['pbs','sge'],
         help="Batch queueing system to use")
     parser.add_option("-N", dest="job_name",
-        default=None, type="string", 
+        default=None, type="string",
         help="Job name to use. Overrides task_list name")
     options, args = parser.parse_args()
-    
-    if len(args) != 3: 
+
+    if len(args) != 3:
         parser.error("Unexpected number of arguments.")
 
     task_list_name = args[0]
-    chunk_size     = int(args[1]) 
+    chunk_size     = int(args[1])
     walltime       = args[2]
 
     if task_list_name  == '-':
         task_list_name = 'STDIN'
         task_list      =  sys.stdin.readlines()
-    else: 
+    else:
         task_list  = open(task_list_name).readlines()
 
     if options.job_name:
@@ -89,13 +89,13 @@ if __name__ == "__main__":
 
     num_jobs       = int(math.ceil(len(task_list) / float(chunk_size)))
 
-    if options.batch_system == 'pbs': 
-      qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime), 
+    if options.batch_system == 'pbs':
+      qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime),
                       '-j oe',
-                      '-o %s' % options.logs_dir] 
+                      '-o %s' % options.logs_dir]
       qsub_option_prefix = '#PBS'
 
-      if options.afterok_pattern: 
+      if options.afterok_pattern:
         o, e = execute(r"""pbs_jobnames""")
         matching_jobids = []
         for row in o.strip().split("\n"):
@@ -103,46 +103,46 @@ if __name__ == "__main__":
             continue
           jobid, name = row.split()
           if fnmatch.fnmatch(name, options.afterok_pattern):
-            matching_jobids.append(jobid)        
+            matching_jobids.append(jobid)
         if matching_jobids:
             qsub_options.append('-W depend=afterok:' + ':'.join(matching_jobids))
-      
+
     elif options.batch_system == 'sge':
-      options.processes=1  # TODO: can we actually set this up properly? 
-      qsub_options = ['-l h_rt=%s' % walltime, 
+      options.processes=1  # TODO: can we actually set this up properly?
+      qsub_options = ['-l h_rt=%s' % walltime,
                       '-j yes',
                       '-o %s' % options.logs_dir,
-                      '-V', 
-                      '-cwd'] 
+                      '-V',
+                      '-cwd']
       qsub_option_prefix = '#$'
-       
+
     mkdirp('.scripts')
     if not options.dry_run:
         mkdirp(options.logs_dir)
 
     for chunk in range(num_jobs):
         scriptfile=".scripts/%s_%i" % (basename(task_list_name), chunk)
-        script = open(scriptfile, "w") 
-    
+        script = open(scriptfile, "w")
+
         script.write("#!/bin/bash\n")
 
-        for opt in qsub_options: 
+        for opt in qsub_options:
             script.write("%s %s\n" % (qsub_option_prefix,opt))
 
         if options.batch_system == 'pbs':
             script.write("module use -a /project/m/mchakrav/quarantine/modules\n")
-            script.write("module load scinet\n")
+            script.write("module load scinet-2017\n")
             script.write("export PATH=%s/bin:$PATH\n" % os.environ.get("MB_ENV", "~/MAGeTbrain"))
-            script.write("cd $PBS_O_WORKDIR\n") 
-            script.write("parallel -j%i <<TASKS\n" % options.processes) 
+            script.write("cd $PBS_O_WORKDIR\n")
+            script.write("parallel -j%i <<TASKS\n" % options.processes)
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
-            script.write("\nTASKS\n") 
+            script.write("\nTASKS\n")
         else:
             script.writelines(task_list[chunk*chunk_size:chunk*chunk_size+chunk_size])
             script.write("\n")
 
         script.close()
-        
+
         execute("chmod +x %s" % scriptfile)
         o, e = execute("qsub %s" % scriptfile, dry_run = options.dry_run)
         print "Submitting {0} (jobid: {1})".format(scriptfile, o.strip())
