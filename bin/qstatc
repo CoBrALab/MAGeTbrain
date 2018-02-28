@@ -1,6 +1,0 @@
-#!/bin/bash
-# 
-# Prints the number of jobs in each state in the queue
-#
-filter=${1:-"."}
-qstat | grep gpc-sched.*$filter | awk '{ print $5 }' | sort | uniq -c
