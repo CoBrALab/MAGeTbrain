@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 #
 # Joins together several xfm files, leaving the original displacement volumes
-# where they are. . 
+# where they are. .
 #
 # Note: this operation means that resulting xfm file uses absolute paths, and
-# so will become invalid if any of the displacement volumes are moved. 
+# so will become invalid if any of the displacement volumes are moved.
 #
 # Assuming the following structure for and XFM file:
 #
 #    MNI Transform File
-#    %Thu Jan 10 17:15:06 2013>>> minctracc .... 
-#    
+#    %Thu Jan 10 17:15:06 2013>>> minctracc ....
+#
 #    Transform_Type = Grid_Transform;
 #    Displacement_Volume = 0021_0295_0413_grid_0.mnc;
 #    Transform_Type = Linear;
@@ -34,52 +34,62 @@ import sys
 import copy
 import datetime
 import argparse
-from os import getcwd 
+from os import getcwd
 from os.path import dirname, normpath, join
+
 
 def _pop(l):
     while l and l[0].strip() == "":
         l.pop(0)
     return l and l.pop(0).strip() or None
 
+
 class Transform():
-    def __repr__(self): 
+
+    def __repr__(self):
         if self.type == "Transform_Type = Grid_Transform;":
-          if self.invert:
-            return "\n".join([self.type] + [self.invertvalue] + self.transform)        
+            if self.invert:
+                return "\n".join(
+                    [self.type] + [self.invertvalue] + self.transform)
 
         return "\n".join([self.type] + self.transform)
 
+
 class GridTransform(Transform):
-    def update_volume_path(self, relative_to = 'source'):
+
+    def update_volume_path(self, relative_to='source'):
         if relative_to == 'source':
             relative_to_path = dirname(self.fromfile)
-        else: 
+        else:
             relative_to_path = relative_to
-        
+
         xfmval = 0
         self.invert = False
-        
-        if len(self.transform) == 2:
-          self.invert = True
-          self.invertvalue = self.transform[0]
-          xfmval = 1
 
-        key, grid = map(lambda x: x.strip().strip(';'), self.transform[xfmval].split("="))
+        if len(self.transform) == 2:
+            self.invert = True
+            self.invertvalue = self.transform[0]
+            xfmval = 1
+
+        key, grid = map(
+            lambda x: x.strip().strip(';'),
+            self.transform[xfmval].split("="))
         grid = normpath(join(relative_to_path, grid))
         self.transform = ["%s = %s;" % (key, grid)]
 
-class XFM(): 
-    def __init__(self, xfmfile_path = None):
-        self.header  = None
-        self.history    = []
+
+class XFM():
+
+    def __init__(self, xfmfile_path=None):
+        self.header = None
+        self.history = []
         self.transforms = []
         self.xfmfile_path = xfmfile_path
 
-        if xfmfile_path: 
+        if xfmfile_path:
             self.populate(xfmfile_path)
 
-    def populate(self, xfmfile_path = None):
+    def populate(self, xfmfile_path=None):
 
         lines = open(xfmfile_path).readlines()
         while lines:
@@ -92,60 +102,73 @@ class XFM():
                 continue
 
             if line.startswith("Transform_Type = Grid_Transform;"):
-                transform = GridTransform() 
+                transform = GridTransform()
                 transform.fromfile = xfmfile_path
                 transform.type = line
                 next = _pop(lines)
-                #print next
+                # print next
                 if next.startswith("Invert_Flag = True;"):
-                  transform.transform = [ next, _pop(lines) ]
-                  #print transform.transform[0]
-                  #print transform.transform[1]
+                    transform.transform = [next, _pop(lines)]
+                    # print transform.transform[0]
+                    # print transform.transform[1]
                 else:
-                  transform.transform = [next]
+                    transform.transform = [next]
                 self.transforms.append(transform)
                 continue
             if line.startswith("Transform_Type = Linear;"):
-                transform = Transform() 
+                transform = Transform()
                 transform.fromfile = xfmfile_path
                 transform.type = line
-                transform.transform = [ _pop(lines), _pop(lines), _pop(lines), _pop(lines) ]
+                transform.transform = [
+                    _pop(lines),
+                    _pop(lines),
+                    _pop(lines),
+                    _pop(lines)]
                 self.transforms.append(transform)
                 continue
 
             print "Ignoring line:", line
-        
-    def __repr__(self):
-        return "\n".join([self.header] + self.history + map(str,self.transforms))
 
-    def merge(self, xfms, paths_relative_to = 'source'):
+    def __repr__(self):
+        return "\n".join([self.header] + self.history +
+                         map(str, self.transforms))
+
+    def merge(self, xfms, paths_relative_to='source'):
         for xfm in xfms:
             self.header = xfm.header
             self.history.extend(xfm.history)
             for transform in map(copy.deepcopy, xfm.transforms):
                 if isinstance(transform, GridTransform):
-                    transform.update_volume_path(relative_to = paths_relative_to)
-                self.transforms.append(transform)        
-        self.history.append("%% %s >> Merging %s" % (datetime.datetime.now().isoformat(), 
-                  ", ".join(map(lambda x: x.xfmfile_path, xfms))))
+                    transform.update_volume_path(relative_to=paths_relative_to)
+                self.transforms.append(transform)
+        self.history.append(
+            "%% %s >> Merging %s" %
+            (datetime.datetime.now().isoformat(),
+             ", ".join(map(lambda x: x.xfmfile_path, xfms))))
+
     def strip_linear_transforms(self):
         """Only includes grid transforms, removes everything else"""
-        self.history.append("%% {} >> Strip linear transforms".format(datetime.datetime.now().isoformat()))
-        self.transforms = filter(lambda x: isinstance(x, GridTransform), self.transforms)
+        self.history.append(
+            "%% {} >> Strip linear transforms".format(
+                datetime.datetime.now().isoformat()))
+        self.transforms = filter(
+            lambda x: isinstance(
+                x, GridTransform), self.transforms)
 
-def main(): 
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--nl-only', action='store_true', 
-      help="Joined XFM only includes non-linear parts")
-  parser.add_argument('xfm', nargs='+', help="XFM file to concatenate")
-  parser.add_argument('output_xfm', help="joined xfm")
-  options =  parser.parse_args()
 
-  merged_xfm = XFM()
-  merged_xfm.merge(map(XFM, options.xfm))
-  if options.nl_only: 
-    merged_xfm.strip_linear_transforms()
-  open(options.output_xfm, 'w').write(str(merged_xfm))
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--nl-only', action='store_true',
+                        help="Joined XFM only includes non-linear parts")
+    parser.add_argument('xfm', nargs='+', help="XFM file to concatenate")
+    parser.add_argument('output_xfm', help="joined xfm")
+    options = parser.parse_args()
 
-if __name__ == '__main__': 
-   main() 
+    merged_xfm = XFM()
+    merged_xfm.merge(map(XFM, options.xfm))
+    if options.nl_only:
+        merged_xfm.strip_linear_transforms()
+    open(options.output_xfm, 'w').write(str(merged_xfm))
+
+if __name__ == '__main__':
+    main()

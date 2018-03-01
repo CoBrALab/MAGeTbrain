@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-#Stolen from https://stackoverflow.com/questions/26104116/qstat-and-long-job-names
+# Stolen from
+# https://stackoverflow.com/questions/26104116/qstat-and-long-job-names
 import os
 import sys
 import xml.etree.ElementTree as ET
@@ -9,11 +10,11 @@ try:
 except:
     sys.exit()
 root = tree.getroot()
-#print "Job_Id   walltime state     nodes       Job_Name"
-#print "------   -------- ----- --------------- --------------------------"
+# print "Job_Id   walltime state     nodes       Job_Name"
+# print "------   -------- ----- --------------- --------------------------"
 for job in root:
-  print job.find('Job_Id').text, " ",
+    print job.find('Job_Id').text, " ",
 #  print job.find('resources_used').find('walltime').text, " ",
 #  print job.find('job_state').text, " ",
 #  print job.find('Resource_List').find('nodes').text, " ",
-  print job.find('Job_Name').text
+    print job.find('Job_Name').text
