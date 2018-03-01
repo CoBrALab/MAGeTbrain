@@ -15,6 +15,8 @@
 #      register <atlas.mnc> <target.mnc> <output.xfm>
 #
 set -euo pipefail
+set -x
+
 atlas=$1
 target=$2
 output_xfm=$3
@@ -29,28 +31,32 @@ AT_nl_xfm=$output_dir/TAnl_inverse.xfm
 atlas_res=$output_dir/linres.mnc
 atlas_res_mask=$output_dir/masklinres.mnc
 
+
 #If input mask exists, assume explicit, use it
-if [ -e $atlas_mask ]; then
+if [[ -s $atlas_mask ]]]; then
   ANTS_MASK_ARGS="-x ${atlas_res_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_mask}"
+else
+  ANTS_MASK_ARGS=""
+  BESTLIN_MASK_ARGS=""
 fi
 
 # LINEAR
-if [ ! -e $AT_lin_xfm ]; then
-	bestlinreg_maget -nmi -lsq12 ${BESTLIN_MASK_ARGS} $atlas $target $AT_lin_xfm
-  xfminvert $AT_lin_xfm $TA_lin_xfm
+if [[ ! -s $AT_lin_xfm ]]; then
+	bestlinreg_maget -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} $atlas $target $AT_lin_xfm
+  xfminvert -clobber $AT_lin_xfm $TA_lin_xfm
 fi
 
-if [ ! -e $atlas_res ]; then
-  mincresample -sinc -like $target -transform $AT_lin_xfm $atlas $atlas_res
+if [[ ! -s $atlas_res ]]; then
+  mincresample -clobber -sinc -like $target -transform $AT_lin_xfm $atlas $atlas_res
 fi
 
-if [ -e $atlas_mask ]; then
-  mincresample -unsigned -byte -keep -near -like $target -transform $AT_lin_xfm $atlas_mask ${atlas_res_mask}
+if [[ -s $atlas_mask ]]; then
+  mincresample -clobber -unsigned -byte -keep -near -like $target -transform $AT_lin_xfm $atlas_mask ${atlas_res_mask}
 fi
 
 # NONLINEAR
-if [ ! -e $TA_nl_xfm ]; then
+if [[ ! -s $TA_nl_xfm ]]; then
   mincANTS 3 -m CC[$target,$atlas_res,1,4] \
     ${ANTS_MASK_ARGS} \
     --continue-affine false \
@@ -61,6 +67,6 @@ if [ ! -e $TA_nl_xfm ]; then
     -i 800x400x200x100x50x25
 fi
 
-if [ ! -e $output_xfm ]; then
-  xfmconcat $AT_lin_xfm $AT_nl_xfm $output_xfm
+if [[ ! -s $output_xfm ]]; then
+  xfmconcat -clobber $AT_lin_xfm $AT_nl_xfm $output_xfm
 fi

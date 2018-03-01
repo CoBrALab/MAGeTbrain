@@ -4,6 +4,8 @@
 # image
 #
 set -euo pipefail
+set -x
+
 transform=$1
 like_image=$2
 source_label=$3
