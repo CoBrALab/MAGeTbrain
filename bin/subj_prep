@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 subject=$1
 resmodel=$2
@@ -8,7 +8,7 @@ xfm=$3
 modelsubject=$4
 cropmodel=$5
 
-bestlinreg_maget -nmi -lsq12 $subject $cropmodel $xfm
-xfminvert $xfm $(dirname $xfm)/$(basename $xfm .xfm)_inverse.xfm
+bestlinreg_maget -clobber -nmi -lsq12 $subject $cropmodel $xfm
+xfminvert -clobber $xfm $(dirname $xfm)/$(basename $xfm .xfm)_inverse.xfm
 
-mincresample -sinc -like $cropmodel -2 -transform $xfm $subject $modelsubject
+mincresample -clobber -sinc -like $cropmodel -2 -transform $xfm $subject $modelsubject
