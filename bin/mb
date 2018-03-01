@@ -1,6 +1,6 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 #
-# Perform MAGeT brain segmentation 
+# Perform MAGeT brain segmentation
 #
 #
 import glob
@@ -19,49 +19,51 @@ import datetime
 from os.path import join, exists, basename, dirname
 
 # Stages
-STAGE_NONE      = 'NONE'           # not a stage
-STAGE_REG_ATLAS = 'mb_templatelib' # register all atlases to templates
-STAGE_REG_TEMPL = 'mb_subject_reg' # register all templates to subjects
-STAGE_XFM_JOIN  = 'mb_xfm_join'    # register all templates to subjects
-STAGE_RESAMPLE  = 'mb_label_prop'  # resample all atlas labels to subject space
-STAGE_VOTE      = 'mb_voting'      # vote
-STAGE_TAR       = 'mb_tar'         # tar up
+STAGE_NONE = 'NONE'           # not a stage
+STAGE_REG_ATLAS = 'mb_templatelib'  # register all atlases to templates
+STAGE_REG_TEMPL = 'mb_subject_reg'  # register all templates to subjects
+STAGE_XFM_JOIN = 'mb_xfm_join'    # register all templates to subjects
+STAGE_RESAMPLE = 'mb_label_prop'  # resample all atlas labels to subject space
+STAGE_VOTE = 'mb_voting'      # vote
+STAGE_TAR = 'mb_tar'         # tar up
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
-# Until then, this is dictionary containing: 
+# Until then, this is dictionary containing:
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
-stage_queue_hints = {  
-  STAGE_REG_ATLAS: {'procs':    4, 'walltime': '6:00:00'},
-  STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
-  STAGE_XFM_JOIN:  {'procs': None, 'walltime': '0:10:00'},
-  STAGE_RESAMPLE:  {'procs': None, 'walltime': '1:00:00'}, 
-  STAGE_VOTE:      {'procs':    1, 'walltime': '8:00:00'},
-  STAGE_TAR:       {'procs':    8, 'walltime': '1:00:00'}}
+stage_queue_hints = {
+    STAGE_REG_ATLAS: {'procs': 4, 'walltime': '6:00:00'},
+    STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
+    STAGE_XFM_JOIN: {'procs': None, 'walltime': '0:10:00'},
+    STAGE_RESAMPLE: {'procs': None, 'walltime': '1:00:00'},
+    STAGE_VOTE: {'procs': 1, 'walltime': '8:00:00'},
+    STAGE_TAR: {'procs': 8, 'walltime': '1:00:00'}}
 
 # stage descriptions
 stage_description = {
-  STAGE_REG_ATLAS: 'atlas-to-template registration', 
-  STAGE_REG_TEMPL: 'template-to-subject registration',
-  STAGE_XFM_JOIN:  'transform merging',
-  STAGE_RESAMPLE:  'label propagation', 
-  STAGE_VOTE:      'label fusion', 
-  STAGE_TAR:       'tar intermediate files', 
+    STAGE_REG_ATLAS: 'atlas-to-template registration',
+    STAGE_REG_TEMPL: 'template-to-subject registration',
+    STAGE_XFM_JOIN: 'transform merging',
+    STAGE_RESAMPLE: 'label propagation',
+    STAGE_VOTE: 'label fusion',
+    STAGE_TAR: 'tar intermediate files',
 }
 
 # file/folder defaults
 XFM = "nl.xfm"
 
-class SpecialFormatter(logging.Formatter):
-  FORMATS = {logging.DEBUG :"DBG: MOD %(module)s: LINE %(lineno)d: %(message)s",
-             logging.ERROR : "ERROR: %(message)s",
-             logging.INFO : "%(message)s",
-             'DEFAULT' : "%(levelname)s: %(message)s"}
 
-  def format(self, record):
-    self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
-    return logging.Formatter.format(self, record)
+class SpecialFormatter(logging.Formatter):
+    FORMATS = {
+        logging.DEBUG: "DBG: MOD %(module)s: LINE %(lineno)d: %(message)s",
+        logging.ERROR: "ERROR: %(message)s",
+        logging.INFO: "%(message)s",
+        'DEFAULT': "%(levelname)s: %(message)s"}
+
+    def format(self, record):
+        self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
+        return logging.Formatter.format(self, record)
 
 hdlr = logging.StreamHandler(sys.stderr)
 hdlr.setFormatter(SpecialFormatter())
@@ -69,615 +71,712 @@ logging.root.addHandler(hdlr)
 logging.root.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
-def main(): 
-  """Main driver."""
-  class DefaultHelpParser(argparse.ArgumentParser):
-      def error(self, message):
-          sys.stderr.write('error: %s\n' % message)
-          self.print_help()
-          sys.exit(2)
 
-  parser = DefaultHelpParser()
-  parser.add_argument("--save", default=False, action="store_true", 
-    help="Save intermediate files (e.g. registrations, candidate labels)")
+def main():
+    """Main driver."""
+    class DefaultHelpParser(argparse.ArgumentParser):
 
-  # In/out directory options
-  group = parser.add_argument_group(title="Folder options")
-  group.add_argument("--output_dir", default="output", 
-    type=os.path.abspath, metavar='', 
-    help="Top-level folder for all output")
-  group.add_argument("--input_dir",   default="input", 
-    type=os.path.abspath, metavar='', 
-    help="Directory containing atlas, template and subject libraries")
-  group.add_argument("--reg_dir",   default="output/registrations", 
-    type=os.path.abspath, metavar='',
-    help="Directory containing registrations")
+        def error(self, message):
+            sys.stderr.write('error: %s\n' % message)
+            self.print_help()
+            sys.exit(2)
 
-  # subcommands
-  subparsers = parser.add_subparsers(title='Commands', metavar='')
+    parser = DefaultHelpParser()
+    parser.add_argument(
+        "--save", default=False, action="store_true",
+        help="Save intermediate files (e.g. registrations, candidate labels)")
 
-  # init : prepare a folder for use by the pipeline
-  #################################################
-  parser_init = subparsers.add_parser('init', help='Create an empty MAGeT brain folder structure')
-  parser_init.add_argument('folder', default='.', nargs='?')
-  parser_init.set_defaults(func=command_init)
+    # In/out directory options
+    group = parser.add_argument_group(title="Folder options")
+    group.add_argument("--output_dir", default="output",
+                       type=os.path.abspath, metavar='',
+                       help="Top-level folder for all output")
+    group.add_argument(
+        "--input_dir",
+        default="input",
+        type=os.path.abspath,
+        metavar='',
+        help="Directory containing atlas, template and subject libraries")
+    group.add_argument("--reg_dir", default="output/registrations",
+                       type=os.path.abspath, metavar='',
+                       help="Directory containing registrations")
 
-  # run : run the stages in the MAGeT pipeline
-  ############################################
-  parser_run = subparsers.add_parser('run', help='Start the MAGeT brain pipeline')
-  parser_run.add_argument('stage', choices=['vanilla',
-                                            'register', 
-                                            'vote'],
-                                   nargs='?', # makes stage optional
-                                   default = 'vanilla',
-                                   help="stage to run")
-  parser_run.add_argument('folder', default='.', nargs='?')
-  parser_run.set_defaults(func=command_run)
+    # subcommands
+    subparsers = parser.add_subparsers(title='Commands', metavar='')
 
-  # subject selection options
-  group = parser_run.add_argument_group(title="Subject selection")
-  group.add_argument("-s", "--subject", default=None,
-      metavar="ID", 
-      help="Subject ID (no file extension) to operate on")
+    # init : prepare a folder for use by the pipeline
+    #################################################
+    parser_init = subparsers.add_parser(
+        'init', help='Create an empty MAGeT brain folder structure')
+    parser_init.add_argument('folder', default='.', nargs='?')
+    parser_init.set_defaults(func=command_init)
 
-  # Registration options
-  group = parser_run.add_argument_group(title="Registration")
-  group.add_argument("--register_cmd", default="mb_register", 
-    metavar='CMD',
-    help="Command to register two images and output a transform. "
-         "This command needs to accept the source image, target image "
-         "and output transformation file as arguments, in this order.")
-           
-  # Execution options
-  group = parser_run.add_argument_group(title="Execution options")
-  group.add_argument('-q', '--queue', choices=['parallel', 'qbatch','files'],
-                                   default = 'qbatch',
-                                   help="Queueing method to use")
-  group.add_argument("-n", dest="dry_run", default=False,
-    action="store_true", help="Dry run. Show what would happen.")
-  group.add_argument("-j", "--processes", default=8, 
-    type=int, metavar='N',
-    help="Number of processes to parallelize over.")
-  group.add_argument("--clobber", default=False, 
-      action="store_true",
-      help="Overwrite output if it exists")
-  group.add_argument("--stage-templatelib-walltime", 
-          default=stage_queue_hints[STAGE_REG_ATLAS]['walltime'], 
-          metavar="<walltime>", 
-          help="Walltime for jobs submitted to build the template library.")
-  group.add_argument("--stage-templatelib-procs", 
-          default=stage_queue_hints[STAGE_REG_ATLAS]['procs'], 
-          metavar="<procs>", type=int,
-          help="Number of processes to run per node when building the template library.")
-  group.add_argument("--stage-voting-walltime", 
-          default=stage_queue_hints[STAGE_VOTE]['walltime'], 
-          metavar="<walltime>", 
-          help="Walltime for jobs submitted to do label fusion.")
-  group.add_argument("--stage-voting-procs", 
-          default=stage_queue_hints[STAGE_VOTE]['procs'], 
-          metavar="<procs>", type=int,
-          help="Number of processes to run per node when doing label fusion.")
+    # run : run the stages in the MAGeT pipeline
+    ############################################
+    parser_run = subparsers.add_parser(
+        'run', help='Start the MAGeT brain pipeline')
+    parser_run.add_argument('stage', choices=['vanilla',
+                                              'register',
+                                              'vote'],
+                            nargs='?',  # makes stage optional
+                            default='vanilla',
+                            help="stage to run")
+    parser_run.add_argument('folder', default='.', nargs='?')
+    parser_run.set_defaults(func=command_run)
 
-  # check : sanity checks on inputs and MAGeT run-state
-  #####################################################
-  parser_check = subparsers.add_parser('check', 
-    help='Run sanity checks on the inputs and configuration')
-  parser_check.add_argument('folder', default='.', nargs='?')
-  parser_check.set_defaults(func=command_check)
+    # subject selection options
+    group = parser_run.add_argument_group(title="Subject selection")
+    group.add_argument("-s", "--subject", default=None,
+                       metavar="ID",
+                       help="Subject ID (no file extension) to operate on")
 
-  # status : output status of each stage
-  #####################################################
-  parser_status = subparsers.add_parser('status', 
-    help='Show status of completed work')
-  parser_status.add_argument('folder', default='.', nargs='?')
-  parser_status.add_argument_group(title="Subject selection")
-  parser_status.add_argument("-s", "--subject", default=None,
-    metavar="ID", 
-    help="Subject ID (no file extension) to operate on")
-  parser_status.set_defaults(func=command_status)
-  parser_status.set_defaults(register_cmd='')
+    # Registration options
+    group = parser_run.add_argument_group(title="Registration")
+    group.add_argument(
+        "--register_cmd", default="mb_register", metavar='CMD',
+        help="Command to register two images and output a transform. "
+        "This command needs to accept the source image, target image "
+        "and output transformation file as arguments, in this order.")
 
-  # import : import atlases into the current project
-  #####################################################
-  parser_import = subparsers.add_parser('import', 
-    help='Import an atlas into the current project')
-  parser_import.add_argument('-l', '--link', default=False, 
-    action='store_true', help="Symlink, rather than, copy files.")
-  parser_import.add_argument('image')
-  parser_import.add_argument('label_file')
-  parser_import.set_defaults(func=command_import)
+    # Execution options
+    group = parser_run.add_argument_group(title="Execution options")
+    group.add_argument(
+        '-q',
+        '--queue',
+        choices=[
+            'parallel',
+            'qbatch',
+            'files'],
+        default='qbatch',
+        help="Queueing method to use")
+    group.add_argument(
+        "-n",
+        dest="dry_run",
+        default=False,
+        action="store_true",
+        help="Dry run. Show what would happen.")
+    group.add_argument("-j", "--processes", default=8,
+                       type=int, metavar='N',
+                       help="Number of processes to parallelize over.")
+    group.add_argument("--clobber", default=False,
+                       action="store_true",
+                       help="Overwrite output if it exists")
+    group.add_argument(
+        "--stage-templatelib-walltime",
+        default=stage_queue_hints[STAGE_REG_ATLAS]['walltime'],
+        metavar="<walltime>",
+        help="Walltime for jobs submitted to build the template library.")
+    group.add_argument(
+        "--stage-templatelib-procs",
+        default=stage_queue_hints[STAGE_REG_ATLAS]['procs'],
+        metavar="<procs>", type=int,
+        help="Number of processes to run per node when building the template library.")
+    group.add_argument("--stage-voting-walltime",
+                       default=stage_queue_hints[STAGE_VOTE]['walltime'],
+                       metavar="<walltime>",
+                       help="Walltime for jobs submitted to do label fusion.")
+    group.add_argument(
+        "--stage-voting-procs",
+        default=stage_queue_hints[STAGE_VOTE]['procs'],
+        metavar="<procs>",
+        type=int,
+        help="Number of processes to run per node when doing label fusion.")
 
-  options = parser.parse_args()
-  options.func(options)
+    # check : sanity checks on inputs and MAGeT run-state
+    #####################################################
+    parser_check = subparsers.add_parser(
+        'check', help='Run sanity checks on the inputs and configuration')
+    parser_check.add_argument('folder', default='.', nargs='?')
+    parser_check.set_defaults(func=command_check)
+
+    # status : output status of each stage
+    #####################################################
+    parser_status = subparsers.add_parser('status',
+                                          help='Show status of completed work')
+    parser_status.add_argument('folder', default='.', nargs='?')
+    parser_status.add_argument_group(title="Subject selection")
+    parser_status.add_argument(
+        "-s", "--subject", default=None, metavar="ID",
+        help="Subject ID (no file extension) to operate on")
+    parser_status.set_defaults(func=command_status)
+    parser_status.set_defaults(register_cmd='')
+
+    # import : import atlases into the current project
+    #####################################################
+    parser_import = subparsers.add_parser(
+        'import', help='Import an atlas into the current project')
+    parser_import.add_argument(
+        '-l', '--link', default=False, action='store_true',
+        help="Symlink, rather than, copy files.")
+    parser_import.add_argument('image')
+    parser_import.add_argument('label_file')
+    parser_import.set_defaults(func=command_import)
+
+    options = parser.parse_args()
+    options.func(options)
+
 
 def get_inputs(options):
-  atlases   = Template.get_templates(join(options.input_dir, 'atlases'))
-  templates = Template.get_templates(join(options.input_dir, 'templates'))
-  subjects  = Template.get_templates(join(options.input_dir, 'subjects'))
+    atlases = Template.get_templates(join(options.input_dir, 'atlases'))
+    templates = Template.get_templates(join(options.input_dir, 'templates'))
+    subjects = Template.get_templates(join(options.input_dir, 'subjects'))
 
-  if options.subject: 
-    subjects = [s for s in subjects if s.stem == options.subject]
-   
-  logger.info('{0} atlases, {1} templates, {2} subjects found'.format(
-    len(atlases), len(templates), len(subjects)))
+    if options.subject:
+        subjects = [s for s in subjects if s.stem == options.subject]
 
-  return (atlases, templates, subjects)
+    logger.info('{0} atlases, {1} templates, {2} subjects found'.format(
+        len(atlases), len(templates), len(subjects)))
 
-def command_run(options): 
-  """Entry point from the command line to start the MAGeT pipeline"""
-    
-  # Run through sanity checks
-  command_check(options)
-  atlases, templates, subjects = get_inputs(options)
+    return (atlases, templates, subjects)
 
-  if options.queue == "qbatch": 
-    queue = QBatchCommandQueue(processors=options.processes)
-  elif options.queue == "parallel":
-    queue = ParallelCommandQueue(processors=options.processes)
-  elif options.queue == "files":
-    queue = FilesCommandQueue(processors=options.processes)
 
-    # if using the 'files' queue, there is no point in making a temporary folder
-    # in /tmp, so we turn on the --save option
-    options.save = True
-  else:
-    queue = CommandQueue()
-  queue.set_dry_run(options.dry_run)
+def command_run(options):
+    """Entry point from the command line to start the MAGeT pipeline"""
 
-  if options.dry_run:
-    logging.root.setLevel(logging.DEBUG)
+    # Run through sanity checks
+    command_check(options)
+    atlases, templates, subjects = get_inputs(options)
 
-  # update the stage queue settings based on command-line options
-  stage_queue_hints[STAGE_REG_ATLAS]['walltime'] = options.stage_templatelib_walltime 
-  stage_queue_hints[STAGE_REG_ATLAS]['procs'] = options.stage_templatelib_procs 
-  stage_queue_hints[STAGE_VOTE]['walltime'] = options.stage_voting_walltime 
-  stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs 
+    if options.queue == "qbatch":
+        queue = QBatchCommandQueue(processors=options.processes)
+    elif options.queue == "parallel":
+        queue = ParallelCommandQueue(processors=options.processes)
+    elif options.queue == "files":
+        queue = FilesCommandQueue(processors=options.processes)
 
-  # we could be running one of many different stages depending on what is
-  # specified on the command line. 
-  # 
-  #   vanilla  - run the basic MAGeT brain pipeline
-  #   register - run the register stage (atlas to template)
-  #   vote     - vote on subjects
-  #
-  # Depending on the stage chosen, and configuration options, we might submit
-  # jobs to a queue or simply run jobs locally. 
-  # 
-  # Additionally, we may even submit jobs that re-run the pipeline (or specific
-  # stages of it).
-  #
-  # The plan: 
-  # run atlas registration jobs
-  # all following jobs depend on these jobs being completed
-  # CASE: we're submitting jobs to a batch queue
+        # if using the 'files' queue, there is no point in making a temporary folder
+        # in /tmp, so we turn on the --save option
+        options.save = True
+    else:
+        queue = CommandQueue()
+    queue.set_dry_run(options.dry_run)
+
+    if options.dry_run:
+        logging.root.setLevel(logging.DEBUG)
+
+    # update the stage queue settings based on command-line options
+    stage_queue_hints[STAGE_REG_ATLAS][
+        'walltime'] = options.stage_templatelib_walltime
+    stage_queue_hints[STAGE_REG_ATLAS][
+        'procs'] = options.stage_templatelib_procs
+    stage_queue_hints[STAGE_VOTE]['walltime'] = options.stage_voting_walltime
+    stage_queue_hints[STAGE_VOTE]['procs'] = options.stage_voting_procs
+
+    # we could be running one of many different stages depending on what is
+    # specified on the command line.
+    #
+    #   vanilla  - run the basic MAGeT brain pipeline
+    #   register - run the register stage (atlas to template)
+    #   vote     - vote on subjects
+    #
+    # Depending on the stage chosen, and configuration options, we might submit
+    # jobs to a queue or simply run jobs locally.
+    #
+    # Additionally, we may even submit jobs that re-run the pipeline (or specific
+    # stages of it).
+    #
+    # The plan:
+    # run atlas registration jobs
+    # all following jobs depend on these jobs being completed
+    # CASE: we're submitting jobs to a batch queue
     # for each subject, submit a voting job to the queue that runs locally
-  # CASE: we're running locally
-    # for each subject, run each stage in sequence  
-  # CASE: we're submitting jobs to a non-batching queue 
+    # CASE: we're running locally
+    # for each subject, run each stage in sequence
+    # CASE: we're submitting jobs to a non-batching queue
     # for each subject, submit jobs from stage in sequence, depending on the
     # former stages
-  # IN ALL CASES (optional): 
+    # IN ALL CASES (optional):
     # on error, re-run ourselves at least n times to handle any errors
     # that are due to flakey filesystems, etc..
 
-  p = MAGeTBrain(options, atlases, templates, subjects)
-  p.set_queue(queue) 
+    p = MAGeTBrain(options, atlases, templates, subjects)
+    p.set_queue(queue)
 
-  if options.stage == "register": 
-    p.stage_register_atlases() 
-  elif options.stage == "vote": 
+    if options.stage == "register":
+        p.stage_register_atlases()
+    elif options.stage == "vote":
+        p.stage_vote()
+    elif options.stage == "vanilla":
+        p.stage_register_atlases()
+        if options.queue == 'qbatch':  # submit each subject's voting as a separate job
+            for subject in subjects:
+                _, label = p.fused_label_path(subject)
+                if exists(label):
+                    continue
+                # HACK the command line to run the voting stage next
+                commandline = ' '.join(sys.argv)
+                commandline = commandline.replace('vanilla', '')
+                commandline = commandline.replace(
+                    'run', 'run vote -s ' + subject.stem)
+                if ' -q ' in commandline:
+                    commandline = commandline.replace(
+                        '-q qbatch', '-q parallel')
+                else:
+                    commandline = commandline + ' -q parallel'
+
+                p.queue.append_commands(STAGE_VOTE, [commandline])
+        else:  # we aren't in batch mode
+            warning("'vanilla' mode only works for the 'qbatch' queue.")
+            warning("Other queues treat this as stage as 'register'. " +
+                    "You will need to run the 'voting' stage separately.")
+    p.run()
+
+
+def command_init(options):
+    """Entry point from the command line to init a folder for MAGeT brain"""
+    mkdirp(options.folder, 'input', 'atlases', 'brains')
+    mkdirp(options.folder, 'input', 'atlases', 'labels')
+    mkdirp(options.folder, 'input', 'templates', 'brains')
+    mkdirp(options.folder, 'input', 'subjects', 'brains')
+
+
+def command_check(options):
+    """Entry point from the command line to init a folder for MAGeT brain"""
+    projectdir = options.folder
+
+    # check that input folders exist
+    error_if_dne(options.input_dir,
+                 "The root input folder: {0} does not exist.")
+    error_if_dne(join(options.input_dir, 'atlases'),
+                 "{0} folder does not exist.")
+    error_if_dne(join(options.input_dir, 'atlases', 'brains'),
+                 "{0} folder does not exist.")
+    error_if_dne(join(options.input_dir, 'atlases', 'labels'),
+                 "{0} folder does not exist.")
+    error_if_dne(join(options.input_dir, 'templates'),
+                 "{0} folder does not exist.")
+    error_if_dne(join(options.input_dir, 'templates', 'brains'),
+                 "{0} folder does not exist.")
+    error_if_dne(join(options.input_dir, 'subjects'),
+                 "{0} folder does not exist.")
+    error_if_dne(join(options.input_dir, 'subjects', 'brains'),
+                 "{0} folder does not exist.")
+
+    # check that atlases exist, and have labels
+    atlas_dir = join(options.input_dir, 'atlases')
+    atlases = Template.get_templates(atlas_dir)
+    if len(atlases) == 0:
+        error("No atlases found in input folder {0}".format(atlas_dir))
+    if len(atlases) % 2 == 0:
+        warning("{0} atlases found. Use an odd number for best results".format(
+            len(atlases)))
+    for a in atlases:
+        if not a.labels:
+            error("Labels for atlas image {0} not found".format(a.image))
+
+    # check that templates and subjects exist
+    templates_dir = join(options.input_dir, 'templates')
+    templates = Template.get_templates(templates_dir)
+    if len(templates) == 0:
+        error("No templates found in input folder {0}".format(templates_dir))
+    if len(templates) % 2 == 0:
+        warning(
+            "{0} templates found. Use an odd number for best results".format(
+                len(templates)))
+
+    subjects_dir = join(options.input_dir, 'subjects')
+    subjects = Template.get_templates(subjects_dir)
+    if len(subjects) == 0:
+        error("No subjects found in input folder {0}".format(subjects_dir))
+
+
+def command_status(options):
+    """Entry point from the command line to status command"""
+    command_check(options)
+    atlases, templates, subjects = get_inputs(options)
+    p = MAGeTBrain(options, atlases, templates, subjects)
+    p.set_queue(CommandQueue())
+    p.queue.set_dry_run(True)
+    p.stage_register_atlases()
     p.stage_vote()
-  elif options.stage == "vanilla": 
-    p.stage_register_atlases() 
-    if options.queue == 'qbatch':  # submit each subject's voting as a separate job
-      for subject in subjects:
-	_, label = p.fused_label_path(subject) 
-	if exists(label):
-	  continue
-	# HACK the command line to run the voting stage next
-	commandline = ' '.join(sys.argv)
-	commandline = commandline.replace('vanilla', '')
-	commandline = commandline.replace('run', 'run vote -s ' + subject.stem)
-	if ' -q ' in commandline:
-	  commandline = commandline.replace('-q qbatch', '-q parallel')
-	else:
-	  commandline = commandline + ' -q parallel'
-    
-	p.queue.append_commands(STAGE_VOTE, [commandline])
-    else:  # we aren't in batch mode
-	warning("'vanilla' mode only works for the 'qbatch' queue.")
-        warning("Other queues treat this as stage as 'register'. " + 
-                "You will need to run the 'voting' stage separately.") 
-  p.run()
- 
-def command_init(options): 
-  """Entry point from the command line to init a folder for MAGeT brain"""
-  mkdirp(options.folder, 'input', 'atlases', 'brains')
-  mkdirp(options.folder, 'input', 'atlases', 'labels')
-  mkdirp(options.folder, 'input', 'templates', 'brains')
-  mkdirp(options.folder, 'input', 'subjects', 'brains')
 
-def command_check(options): 
-  """Entry point from the command line to init a folder for MAGeT brain"""
-  projectdir = options.folder
+    for stage in filter(
+            lambda s: s in p.queue.commands.keys(),
+            p._get_stage_order()):
+        logger.info("{0} {1} commands left".format(
+            len(p.queue.commands[stage]), stage_description[stage]))
 
-  # check that input folders exist
-  error_if_dne(options.input_dir, 
-    "The root input folder: {0} does not exist.")
-  error_if_dne(join(options.input_dir, 'atlases'), 
-    "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'atlases', 'brains'), 
-    "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'atlases', 'labels'), 
-    "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'templates'), 
-    "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'templates', 'brains'), 
-    "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'subjects'), 
-    "{0} folder does not exist.")
-  error_if_dne(join(options.input_dir, 'subjects', 'brains'), 
-    "{0} folder does not exist.")
 
-  # check that atlases exist, and have labels
-  atlas_dir = join(options.input_dir, 'atlases')
-  atlases   = Template.get_templates(atlas_dir)
-  if len(atlases) == 0: 
-    error("No atlases found in input folder {0}".format(atlas_dir))
-  if len(atlases) % 2 == 0: 
-    warning("{0} atlases found. Use an odd number for best results".format(
-        len(atlases)))
-  for a in atlases: 
-    if not a.labels: 
-      error("Labels for atlas image {0} not found".format(a.image))
-    
-  # check that templates and subjects exist
-  templates_dir = join(options.input_dir, 'templates')
-  templates     = Template.get_templates(templates_dir)
-  if len(templates) == 0: 
-    error("No templates found in input folder {0}".format(templates_dir))
-  if len(templates) % 2 == 0: 
-    warning("{0} templates found. Use an odd number for best results".format(
-        len(templates)))
+def command_import(options):
+    """Entry point for the import command"""
+    atlases_brains = join(options.input_dir, 'atlases', 'brains')
+    atlases_labels = join(options.input_dir, 'atlases', 'labels')
 
-  subjects_dir = join(options.input_dir, 'subjects')
-  subjects     = Template.get_templates(subjects_dir)
-  if len(subjects) == 0: 
-    error("No subjects found in input folder {0}".format(subjects_dir))
+    error_if_dne(atlases_brains, "Folder {0} does not exist")
+    error_if_dne(atlases_labels, "Folder {0} does not exist")
+    error_if_dne(options.image, "Image {0} does not exist")
+    error_if_dne(options.label_file, "Label file {0} does not exist")
+    template = Template(options.image, options.label_file)
+    dest_image = join(atlases_brains, '{0}.mnc'.format(template.stem))
+    dest_labels = join(atlases_labels, '{0}_labels.mnc'.format(template.stem))
 
-def command_status(options): 
-  """Entry point from the command line to status command"""
-  command_check(options)
-  atlases, templates, subjects = get_inputs(options)
-  p = MAGeTBrain(options, atlases, templates, subjects)
-  p.set_queue(CommandQueue()) 
-  p.queue.set_dry_run(True)
-  p.stage_register_atlases() 
-  p.stage_vote()
-  
-  for stage in filter(lambda s: s in p.queue.commands.keys(), p._get_stage_order()):
-    logger.info("{0} {1} commands left".format(
-      len(p.queue.commands[stage]), stage_description[stage]))
+    if options.link:
+        os.symlink(os.path.abspath(options.image), dest_image)
+        os.symlink(os.path.abspath(options.label_file), dest_labels)
+    else:
+        shutil.copyfile(options.image, dest_image)
+        shutil.copyfile(options.label_file, dest_labels)
 
-def command_import(options): 
-  """Entry point for the import command"""
-  atlases_brains = join(options.input_dir, 'atlases', 'brains')
-  atlases_labels = join(options.input_dir, 'atlases', 'labels')
 
-  error_if_dne(atlases_brains, "Folder {0} does not exist")
-  error_if_dne(atlases_labels, "Folder {0} does not exist")
-  error_if_dne(options.image, "Image {0} does not exist")
-  error_if_dne(options.label_file, "Label file {0} does not exist")
-  template = Template(options.image, options.label_file)
-  dest_image  = join(atlases_brains, '{0}.mnc'.format(template.stem))
-  dest_labels = join(atlases_labels, '{0}_labels.mnc'.format(template.stem))
+def error_if_dne(path, message, errno=1):
+    if not exists(path):
+        error(message.format(path), errno)
 
-  if options.link:
-    os.symlink(os.path.abspath(options.image), dest_image)
-    os.symlink(os.path.abspath(options.label_file), dest_labels)
-  else:
-    shutil.copyfile(options.image, dest_image)
-    shutil.copyfile(options.label_file, dest_labels)
 
-def error_if_dne(path, message, errno = 1):
-  if not exists(path): 
-    error(message.format(path), errno)
+def error(message, errno=1):
+    """Print the error message and exit"""
+    logger.error(message)
+    sys.exit(errno)
 
-def error(message, errno = 1):
-  """Print the error message and exit"""
-  logger.error(message)
-  sys.exit(errno) 
 
 def warning(message):
-  """Print the warning message"""
-  logger.warn(message)
+    """Print the warning message"""
+    logger.warn(message)
 
-### Pipeline construction
+# Pipeline construction
+
+
 class CommandQueue(object):
-  def __init__(self): 
-    self.commands = {}  # stage -> [command, ...]
-    self.dry_run = False 
 
-  def set_dry_run(self, state): 
-    self.dry_run = state
+    def __init__(self):
+        self.commands = {}  # stage -> [command, ...]
+        self.dry_run = False
 
-  def append_commands(self, stage, commands):
-    command_list = self.commands.get(stage, [])
-    command_list.extend(commands)
-    self.commands[stage] = command_list
+    def set_dry_run(self, state):
+        self.dry_run = state
 
-  def run(self, stages = []):
-    """Runs the given stages, in order, or all if none are supplied"""
-    if not stages: 
-      stages = self.commands.keys()
+    def append_commands(self, stage, commands):
+        command_list = self.commands.get(stage, [])
+        command_list.extend(commands)
+        self.commands[stage] = command_list
 
-    for stage in [s for s in stages if s in self.commands.keys()]:
-      for command in self.commands[stage]:
-        self.execute(command)
+    def run(self, stages=[]):
+        """Runs the given stages, in order, or all if none are supplied"""
+        if not stages:
+            stages = self.commands.keys()
 
-  def __str__(self): 
-    __str = 'Pipeline:\n'
-    for stage, commands in self.commands.items():
-      __str += 'STAGE: {0}\n'.format(stage)
-      __str += '  '+'\n  '.join(commands)
-    return __str
+        for stage in [s for s in stages if s in self.commands.keys()]:
+            for command in self.commands[stage]:
+                self.execute(command)
 
-  def execute(self, command, input = ""):
-    """Spins off a subprocess to run the cgiven command"""
-    if input:
-      logger.debug("exec: {0}\n\t{1}".format(command, input.replace('\n','\n\t')))
-    else:
-      logger.debug("exec: " + command) 
+    def __str__(self):
+        __str = 'Pipeline:\n'
+        for stage, commands in self.commands.items():
+            __str += 'STAGE: {0}\n'.format(stage)
+            __str += '  ' + '\n  '.join(commands)
+        return __str
 
-    if self.dry_run: 
-      return
-    proc = subprocess.Popen(command.split(), 
-             stdin = subprocess.PIPE, stdout = 2, stderr = 2)
-    proc.communicate(input)
-    if proc.returncode != 0: 
-      raise Exception("Returns %i :: %s" %( proc.returncode, command ))
+    def execute(self, command, input=""):
+        """Spins off a subprocess to run the cgiven command"""
+        if input:
+            logger.debug(
+                "exec: {0}\n\t{1}".format(
+                    command, input.replace(
+                        '\n', '\n\t')))
+        else:
+            logger.debug("exec: " + command)
+
+        if self.dry_run:
+            return
+        proc = subprocess.Popen(command.split(),
+                                stdin=subprocess.PIPE, stdout=2, stderr=2)
+        proc.communicate(input)
+        if proc.returncode != 0:
+            raise Exception("Returns %i :: %s" % (proc.returncode, command))
+
 
 class ParallelCommandQueue(CommandQueue):
-  def __init__(self, processors = 8): 
-    CommandQueue.__init__(self)
-    self.processors = processors
 
-  def run(self, stages):
-    if not stages: 
-      stages = self.commands.keys()
+    def __init__(self, processors=8):
+        CommandQueue.__init__(self)
+        self.processors = processors
 
-    previous_stage = STAGE_NONE
-    for stage in [s for s in stages if s in self.commands.keys()]:
-      if self.commands[stage]:
-        self.parallel(self.commands[stage])
-        previous_stage = stage
+    def run(self, stages):
+        if not stages:
+            stages = self.commands.keys()
 
-  def parallel(self, commands):
-    "Runs the list of commands through parallel"
-    command = 'parallel -j%i' % self.processors
-    self.execute(command, input='\n'.join(commands))
+        previous_stage = STAGE_NONE
+        for stage in [s for s in stages if s in self.commands.keys()]:
+            if self.commands[stage]:
+                self.parallel(self.commands[stage])
+                previous_stage = stage
+
+    def parallel(self, commands):
+        "Runs the list of commands through parallel"
+        command = 'parallel -j%i' % self.processors
+        self.execute(command, input='\n'.join(commands))
+
 
 class QBatchCommandQueue(CommandQueue):
-  def __init__(self, processors = 8): 
-    CommandQueue.__init__(self)
-    self.processors = processors
 
-  def run(self, stages):
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    if not stages: 
-      stages = self.commands.keys()
+    def __init__(self, processors=8):
+        CommandQueue.__init__(self)
+        self.processors = processors
 
-    previous_stage = STAGE_NONE
-    for stage in [s for s in stages if s in self.commands.keys()]:
-      if self.commands[stage]:
-        unique_stage = "{0}_{1}".format(stage, timestamp) 
-        walltime   = stage_queue_hints[stage]['walltime']
-        processors = stage_queue_hints[stage]['procs']
-        self.qbatch(self.commands[stage], batch_name=unique_stage, afterok=previous_stage+"*",
-            walltime=walltime, processors = processors)  
-        previous_stage = unique_stage
+    def run(self, stages):
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        if not stages:
+            stages = self.commands.keys()
 
-  def qbatch(self, commands, batch_name = None, afterok=None, walltime="10:00:00", processors = None):
-    logger.info('running {0} commands after stage {1}'.format(len(commands), afterok))
-    
-    opt_name    = batch_name and '-N {0}'.format(batch_name) or ''
-    opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
-    batchsize   = min(self.processors, processors)
-    self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime), 
-        input='\n'.join(commands))
-    #os.remove(cmdfilename)
+        previous_stage = STAGE_NONE
+        for stage in [s for s in stages if s in self.commands.keys()]:
+            if self.commands[stage]:
+                unique_stage = "{0}_{1}".format(stage, timestamp)
+                walltime = stage_queue_hints[stage]['walltime']
+                processors = stage_queue_hints[stage]['procs']
+                self.qbatch(
+                    self.commands[stage],
+                    batch_name=unique_stage,
+                    afterok=previous_stage + "*",
+                    walltime=walltime,
+                    processors=processors)
+                previous_stage = unique_stage
+
+    def qbatch(
+            self,
+            commands,
+            batch_name=None,
+            afterok=None,
+            walltime="10:00:00",
+            processors=None):
+        logger.info(
+            'running {0} commands after stage {1}'.format(
+                len(commands), afterok))
+
+        opt_name = batch_name and '-N {0}'.format(batch_name) or ''
+        opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
+        batchsize = min(self.processors, processors)
+        self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name,
+                                                       opt_afterok, batchsize, walltime), input='\n'.join(commands))
+        # os.remove(cmdfilename)
+
 
 class FilesCommandQueue(CommandQueue):
-  """Dumps the queue to a set of files that can be dealt with manually."""
-  def __init__(self, processors = 8): 
-    CommandQueue.__init__(self)
-    self.processors = processors
+    """Dumps the queue to a set of files that can be dealt with manually."""
 
-  def run(self, stages):
-    if not stages: 
-      stages = self.commands.keys()
-     
-    for idx, stagename in enumerate(stages):
-        if stagename not in self.commands.keys() or not self.commands[stagename]: continue 
-    	filename = "{}_{}.sh".format(idx, stagename) 
-        commandlist = '\n'.join(self.commands[stagename])
-	logger.debug("Dumping commands to file {}:\n{}".format(filename,commandlist)) 
-	if self.dry_run: continue
-        open(filename,'w').write(commandlist)
-    
-### MAGeT Brain Stages
+    def __init__(self, processors=8):
+        CommandQueue.__init__(self)
+        self.processors = processors
+
+    def run(self, stages):
+        if not stages:
+            stages = self.commands.keys()
+
+        for idx, stagename in enumerate(stages):
+            if stagename not in self.commands.keys() or not self.commands[
+                    stagename]:
+                continue
+            filename = "{}_{}.sh".format(idx, stagename)
+            commandlist = '\n'.join(self.commands[stagename])
+            logger.debug(
+                "Dumping commands to file {}:\n{}".format(
+                    filename, commandlist))
+            if self.dry_run:
+                continue
+            open(filename, 'w').write(commandlist)
+
+# MAGeT Brain Stages
 ######################
+
+
 class MAGeTBrain(object):
-  def __init__(self, options, atlases, templates, subjects): 
-    self.options = options
-    self.atlases = atlases
-    self.templates = templates
-    self.subjects = subjects
 
-    if options.save:
-      self.temp_dir = mkdirp(self.options.output_dir, 'intermediate')
-    else:
-      self.temp_dir = tempfile.mkdtemp() 
+    def __init__(self, options, atlases, templates, subjects):
+        self.options = options
+        self.atlases = atlases
+        self.templates = templates
+        self.subjects = subjects
 
-  def set_queue(self, queue): 
-    self.queue = queue
+        if options.save:
+            self.temp_dir = mkdirp(self.options.output_dir, 'intermediate')
+        else:
+            self.temp_dir = tempfile.mkdtemp()
 
-  def run(self):
-    self.queue.run(stages=self._get_stage_order())
+    def set_queue(self, queue):
+        self.queue = queue
 
-  def subject_vote_stages(self, subjects):
-    """Run the subject-specific voting stages on the given subjects"""
-    assert isinstance(subjects, list)
-    all_subjects = self.subjects
-    self.subjects = subjects
-    self.stage_vote()
-    self.subjects = all_subjects
+    def run(self):
+        self.queue.run(stages=self._get_stage_order())
 
-  def stage_register_atlases(self):
-    """Register atlases to templates"""
-    commands = []
-    for atlas in self.atlases: 
-      for template in self.templates: 
-        reg_dir, transform_file = self.xfm_path(atlas, template)
-        reg_cmd = self.register_images(self.options.register_cmd, atlas, template, transform_file)
-        if reg_cmd: 
-          mkdirp(reg_dir)
-          commands.append(reg_cmd)
-    self.queue.append_commands(STAGE_REG_ATLAS, commands) 
-    return len(commands) == 0
+    def subject_vote_stages(self, subjects):
+        """Run the subject-specific voting stages on the given subjects"""
+        assert isinstance(subjects, list)
+        all_subjects = self.subjects
+        self.subjects = subjects
+        self.stage_vote()
+        self.subjects = all_subjects
 
-  def stage_register_templates(self, subject):
-    """Register all templates to subjects"""
-    commands = []
-    for template in self.templates:
-      reg_dir, transform_file = self.xfm_path(template, subject, self.temp_dir, check_reg_dir = True)
-      reg_cmd = self.register_images(self.options.register_cmd, template, subject, transform_file)
-      if reg_cmd: 
-        mkdirp(reg_dir)
-        commands.append(reg_cmd)
-    self.queue.append_commands(STAGE_REG_TEMPL, commands) 
-    return len(commands) == 0
+    def stage_register_atlases(self):
+        """Register atlases to templates"""
+        commands = []
+        for atlas in self.atlases:
+            for template in self.templates:
+                reg_dir, transform_file = self.xfm_path(atlas, template)
+                reg_cmd = self.register_images(
+                    self.options.register_cmd, atlas, template, transform_file)
+                if reg_cmd:
+                    mkdirp(reg_dir)
+                    commands.append(reg_cmd)
+        self.queue.append_commands(STAGE_REG_ATLAS, commands)
+        return len(commands) == 0
 
-  def stage_vote(self): 
-    """Assumes all registrations are complete. """
-    for subject in self.subjects:
-      self.stage_register_templates(subject)
-      output_dir, fused_lbl = self.fused_label_path(subject)
-      mkdirp(output_dir)
-      candidate_labels = []
-      for atlas in self.atlases: 
+    def stage_register_templates(self, subject):
+        """Register all templates to subjects"""
+        commands = []
         for template in self.templates:
-          stems = [atlas.stem, template.stem, subject.stem]
-          label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
-          self.resample_labels(self.temp_dir, atlas.labels, subject, label, stems)
-          candidate_labels.append(label)
-      command = 'voxel_vote {0} {1}'.format(
-          ' '.join(candidate_labels), fused_lbl)
-      if not exists(fused_lbl):
-        self.queue.append_commands(STAGE_VOTE, [command])
+            reg_dir, transform_file = self.xfm_path(
+                template, subject, self.temp_dir, check_reg_dir=True)
+            reg_cmd = self.register_images(
+                self.options.register_cmd, template, subject, transform_file)
+            if reg_cmd:
+                mkdirp(reg_dir)
+                commands.append(reg_cmd)
+        self.queue.append_commands(STAGE_REG_TEMPL, commands)
+        return len(commands) == 0
 
-  def resample_labels(self, xfmbasedir, source_lbl, target, output_lbl, stems):
-    """resample a label via transforms from images stem_1 ... stem_n
+    def stage_vote(self):
+        """Assumes all registrations are complete. """
+        for subject in self.subjects:
+            self.stage_register_templates(subject)
+            output_dir, fused_lbl = self.fused_label_path(subject)
+            mkdirp(output_dir)
+            candidate_labels = []
+            for atlas in self.atlases:
+                for template in self.templates:
+                    stems = [atlas.stem, template.stem, subject.stem]
+                    label = join(self.temp_dir, ".".join(stems) + "_label.mnc")
+                    self.resample_labels(
+                        self.temp_dir, atlas.labels, subject, label, stems)
+                    candidate_labels.append(label)
+            command = 'voxel_vote {0} {1}'.format(
+                ' '.join(candidate_labels), fused_lbl)
+            if not exists(fused_lbl):
+                self.queue.append_commands(STAGE_VOTE, [command])
 
-       Looks for transforms in the registration directory, and if not found,
-       then looks in the temporary directory. TODO: this leads to the quirk
-       that if atlas-template transforms haven't been generated, then we assume
-       they're in the temp dir but don't check that they exist. Perhaps the
-       check should happen earlier on. """
-    assert len(stems) > 1
-    xfms = []
-    for s, t in zip(stems[:-1],stems[1:]):
-      _, xfm = self.xfm_path(s, t, basedir=xfmbasedir, check_reg_dir = True)
-      xfms.append(xfm)
-    joined_xfm   = join(self.temp_dir,'.'.join(stems) + ".xfm")
-    if not exists(joined_xfm): 
-        self.queue.append_commands(STAGE_XFM_JOIN, 
-            ['xfmjoin {0} {1}'.format(' '.join(xfms), joined_xfm)]) 
-    if not exists(output_lbl):
-        self.queue.append_commands(STAGE_RESAMPLE, 
-            [' '.join(['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
+    def resample_labels(
+            self,
+            xfmbasedir,
+            source_lbl,
+            target,
+            output_lbl,
+            stems):
+        """resample a label via transforms from images stem_1 ... stem_n
 
-  def fused_label_path(self, subject):
-    output_dir = join(self.options.output_dir, 'fusion', 'majority_vote')
-    lbl = join(output_dir, subject.stem + "_labels.mnc")
-    return (output_dir, lbl)
+           Looks for transforms in the registration directory, and if not found,
+           then looks in the temporary directory. TODO: this leads to the quirk
+           that if atlas-template transforms haven't been generated, then we assume
+           they're in the temp dir but don't check that they exist. Perhaps the
+           check should happen earlier on. """
+        assert len(stems) > 1
+        xfms = []
+        for s, t in zip(stems[:-1], stems[1:]):
+            _, xfm = self.xfm_path(
+                s, t, basedir=xfmbasedir, check_reg_dir=True)
+            xfms.append(xfm)
+        joined_xfm = join(self.temp_dir, '.'.join(stems) + ".xfm")
+        if not exists(joined_xfm):
+            self.queue.append_commands(
+                STAGE_XFM_JOIN, [
+                    'xfmjoin {0} {1}'.format(
+                        ' '.join(xfms), joined_xfm)])
+        if not exists(output_lbl):
+            self.queue.append_commands(STAGE_RESAMPLE, [' '.join(
+                ['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
 
-  def xfm_path(self, source, target, basedir = None, check_reg_dir = False):
-    """Returns the XFM path for registration between two images
+    def fused_label_path(self, subject):
+        output_dir = join(self.options.output_dir, 'fusion', 'majority_vote')
+        lbl = join(output_dir, subject.stem + "_labels.mnc")
+        return (output_dir, lbl)
 
-       Expects that source and target are Template instances, and provides the
-       output directory and transform path rooted at basedir. basedir defaults 
-       to the default registration directory (output/registration).
+    def xfm_path(self, source, target, basedir=None, check_reg_dir=False):
+        """Returns the XFM path for registration between two images
 
-       If check_reg_dir is set, then the registration directory is checked to
-       see if a transform exists there and that path is returned.  If the
-       transform doesn't exist in the registration directory, then a path
-       rooted at basedir is used. 
-    """
+           Expects that source and target are Template instances, and provides the
+           output directory and transform path rooted at basedir. basedir defaults
+           to the default registration directory (output/registration).
 
-    source = isinstance(source, Template) and source.stem or source
-    target = isinstance(target, Template) and target.stem or target
+           If check_reg_dir is set, then the registration directory is checked to
+           see if a transform exists there and that path is returned.  If the
+           transform doesn't exist in the registration directory, then a path
+           rooted at basedir is used.
+        """
 
-    if check_reg_dir: 
-        reg_dir, xfm = self.xfm_path(source, target)
-        if exists(xfm):                
-            return (reg_dir, xfm)
+        source = isinstance(source, Template) and source.stem or source
+        target = isinstance(target, Template) and target.stem or target
 
-    if basedir == None: 
-        basedir = self.options.reg_dir
+        if check_reg_dir:
+            reg_dir, xfm = self.xfm_path(source, target)
+            if exists(xfm):
+                return (reg_dir, xfm)
 
-    reg_dir = join(basedir, source, target)
-    xfm = join(reg_dir, XFM)
-    return (reg_dir, xfm)
+        if basedir is None:
+            basedir = self.options.reg_dir
 
-  def register_images(self, cmd, source, target, output):
-    """Emits a command to register source to target if transform doesn't exist"""
-    if exists(output):  #TODO check complete
-      return None
-    return ' '.join([cmd, source.image, target.image, output])
+        reg_dir = join(basedir, source, target)
+        xfm = join(reg_dir, XFM)
+        return (reg_dir, xfm)
 
-  def _get_stage_order(self):
-    return [STAGE_REG_ATLAS, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
-        STAGE_VOTE, STAGE_TAR]
+    def register_images(self, cmd, source, target, output):
+        """Emits a command to register source to target if transform doesn't exist"""
+        if exists(output):  # TODO check complete
+            return None
+        return ' '.join([cmd, source.image, target.image, output])
 
-### utility functions
+    def _get_stage_order(self):
+        return [
+            STAGE_REG_ATLAS,
+            STAGE_REG_TEMPL,
+            STAGE_XFM_JOIN,
+            STAGE_RESAMPLE,
+            STAGE_VOTE,
+            STAGE_TAR]
+
+# utility functions
+
+
 def mkdirp(*p):
-  """Like mkdir -p"""
-  path = join(*p)
-  try:
-    os.makedirs(path)
-  except OSError as exc: 
-    if exc.errno == errno.EEXIST:
-      pass
-    else: raise
-  return path
+    """Like mkdir -p"""
+    path = join(*p)
+    try:
+        os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST:
+            pass
+        else:
+            raise
+    return path
 
 
-def execute(cmd,*args):
-  wholecommand = ' '.join(map(str, [cmd] + list(args)))
-  logger.debug(wholecommand)
-  #return subprocess.check_output(wholecommand, shell=True, cwd=os.cwd(), universal_newlines=True)
+def execute(cmd, *args):
+    wholecommand = ' '.join(map(str, [cmd] + list(args)))
+    logger.debug(wholecommand)
+    # return subprocess.check_output(wholecommand, shell=True, cwd=os.cwd(),
+    # universal_newlines=True)
 
-#### Guts
-class Template: 
-  """Represents an MR image with labels, optionally"""
-  def __init__(self, image, labels = None):
-    image_path      = os.path.realpath(image)
-    self.stem       = os.path.basename(os.path.splitext(image_path)[0])
-    self.image      = image
-    self.labels     = labels
+# Guts
 
-    expected_labels = os.path.join(dirname(dirname(image_path)), 'labels', self.stem + "_labels.mnc")
-    if not labels and os.path.exists(expected_labels):
-      self.labels = expected_labels 
 
-  @classmethod
-  def get_templates(cls, path):
-    """return a list of MR image Templates from the given path.  Expect to find
-    a child folder named brains/ containing MR images, and labels/ containing
-    corresponding labels."""
-    return [Template(i) for i in glob.glob(join(path, 'brains', "*.mnc"))]
+class Template:
+    """Represents an MR image with labels, optionally"""
 
+    def __init__(self, image, labels=None):
+        image_path = os.path.realpath(image)
+        self.stem = os.path.basename(os.path.splitext(image_path)[0])
+        self.image = image
+        self.labels = labels
+
+        expected_labels = os.path.join(
+            dirname(dirname(image_path)),
+            'labels', self.stem + "_labels.mnc")
+        if not labels and os.path.exists(expected_labels):
+            self.labels = expected_labels
+
+    @classmethod
+    def get_templates(cls, path):
+        """return a list of MR image Templates from the given path.  Expect to find
+        a child folder named brains/ containing MR images, and labels/ containing
+        corresponding labels."""
+        return [Template(i) for i in glob.glob(join(path, 'brains', "*.mnc"))]
 
 
 if __name__ == '__main__':

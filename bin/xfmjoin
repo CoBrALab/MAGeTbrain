@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 #
 # Joins together several xfm files, leaving the original displacement volumes
-# where they are. 
+# where they are.
 #
 # Note: this operation means that resulting xfm file uses absolute paths, and
-# so will become invalid if any of the displacement volumes are moved. 
+# so will become invalid if any of the displacement volumes are moved.
 #
 # Assuming the following structure for and XFM file:
 #
 #    MNI Transform File
-#    %Thu Jan 10 17:15:06 2013>>> minctracc .... 
-#    
+#    %Thu Jan 10 17:15:06 2013>>> minctracc ....
+#
 #    Transform_Type = Grid_Transform;
 #    Displacement_Volume = 0021_0295_0413_grid_0.mnc;
 #    Transform_Type = Linear;
@@ -33,40 +33,49 @@
 import sys
 import copy
 import datetime
-from os import getcwd 
+from os import getcwd
 from os.path import dirname, normpath, join
+
 
 def _pop(l):
     while l and l[0].strip() == "":
         l.pop(0)
     return l and l.pop(0).strip() or None
 
+
 class Transform():
-    def __repr__(self): 
+
+    def __repr__(self):
         return "\n".join([self.type] + self.transform)
 
+
 class GridTransform(Transform):
-    def update_volume_path(self, relative_to = 'source'):
+
+    def update_volume_path(self, relative_to='source'):
         if relative_to == 'source':
             relative_to_path = dirname(self.fromfile)
-        else: 
+        else:
             relative_to_path = relative_to
-        
-        key, grid = map(lambda x: x.strip().strip(';'), self.transform[0].split("="))
+
+        key, grid = map(
+            lambda x: x.strip().strip(';'),
+            self.transform[0].split("="))
         grid = normpath(join(relative_to_path, grid))
         self.transform = ["%s = %s;" % (key, grid)]
 
-class XFM(): 
-    def __init__(self, xfmfile_path = None):
-        self.header  = None
-        self.history    = []
+
+class XFM():
+
+    def __init__(self, xfmfile_path=None):
+        self.header = None
+        self.history = []
         self.transforms = []
         self.xfmfile_path = xfmfile_path
 
-        if xfmfile_path: 
+        if xfmfile_path:
             self.populate(xfmfile_path)
 
-    def populate(self, xfmfile_path = None):
+    def populate(self, xfmfile_path=None):
 
         lines = open(xfmfile_path).readlines()
         while lines:
@@ -79,43 +88,50 @@ class XFM():
                 continue
 
             if line.startswith("Transform_Type = Grid_Transform;"):
-                transform = GridTransform() 
+                transform = GridTransform()
                 transform.fromfile = xfmfile_path
                 transform.type = line
                 transform.transform = [_pop(lines)]
                 self.transforms.append(transform)
                 continue
             if line.startswith("Transform_Type = Linear;"):
-                transform = Transform() 
+                transform = Transform()
                 transform.fromfile = xfmfile_path
                 transform.type = line
-                transform.transform = [ _pop(lines), _pop(lines), _pop(lines), _pop(lines) ]
+                transform.transform = [
+                    _pop(lines),
+                    _pop(lines),
+                    _pop(lines),
+                    _pop(lines)]
                 self.transforms.append(transform)
                 continue
 
             print "Ignoring line:", line
-        
-    def __repr__(self):
-        return "\n".join([self.header] + self.history + map(str,self.transforms))
 
-    def merge(self, xfms, paths_relative_to = 'source'):
-        self.history.append("%% %s >> Merging %s" % (datetime.datetime.now().isoformat(), 
-                  ", ".join(map(lambda x: x.xfmfile_path, xfms))))
+    def __repr__(self):
+        return "\n".join([self.header] + self.history +
+                         map(str, self.transforms))
+
+    def merge(self, xfms, paths_relative_to='source'):
+        self.history.append(
+            "%% %s >> Merging %s" %
+            (datetime.datetime.now().isoformat(),
+             ", ".join(map(lambda x: x.xfmfile_path, xfms))))
         for xfm in xfms:
             self.header = xfm.header
             self.history.extend(xfm.history)
             for transform in map(copy.deepcopy, xfm.transforms):
                 if isinstance(transform, GridTransform):
-                    transform.update_volume_path(relative_to = paths_relative_to)
-                self.transforms.append(transform)        
-            
+                    transform.update_volume_path(relative_to=paths_relative_to)
+                self.transforms.append(transform)
 
-if __name__ == '__main__': 
-    
-    if len(sys.argv) <= 1: 
+
+if __name__ == '__main__':
+
+    if len(sys.argv) <= 1:
         print "Joins together several xfm files, leaving the original displacement volumes"
         print "in place."
-        print 
+        print
         print "Usage: %s xfm [xfm ...] merged.xfm" % sys.argv[0]
         print
         sys.exit(-1)
