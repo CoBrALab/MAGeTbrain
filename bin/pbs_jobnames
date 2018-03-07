@@ -1,2 +1,2 @@
 #!/bin/bash
-qstat - f | egrep 'Job Id:|Job_Name =' | tr '\n' ' ' | sed - e 's/Job Id: /\n/g' - e 's/Job_Name =//g'
+qstat -f | egrep 'Job Id:|Job_Name =' | tr '\n' ' ' | sed -e 's/Job Id: /\n/g' -e 's/Job_Name =//g'
