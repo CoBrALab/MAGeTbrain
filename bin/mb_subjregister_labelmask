@@ -58,12 +58,11 @@ fi
 # LINEAR
 if [[ ! -s $AT_lin_xfm ]]; then
 	bestlinreg_maget -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} $atlas $target $AT_lin_xfm
-    xfminvert -clobber $AT_lin_xfm $TA_lin_xfm
+  xfminvert -clobber $AT_lin_xfm $TA_lin_xfm
 fi
 
 if [[ ! -s $atlas_res ]]; then
   mincresample -clobber -sinc -like $target -transform $AT_lin_xfm $atlas $atlas_res
-
 fi
 
 if [[ -s ${atlas_label_mask} && ! -s ${atlas_res_label_mask} ]]; then
@@ -71,10 +70,8 @@ if [[ -s ${atlas_label_mask} && ! -s ${atlas_res_label_mask} ]]; then
   if [[ -s ${atlas_labels} ]]; then
     mkdir -p $(dirname $(dirname $(dirname $output_dir)))/templatemasks/$target_stem
     cp ${atlas_res_label_mask} $(dirname $(dirname $(dirname $output_dir)))/templatemasks/$target_stem/${atlas_stem}.mnc
-  fi
 fi
-
-
+fi
 # NONLINEAR
 if [[ ! -s $TA_nl_xfm ]]; then
   mincANTS 3 -m CC[$target,$atlas_res,1,4] \
@@ -91,4 +88,12 @@ fi
 
 if [[ ! -s $output_xfm ]]; then
   xfmconcat $AT_lin_xfm $AT_nl_xfm $output_xfm
+fi
+
+if [[ -s $output_xfm ]]; then
+  rm $AT_lin_xfm
+  rm $TA_lin_xfm
+  rm $TA_nl_xfm
+  rm $AT_nl_xfm
+  rm $atlas_res
 fi
