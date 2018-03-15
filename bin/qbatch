@@ -93,7 +93,7 @@ if __name__ == "__main__":
       qsub_options = ['-l nodes=1:ppn=%i,walltime=%s' % (options.processes, walltime),
                       '-j oe',
                       '-V',
-                      '-W umask=0640',
+                      '-W umask=022',
                       '-o %s' % options.logs_dir]
       qsub_option_prefix = '#PBS'
 
