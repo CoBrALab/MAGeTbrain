@@ -112,7 +112,7 @@ if __name__ == "__main__":
         qsub_options = [
             '-l nodes=1:ppn=%i,walltime=%s' %
             (options.ppn, walltime), '-j oe', '-o %s' %
-            options.logs_dir, '-V']
+            options.logs_dir, '-V', '-W umask=022']
         qsub_option_prefix = '#PBS'
 
         # if options.afterok_pattern:
