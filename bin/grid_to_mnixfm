@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+# helper script to take grid transform and format as MNI transform .xfm file
+# so that nlin_from_lin function can operate on grid file
+#
+# grid_to_mnixfm $gridfile $outxfm
+
+gridfile=$1
+outxfm=$2
+echo "MNI Transform File" > $outxfm
+echo "Transform_Type = Grid_Transform;" >> $outxfm
+echo "Displacement_Volume = $gridfile;" >> $outxfm
+
