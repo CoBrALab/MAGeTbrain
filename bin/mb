@@ -1002,6 +1002,7 @@ class MAGeTBrain(object):
         grids = list()
         objects = defaultdict(list)
         gridavg = '{0}/gridavg/{1}_grid.mnc'.format(self.options.output_dir, s.stem)
+        gridavg_xfm = '{0}/gridavg/{1}_grid.xfm'.format(self.options.output_dir, s.stem)
         croppedmodel = join(self.options.modelspace_dir,'model', s.stem + ".mnc")
 
         gridavgdir = dirname(gridavg)
@@ -1107,6 +1108,11 @@ class MAGeTBrain(object):
           self.queue.append_commands(STAGE_SUBJECTGRID_AVG, [command])
         #avgcommand = 'mincaverage {0}'.format(' '.join(grids))
         #print command
+	
+	# create .xfm for avg grid, to be used in lin_from_nlin
+	if not os.path.exists(gridavg_xfm):
+	  command = 'grid_to_mnixfm {0} {1}'.format(gridavg, gridavg_xfm)
+	  self.queue.append_commands(STAGE_GRIDTOXFM, [command])
 
         # calculate displacement of model objects
         displacement_dir = join(self.options.output_dir, 'displacement')
