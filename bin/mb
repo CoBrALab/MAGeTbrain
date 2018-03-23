@@ -434,7 +434,7 @@ def command_init(options):
   mkdirp(options.folder, 'input', 'model', 'brains')
   mkdirp(options.folder, 'input', 'model', 'xfms')
   mkdirp(options.folder, 'input', 'model', 'objects')
-  #mkdirp(options.folder, 'input', 'atlases', 'objects')
+  mkdirp(options.folder, 'input', 'model', 'labels')
 
 def command_check(options): 
   """Entry point from the command line to init a folder for MAGeT brain"""
@@ -463,8 +463,8 @@ def command_check(options):
     "{0} folder does not exist.")
   error_if_dne(join(options.input_dir, 'model', 'objects'), 
     "{0} folder does not exist.")
-  #error_if_dne(join(options.input_dir, 'atlases', 'objects'), 
-    #"{0} folder does not exist.")
+  error_if_dne(join(options.input_dir, 'model', 'labels'), 
+    "{0} folder does not exist.")
 
   # check that atlases exist, and have labels
   atlas_dir = join(options.input_dir, 'atlases')
