@@ -46,6 +46,7 @@ STAGE_MORPHO = 'mb_morph'
 STAGE_XFMJOIN_NATIVE = 'mb_xfm_native'
 STAGE_GRIDTOXFM = 'mb_gridtoxfm' #create .xfm file for initial average grid
 STAGE_LIN_FROM_NLIN = 'mb_lin_nlin' #extract lin component of initial avg grid
+STAGE_INVERT_LIN = 'mb_invert_lin_nlin' #invert extracted lin component
 
 # info about each stage to help with queuing jobs. This could be turned into
 # classes that have the smarts to operate on the queues themselves.
@@ -76,7 +77,8 @@ stage_queue_hints = {
   STAGE_BLUR: {'procs': 1000, 'walltime': '0:20:00'},
   STAGE_MORPHO: {'procs': 1, 'walltime': '4:00:00'},
   STAGE_GRIDTOXFM: {'procs': 100, 'walltime': '00:30:00'},
-  STAGE_LIN_FROM_NLIN: {'procs': 100, 'walltime': '1:00:00'}}
+  STAGE_LIN_FROM_NLIN: {'procs': 100, 'walltime': '1:00:00'},
+  STAGE_INVERT_LIN: {'procs':100, 'walltime': '1:00:00'}}
   
 
 # stage descriptions
@@ -104,7 +106,8 @@ stage_description = {
   STAGE_BLUR: 'surface blurring',
   STAGE_MORPHO: 'morphology',
   STAGE_GRIDTOXFM: 'create .xfm pointing to initial grid',
-  STAGE_LIN_FROM_NLIN: 'extract lin comonent of initial grid'
+  STAGE_LIN_FROM_NLIN: 'extract lin comonent of initial grid',
+  STAGE_INVERT_LIN: 'invert extracted lin component'
 }
 # file/folder defaults
 XFM = "nl.xfm"
@@ -1270,7 +1273,7 @@ class MAGeTBrain(object):
 
   def _get_stage_order(self):
     return [STAGE_MODELPREP,STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
-        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_GRIDTOXFM, STAGE_LIN_FROM_NLIN, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_BLURDP, STAGE_XFMJOIN_NATIVE,
+        STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_GRIDTOXFM, STAGE_LIN_FROM_NLIN, STAGE_INVERT_LIN, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_BLURDP, STAGE_XFMJOIN_NATIVE,
          STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN, STAGE_NORMALS, STAGE_VORN, STAGE_MATH, STAGE_BLUR, STAGE_MORPHO]
     #return [STAGE_IMAGEPREP, STAGE_REG_ATLAS, STAGE_REG_MODEL, STAGE_REG_TEMPL, STAGE_XFM_JOIN, STAGE_RESAMPLE,
         #STAGE_VOTE, STAGE_TAR, STAGE_XFMJOIN_M, STAGE_SUBJECTDISPLACE, STAGE_SUBJECTGRID_AVG, STAGE_MODEL_SUBJECT_DISPLACE, STAGE_M_S_OBJ_XFM, STAGE_OBJ_MEDIAN,
