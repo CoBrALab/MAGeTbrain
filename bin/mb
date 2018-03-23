@@ -1135,7 +1135,14 @@ class MAGeTBrain(object):
           if not os.path.exists(gridavg_lin_xfm):
             command = 'lin_from_nlin -mask {0} {1} {2} {3}'.format(delin_mask, croppedmodel, gridavg_xfm, gridavg_lin_xfm)
 	    self.queue.append_commands(STAGE_LIN_FROM_NLIN, [command])
-          if not os.path.exists(obj_displace):
+          
+	  #invert lin_from_nlin
+	  gridavg_lin_inv_xfm = join(self.temp_dir, s.stem + "." + ostem + '.grid_lin_inv.xfm')
+	  if not os.path.exists(gridavg_lin_inv_xfm):
+	    command = 'xfminvert {0} {1}'.format(gridavg_lin_xfm, gridavg_lin_inv_xfm)
+	    self.queue.append_commands(STAGE_INVERT_LIN, [command])
+
+	  if not os.path.exists(obj_displace):
             command = 'object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)
             self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
           #print command
