@@ -75,7 +75,7 @@ stage_queue_hints = {
   STAGE_MATH: {'procs': 1000, 'walltime': '0:16:00'},
   STAGE_BLUR: {'procs': 1000, 'walltime': '0:20:00'},
   STAGE_MORPHO: {'procs': 1, 'walltime': '4:00:00'},
-  STAGE_GRIDTOXFM: {'procs': 100, 'walltime': '00:30:00'}
+  STAGE_GRIDTOXFM: {'procs': 100, 'walltime': '00:30:00'},
   STAGE_LIN_FROM_NLIN: {'procs': 100, 'walltime': '1:00:00'}}
   
 
@@ -1125,8 +1125,13 @@ class MAGeTBrain(object):
           opath = os.path.realpath(o)
           ostem = os.path.basename(os.path.splitext(opath)[0])
           obj_displace='{0}/{1}_{2}.txt'.format(displacement_dir, s.stem, ostem)
-          
-	  #stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
+
+ 	  #delin initial grid in structure specific fashion
+          delin_mask = '{0}/model/labels/{1}.mnc'.format(self.options.input_dir, ostem) #structure specific mask. hardcoded to match input/model/labels contents 
+          gridavg_lin_xfm = join(self.temp_dir, s.stem + "." + ostem + '.grid_lin.xfm')
+          if not os.path.exists(gridavg_lin_xfm):
+            command = 'lin_from_nlin -mask {0} {1} {2} {3}'.format(delin_mask, croppedmodel, gridavg_xfm, gridavg_lin_xfm)
+	    self.queue.append_commands(STAGE_LIN_FROM_NLIN, [command])
           if not os.path.exists(obj_displace):
             command = 'object_volume_dot_product {0} {1} {2}'.format(o, gridavg, obj_displace)
             self.queue.append_commands(STAGE_MODEL_SUBJECT_DISPLACE, [command])
