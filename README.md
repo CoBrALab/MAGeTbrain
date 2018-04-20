@@ -148,4 +148,4 @@ Starts the MAGeT brain pipeline.
 For an in-depth guideline, follow the [MAGeTbrain](https://github.com/CobraLab/documentation/wiki/MAGeTBrain) and the [MAGeTmorph](https://github.com/CobraLab/documentation/wiki/MAGeT-Morph) tutorials. 
 
 ---
-    http://tinysong.com/y9lO
+    https://www.youtube.com/watch?v=JOKn33-q4Ao
