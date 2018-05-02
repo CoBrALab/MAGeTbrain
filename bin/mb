@@ -33,11 +33,11 @@ STAGE_TAR = 'mb_tar'         # tar up
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
 stage_queue_hints = {
-    STAGE_REG_ATLAS: {'procs': 4, 'walltime': '6:00:00'},
+    STAGE_REG_ATLAS: {'procs': 20, 'walltime': '6:00:00'},
     STAGE_REG_TEMPL: {'procs': None, 'walltime': '4:00:00'},
     STAGE_XFM_JOIN: {'procs': None, 'walltime': '0:10:00'},
     STAGE_RESAMPLE: {'procs': None, 'walltime': '1:00:00'},
-    STAGE_VOTE: {'procs': 1, 'walltime': '8:00:00'},
+    STAGE_VOTE: {'procs': 5, 'walltime': '8:00:00'},
     STAGE_TAR: {'procs': 8, 'walltime': '1:00:00'}}
 
 # stage descriptions
@@ -543,11 +543,13 @@ class QBatchCommandQueue(CommandQueue):
             'running {0} commands after stage {1}'.format(
                 len(commands), afterok))
 
-        opt_name = batch_name and '-N {0}'.format(batch_name) or ''
-        opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
         batchsize = min(self.processors, processors)
-        self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name,
-                                                       opt_afterok, batchsize, walltime), input='\n'.join(commands))
+        opt_name = batch_name and '--jobname {0}'.format(batch_name) or ''
+        opt_afterok = afterok and '--depend {0}'.format(afterok) or ''
+        opt_batchsize = batchsize and '--chunksize {0}'.format(batchsize) or ''
+        opt_walltime = walltime and '--walltime {0}'.format(walltime) or ''
+        self.execute('qbatch {0} {1} {2} {3} -'.format(opt_name,
+                                                       opt_afterok, opt_batchsize, opt_walltime), input='\n'.join(commands))
         # os.remove(cmdfilename)
 
 
