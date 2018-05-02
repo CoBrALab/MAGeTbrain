@@ -133,7 +133,7 @@ def main():
     # Registration options
     group = parser_run.add_argument_group(title="Registration")
     group.add_argument(
-        "--register_cmd", default="mb_register", metavar='CMD',
+        "--register_cmd", default="mb_register_labelmask", metavar='CMD',
         help="Command to register two images and output a transform. "
         "This command needs to accept the source image, target image "
         "and output transformation file as arguments, in this order.")
