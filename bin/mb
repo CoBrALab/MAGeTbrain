@@ -54,20 +54,20 @@ STAGE_XFMJOIN_NATIVE = 'mb_xfm_native'
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
 stage_queue_hints = {
-    STAGE_IMAGEPREP: {'procs': 50, 'walltime': '00:40:00'},
-    STAGE_REG_ATLAS: {'procs': 4, 'walltime': '6:00:00'},
-    STAGE_REG_TEMPL: {'procs': 4, 'walltime': '4:00:00'},
+    STAGE_IMAGEPREP: {'procs': 400, 'walltime': '00:40:00'},
+    STAGE_REG_ATLAS: {'procs': 20, 'walltime': '6:00:00'},
+    STAGE_REG_TEMPL: {'procs': 20, 'walltime': '4:00:00'},
     STAGE_XFM_JOIN: {'procs': None, 'walltime': '0:10:00'},
     STAGE_RESAMPLE: {'procs': None, 'walltime': '1:00:00'},
-    STAGE_VOTE: {'procs': 1, 'walltime': '8:00:00'},
+    STAGE_VOTE: {'procs': 5, 'walltime': '8:00:00'},
     STAGE_TAR: {'procs': 8, 'walltime': '1:00:00'},
-    STAGE_REG_MODEL: {'procs': 4, 'walltime': '6:00:00'},
+    STAGE_REG_MODEL: {'procs': 20, 'walltime': '6:00:00'},
     STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 24, 'walltime': '0:30:00'},
     STAGE_BLURDP: {'procs': 1000, 'walltime': '0:20:00'},
     STAGE_MODELPREP: {'procs': 400, 'walltime': '0:15:00'},
     STAGE_XFMJOIN_M: {'procs': 10000, 'walltime': '0:25:00'},
     STAGE_SUBJECTDISPLACE: {'procs': 100, 'walltime': '2:00:00'},
-    STAGE_SUBJECTGRID_AVG: {'procs': 4, 'walltime': '4:00:00'},
+    STAGE_SUBJECTGRID_AVG: {'procs': 20, 'walltime': '4:00:00'},
     STAGE_XFMJOIN_NATIVE: {'procs': None, 'walltime': '00:15:00'},
     STAGE_M_S_OBJ_XFM: {'procs': 1000, 'walltime': '2:00:00'},
     STAGE_OBJ_MEDIAN: {'procs': 200, 'walltime': '1:00:00'},
@@ -75,7 +75,7 @@ stage_queue_hints = {
     STAGE_VORN: {'procs': 1000, 'walltime': '0:16:00'},
     STAGE_MATH: {'procs': 1000, 'walltime': '0:16:00'},
     STAGE_BLUR: {'procs': 1000, 'walltime': '0:20:00'},
-    STAGE_MORPHO: {'procs': 1, 'walltime': '4:00:00'}}
+    STAGE_MORPHO: {'procs': 5, 'walltime': '4:00:00'}}
 
 
 # stage descriptions
@@ -770,38 +770,18 @@ class QBatchCommandQueue(CommandQueue):
             'running {0} commands after stage {1}'.format(
                 len(commands), afterok))
 
-        opt_name = batch_name and '-N {0}'.format(batch_name) or ''
-        opt_afterok = afterok and '--afterok_pattern {0}'.format(afterok) or ''
-        #batchsize   = min(self.processors, processors)
         batchsize = processors
-        opt_processes = '--processes {0}'.format(parlevel)
-        if stage == 'mb_voting':
-            self.execute(
-                'qbatch_vote {0} {1} {2} - {3} {4}'.format(
-                    opt_processes,
-                    opt_name,
-                    opt_afterok,
-                    batchsize,
-                    walltime),
-                input='\n'.join(commands))
-        elif stage == 'mb_morph':
-            self.execute(
-                'qbatch_morph {0} {1} {2} - {3} {4}'.format(
-                    opt_processes,
-                    opt_name,
-                    opt_afterok,
-                    batchsize,
-                    walltime),
-                input='\n'.join(commands))
-        else:
-            self.execute(
-                'qbatch {0} {1} {2} - {3} {4}'.format(
-                    opt_processes,
-                    opt_name,
-                    opt_afterok,
-                    batchsize,
-                    walltime),
-                input='\n'.join(commands))
+        opt_name = batch_name and '--jobname {0}'.format(batch_name) or ''
+        opt_afterok = afterok and '--depend {0}'.format(afterok) or ''
+        opt_batchsize = batchsize and '--chunksize {0}'.format(batchsize) or ''
+        opt_walltime = walltime and '--walltime {0}'.format(walltime) or ''
+        self.execute(
+            'qbatch {0} {1} {2} {3} -'.format(
+                opt_name,
+                opt_afterok,
+                opt_batchsize,
+                opt_walltime),
+            input='\n'.join(commands))
         # self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime),
             # input='\n'.join(commands))
         # os.remove(cmdfilename)
