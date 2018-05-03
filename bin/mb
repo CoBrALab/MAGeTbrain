@@ -480,7 +480,7 @@ class CommandQueue(object):
             return
         proc = subprocess.Popen(command.split(),
                                 stdin=subprocess.PIPE, stdout=2, stderr=2)
-        proc.communicate(input)
+        proc.communicate(input.encode('utf-8'))
         if proc.returncode != 0:
             raise Exception("Returns %i :: %s" % (proc.returncode, command))
 
