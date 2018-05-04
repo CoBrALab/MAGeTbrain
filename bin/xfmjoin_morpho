@@ -30,6 +30,10 @@
 # Jon Pipitone, jon.pipitone@utoronto.ca, 2013
 #
 
+from __future__ import print_function
+from builtins import str
+from builtins import map
+from builtins import object
 import sys
 import copy
 import datetime
@@ -44,7 +48,7 @@ def _pop(l):
     return l and l.pop(0).strip() or None
 
 
-class Transform():
+class Transform(object):
 
     def __repr__(self):
         if self.type == "Transform_Type = Grid_Transform;":
@@ -71,14 +75,12 @@ class GridTransform(Transform):
             self.invertvalue = self.transform[0]
             xfmval = 1
 
-        key, grid = map(
-            lambda x: x.strip().strip(';'),
-            self.transform[xfmval].split("="))
+        key, grid = [x.strip().strip(';') for x in self.transform[xfmval].split("=")]
         grid = normpath(join(relative_to_path, grid))
         self.transform = ["%s = %s;" % (key, grid)]
 
 
-class XFM():
+class XFM(object):
 
     def __init__(self, xfmfile_path=None):
         self.header = None
@@ -127,11 +129,11 @@ class XFM():
                 self.transforms.append(transform)
                 continue
 
-            print("Ignoring line:", line)
+            print(("Ignoring line:", line))
 
     def __repr__(self):
         return "\n".join([self.header] + self.history +
-                         map(str, self.transforms))
+                         list(map(str, self.transforms)))
 
     def merge(self, xfms, paths_relative_to='source'):
         for xfm in xfms:
@@ -144,16 +146,15 @@ class XFM():
         self.history.append(
             "%% %s >> Merging %s" %
             (datetime.datetime.now().isoformat(),
-             ", ".join(map(lambda x: x.xfmfile_path, xfms))))
+             ", ".join([x.xfmfile_path for x in xfms])))
 
     def strip_linear_transforms(self):
         """Only includes grid transforms, removes everything else"""
         self.history.append(
             "%% {} >> Strip linear transforms".format(
                 datetime.datetime.now().isoformat()))
-        self.transforms = filter(
-            lambda x: isinstance(
-                x, GridTransform), self.transforms)
+        self.transforms = [x for x in self.transforms if isinstance(
+                x, GridTransform)]
 
 
 def main():
@@ -165,7 +166,7 @@ def main():
     options = parser.parse_args()
 
     merged_xfm = XFM()
-    merged_xfm.merge(map(XFM, options.xfm))
+    merged_xfm.merge(list(map(XFM, options.xfm)))
     if options.nl_only:
         merged_xfm.strip_linear_transforms()
     open(options.output_xfm, 'w').write(str(merged_xfm))
