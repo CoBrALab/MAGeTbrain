@@ -127,7 +127,7 @@ class XFM():
                 self.transforms.append(transform)
                 continue
 
-            print "Ignoring line:", line
+            print("Ignoring line:", line)
 
     def __repr__(self):
         return "\n".join([self.header] + self.history +
