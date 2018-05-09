@@ -56,10 +56,10 @@ STAGE_XFMJOIN_NATIVE = 'mb_xfm_native'
 stage_queue_hints = {
     STAGE_IMAGEPREP: {'procs': 400, 'walltime': '00:40:00'},
     STAGE_REG_ATLAS: {'procs': 20, 'walltime': '6:00:00'},
-    STAGE_REG_TEMPL: {'procs': 20, 'walltime': '4:00:00'},
+    STAGE_REG_TEMPL: {'procs': 20, 'walltime': '2:00:00'},
     STAGE_XFM_JOIN: {'procs': None, 'walltime': '0:10:00'},
     STAGE_RESAMPLE: {'procs': None, 'walltime': '1:00:00'},
-    STAGE_VOTE: {'procs': 5, 'walltime': '8:00:00'},
+    STAGE_VOTE: {'procs': 5, 'walltime': '6:00:00'},
     STAGE_TAR: {'procs': 8, 'walltime': '1:00:00'},
     STAGE_REG_MODEL: {'procs': 20, 'walltime': '6:00:00'},
     STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 24, 'walltime': '0:30:00'},
@@ -75,7 +75,7 @@ stage_queue_hints = {
     STAGE_VORN: {'procs': 1000, 'walltime': '0:16:00'},
     STAGE_MATH: {'procs': 1000, 'walltime': '0:16:00'},
     STAGE_BLUR: {'procs': 1000, 'walltime': '0:20:00'},
-    STAGE_MORPHO: {'procs': 5, 'walltime': '4:00:00'}}
+    STAGE_MORPHO: {'procs': 5, 'walltime': '2:00:00'}}
 
 
 # stage descriptions
