@@ -44,9 +44,9 @@ if [[ -s $atlas_labels ]]; then
   fi
   ANTS_MASK_ARGS="-x ${atlas_res_label_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
-elif [[ -d $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/$atlas_stem ]]; then
+elif [[ -d $(dirname $(dirname $(dirname $(dirname $(dirname $atlas)))))/templatemasks/$atlas_stem ]]; then
   if [[ ! -s ${atlas_label_mask}  ]]; then
-    voxel_vote $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
+    voxel_vote $(dirname $(dirname $(dirname $(dirname $(dirname $atlas)))))/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
   fi
   ANTS_MASK_ARGS="-x ${atlas_res_label_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
