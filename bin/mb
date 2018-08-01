@@ -718,7 +718,7 @@ class ParallelCommandQueue(CommandQueue):
     def parallel(self, commands, parlevel=8):
         "Runs the list of commands through parallel"
         #command = 'parallel -j%i' % parlevel
-        command = 'parallel -j%i' % self.processors
+        command = 'parallel -j%i --line-buffer --tag --compress' % self.processors
         self.execute(command, input='\n'.join(commands))
 
 
