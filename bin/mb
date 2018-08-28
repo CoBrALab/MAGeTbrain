@@ -18,6 +18,9 @@ import shutil
 import datetime
 from os.path import join, exists, basename, dirname
 
+def is_non_zero_file(fpath):
+    return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
+
 # Stages
 STAGE_NONE = 'NONE'           # not a stage
 STAGE_REG_ATLAS = 'mb_templatelib'  # register all atlases to templates
@@ -301,7 +304,7 @@ def command_run(options):
         if options.queue == 'qbatch':  # submit each subject's voting as a separate job
             for subject in subjects:
                 _, label = p.fused_label_path(subject)
-                if exists(label):
+                if is_non_zero_file(label):
                     continue
                 # HACK the command line to run the voting stage next
                 commandline = ' '.join(sys.argv)
@@ -652,7 +655,7 @@ class MAGeTBrain(object):
                     candidate_labels.append(label)
             command = 'voxel_vote {0} {1}'.format(
                 ' '.join(candidate_labels), fused_lbl)
-            if not exists(fused_lbl):
+            if not is_non_zero_file(fused_lbl):
                 self.queue.append_commands(STAGE_VOTE, [command])
 
     def resample_labels(
@@ -676,12 +679,12 @@ class MAGeTBrain(object):
                 s, t, basedir=xfmbasedir, check_reg_dir=True)
             xfms.append(xfm)
         joined_xfm = join(self.temp_dir, '.'.join(stems) + ".xfm")
-        if not exists(joined_xfm):
+        if not is_non_zero_file(joined_xfm):
             self.queue.append_commands(
                 STAGE_XFM_JOIN, [
                     'xfmjoin {0} {1}'.format(
                         ' '.join(xfms), joined_xfm)])
-        if not exists(output_lbl):
+        if not is_non_zero_file(output_lbl):
             self.queue.append_commands(STAGE_RESAMPLE, [' '.join(
                 ['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
 
@@ -708,7 +711,7 @@ class MAGeTBrain(object):
 
         if check_reg_dir:
             reg_dir, xfm = self.xfm_path(source, target)
-            if exists(xfm):
+            if is_non_zero_file(xfm):
                 return (reg_dir, xfm)
 
         if basedir is None:
@@ -720,7 +723,7 @@ class MAGeTBrain(object):
 
     def register_images(self, cmd, source, target, output):
         """Emits a command to register source to target if transform doesn't exist"""
-        if exists(output):  # TODO check complete
+        if is_non_zero_file(output):  # TODO check complete
             return None
         return ' '.join([cmd, source.image, target.image, output])
 
@@ -770,7 +773,7 @@ class Template:
         expected_labels = os.path.join(
             dirname(dirname(image_path)),
             'labels', self.stem + "_labels.mnc")
-        if not labels and os.path.exists(expected_labels):
+        if not labels and is_non_zero_file(expected_labels):
             self.labels = expected_labels
 
     @classmethod
