@@ -16,23 +16,25 @@
 #
 set -euo pipefail
 set -x
+
+tmpdir=$(mktemp -d)
+
 atlas=$1
 target=$2
 output_xfm=$3
 
-atlas_stem=$(basename $atlas .mnc)
-target_stem=$(basename $target .mnc)
-atlas_labels=$(dirname $(dirname $atlas))/labels/${atlas_stem}_labels.mnc
-output_dir=$(dirname $output_xfm)
-AT_lin_xfm=$output_dir/ATlin.xfm
-TA_lin_xfm=$output_dir/ATlin_inverse.xfm
-TA_nl_xfm=$output_dir/TAnl.xfm
-AT_nl_xfm=$output_dir/TAnl_inverse.xfm
-atlas_res=$output_dir/linres.mnc
-atlas_crop_labels=$output_dir/atlascroplabels.mnc
-atlas_crop_mask=$output_dir/atlascropmask.mnc
-atlas_label_mask=$output_dir/labelmask.mnc
-atlas_res_label_mask=$output_dir/labelmasklinres.mnc
+atlas_stem=$(basename ${atlas} .mnc)
+target_stem=$(basename ${target} .mnc)
+atlas_labels=$(dirname $(dirname ${atlas}))/labels/${atlas_stem}_labels.mnc
+output_dir=$(dirname ${output_xfm})
+AT_lin_xfm=${output_dir}/ATlin.xfm
+TA_lin_xfm=${output_dir}/ATlin_inverse.xfm
+TA_nl_xfm=${output_dir}/TAnl
+AT_nl_xfm=${output_dir}/TAnl0_inverse_NL.xfm
+atlas_res=${output_dir}/linres.mnc
+atlas_crop_labels=${output_dir}/atlascroplabels.mnc
+atlas_label_mask=${output_dir}/labelmask.mnc
+atlas_res_label_mask=${output_dir}/labelmasklinres.mnc
 
 if [[ -s $atlas_labels ]]; then
   if [[ ! -s ${atlas_label_mask} ]]; then
@@ -43,10 +45,10 @@ if [[ -s $atlas_labels ]]; then
   fi
   ANTS_MASK_ARGS="-x ${atlas_res_label_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
-elif [[ -d $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/$atlas_stem ]]; then
+elif [[ -d $(dirname $(dirname $(dirname $(dirname ${atlas}))))/output/templatemasks/$atlas_stem ]]; then
   if [[ ! -s ${atlas_label_mask}  ]]; then
     mincmath -byte -unsigned -clobber -labels -or \
-      $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
+      $(dirname $(dirname $(dirname $(dirname ${atlas}))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
   fi
   ANTS_MASK_ARGS="-x ${atlas_res_label_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
@@ -56,39 +58,39 @@ else
 fi
 
 # LINEAR
-if [[ ! -s $AT_lin_xfm ]]; then
-  bestlinreg_maget -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} $atlas $target $AT_lin_xfm
-  xfminvert -clobber $AT_lin_xfm $TA_lin_xfm
+if [[ ! -s ${AT_lin_xfm} ]]; then
+  bestlinreg_maget -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} ${atlas} ${target} ${AT_lin_xfm}
+  xfminvert -clobber ${AT_lin_xfm} ${TA_lin_xfm}
 fi
 
-if [[ ! -s $atlas_res ]]; then
-  mincresample -clobber -sinc -like $target -transform $AT_lin_xfm $atlas $atlas_res
-
+if [[ ! -s ${atlas_res} ]]; then
+  mincresample -clobber -sinc -like ${target} -transform ${AT_lin_xfm} ${atlas} ${tmpdir}/resample.mnc
+  mincmath -clobber -clamp -const2 0 $(mincstats -quiet -max ${atlas}) ${tmpdir}/resample.mnc ${atlas_res}
+  rm -f ${tmpdir}/resample.mnc
 fi
 
 if [[ -s ${atlas_label_mask} && ! -s ${atlas_res_label_mask} ]]; then
-  mincresample -clobber -unsigned -byte -keep -near -like $target -transform $AT_lin_xfm ${atlas_label_mask} ${atlas_res_label_mask}
+  mincresample -clobber -unsigned -byte -keep -near -like $target -transform ${AT_lin_xfm} ${atlas_label_mask} ${atlas_res_label_mask}
   if [[ -s ${atlas_labels} ]]; then
-    mkdir -p $(dirname $(dirname $(dirname $output_dir)))/templatemasks/$target_stem
-    cp ${atlas_res_label_mask} $(dirname $(dirname $(dirname $output_dir)))/templatemasks/$target_stem/${atlas_stem}.mnc
+    mkdir -p $(dirname $(dirname $(dirname ${output_dir})))/templatemasks/${target_stem}
+    cp ${atlas_res_label_mask} $(dirname $(dirname $(dirname ${output_dir})))/templatemasks/${target_stem}/${atlas_stem}.mnc
   fi
 fi
 
-
 # NONLINEAR
-if [[ ! -s $TA_nl_xfm ]]; then
-  mincANTS 3 -m CC[$target,$atlas_res,1,4] \
-    ${ANTS_MASK_ARGS} \
-    --continue-affine false \
-    --use-Histogram-Matching 1 \
-    -r Gauss[3,0] \
-    -t SyN[0.5] \
-    -o $TA_nl_xfm \
-    --subsampling-factors 16x14x12x10x8x6x4x2x1x1 \
-    --gaussian-smoothing-sigmas 6.7945744023041525x5.945252602016134x5.095930801728114x4.2466090014400955x3.3972872011520763x2.547965400864057x1.6986436005760381x0.8493218002880191x0.42466090014400953x0 \
-    -i 102400x68600x43200x25000x12800x5400x1600x200x25x25
+if [[ ! -s ${TA_nl_xfm}0_NL.xfm ]]; then
+  antsRegistration -d 3 --collapse-output-transforms 1 --verbose --minc \
+    --transform SyN[0.25] --metric CC[${target},${atlas_res},4] \
+    --use-histogram-matching 1 \
+    --output ${TA_nl_xfm} \
+    --convergence [6400x6400x6400x4670x2649x1502x852x483x274x155x88x50x25,1e-6,10] \
+    --shrink-factors 8x7x6x5x4x4x3x3x2x2x2x1x1 \
+    --smoothing-sigmas 7.99225592362x6.61266861862x5.47009541872x4.52358189014x3.73919975779x3.08882992473x2.54915299419x2.10081051917x1.72770579446x1.41641693281x1.15569669653x0.936031382318x0mm \
+    ${ANTS_MASK_ARGS}
 fi
 
-if [[ ! -s $output_xfm ]]; then
-  xfmconcat -clobber $AT_lin_xfm $AT_nl_xfm $output_xfm
+if [[ ! -s ${output_xfm} ]]; then
+  xfmconcat -clobber ${AT_lin_xfm} ${AT_nl_xfm} ${output_xfm}
 fi
+
+rm -rf ${tmpdir}
