@@ -46,7 +46,7 @@ if [[ -s $atlas_labels ]]; then
   BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
 elif [[ -d $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/$atlas_stem ]]; then
   if [[ ! -s ${atlas_label_mask}  ]]; then
-    voxel_vote $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
+    voxel_vote --clobber $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
   fi
   ANTS_MASK_ARGS="-x ${atlas_res_label_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
@@ -67,7 +67,7 @@ if [[ ! -s $atlas_res ]]; then
 fi
 
 if [[ -s ${atlas_label_mask} && ! -s ${atlas_res_label_mask} ]]; then
-  mincresample -unsigned -byte -keep -near -like $target -transform $AT_lin_xfm ${atlas_label_mask} ${atlas_res_label_mask}
+  mincresample -clobber -unsigned -byte -keep -near -like $target -transform $AT_lin_xfm ${atlas_label_mask} ${atlas_res_label_mask}
   if [[ -s ${atlas_labels} ]]; then
     mkdir -p $(dirname $(dirname $(dirname $output_dir)))/templatemasks/$target_stem
     cp ${atlas_res_label_mask} $(dirname $(dirname $(dirname $output_dir)))/templatemasks/$target_stem/${atlas_stem}.mnc
@@ -90,5 +90,5 @@ if [[ ! -s $TA_nl_xfm ]]; then
 fi
 
 if [[ ! -s $output_xfm ]]; then
-  xfmconcat $AT_lin_xfm $AT_nl_xfm $output_xfm
+  xfmconcat -clobber $AT_lin_xfm $AT_nl_xfm $output_xfm
 fi
