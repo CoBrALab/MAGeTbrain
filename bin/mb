@@ -83,7 +83,7 @@ def main():
 
     parser = DefaultHelpParser()
     parser.add_argument(
-        "--save", default=False, action="store_true",
+        "--save", default=True, action="store_true",
         help="Save intermediate files (e.g. registrations, candidate labels)")
 
     # In/out directory options
