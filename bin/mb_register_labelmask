@@ -37,16 +37,16 @@ atlas_res_label_mask=$output_dir/labelmasklinres.mnc
 if [[ -s $atlas_labels ]]; then
   if [[ ! -s ${atlas_label_mask} ]]; then
     #Construct a mask from the label file input
-    #Crop the labels to their bounding box, fill with 1, reshape back
-    autocrop -clobber -bbox ${atlas_labels} -isoexpand 10mm ${atlas_labels} ${atlas_crop_labels}
-    minccalc -clobber -expression '1' ${atlas_crop_labels} ${atlas_crop_mask}
-    mincresample -clobber -unsigned -byte -near -like ${atlas_labels} ${atlas_crop_mask} ${atlas_label_mask}
+    #Dilate the mask
+    minccalc -clobber -expression 'A[0]>0?1:0' ${atlas_labels} ${atlas_crop_labels}
+    mincmorph -3D26 -clobber -successive DDDDDDDDDD ${atlas_crop_labels} ${atlas_label_mask}
   fi
   ANTS_MASK_ARGS="-x ${atlas_res_label_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
 elif [[ -d $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/$atlas_stem ]]; then
   if [[ ! -s ${atlas_label_mask}  ]]; then
-    voxel_vote --clobber $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
+    mincmath -byte -unsigned -clobber -labels -or \
+      $(dirname $(dirname $(dirname $(dirname $atlas))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
   fi
   ANTS_MASK_ARGS="-x ${atlas_res_label_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
@@ -57,8 +57,8 @@ fi
 
 # LINEAR
 if [[ ! -s $AT_lin_xfm ]]; then
-	bestlinreg_maget -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} $atlas $target $AT_lin_xfm
-    xfminvert -clobber $AT_lin_xfm $TA_lin_xfm
+  bestlinreg_maget -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} $atlas $target $AT_lin_xfm
+  xfminvert -clobber $AT_lin_xfm $TA_lin_xfm
 fi
 
 if [[ ! -s $atlas_res ]]; then
