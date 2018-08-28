@@ -6,4 +6,11 @@ resmodel=$1
 subject=$2
 cropmodel=$3
 
-autocrop -clobber -from $resmodel -step $(mincinfo -attvalue xspace:step $subject) $(mincinfo -attvalue yspace:step $subject) $(mincinfo -attvalue zspace:step $subject) $resmodel $cropmodel
+autocrop -clobber -from ${resmodel} \
+  -step $(mincinfo -attvalue xspace:step ${subject}) $(mincinfo -attvalue yspace:step ${subject}) $(mincinfo -attvalue zspace:step ${subject}) \
+  ${resmodel} ${cropmodel}
+
+if [[ -s  $(dirname $(dirname ${resmodel}))/mask/mask.mnc ]]; then
+  mincresample -byte -unsigned -clobber -labels -keep -near \
+    -like ${cropmodel} $(dirname $(dirname ${resmodel}))/mask/mask.mnc $(dirname ${cropmodel})/$(basename ${cropmodel} .mnc)_mask.mnc
+fi

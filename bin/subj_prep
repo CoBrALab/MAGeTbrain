@@ -1,6 +1,7 @@
 #!/bin/bash
-
 set -euo pipefail
+
+tmpdir=$(mktemp -d)
 
 subject=$1
 resmodel=$2
@@ -8,7 +9,14 @@ xfm=$3
 modelsubject=$4
 cropmodel=$5
 
-bestlinreg_maget -clobber -nmi -lsq12 $subject $cropmodel $xfm
-xfminvert -clobber $xfm $(dirname $xfm)/$(basename $xfm .xfm)_inverse.xfm
+if [[ -s $(dirname ${cropmodel})/$(basename ${cropmodel} .mnc)_mask.mnc ]]; then
+  bestlinreg_maget -clobber -nmi -lsq12 -target_mask $(dirname ${cropmodel})/$(basename ${cropmodel} .mnc)_mask.mnc ${subject} ${cropmodel} ${xfm}
+else
+  bestlinreg_maget -clobber -nmi -lsq12 ${subject} ${cropmodel} ${xfm}
+fi
 
-mincresample -clobber -sinc -like $cropmodel -2 -transform $xfm $subject $modelsubject
+xfminvert -clobber ${xfm} $(dirname ${xfm})/$(basename ${xfm} .xfm)_inverse.xfm
+mincresample -clobber -sinc -like ${cropmodel} -transform ${xfm} ${subject} ${tmpdir}/resample.mnc
+mincmath -clobber -clamp -const2 0 $(mincstats -quiet -max ${subject}) ${tmpdir}/resample.mnc ${modelsubject}
+
+rm -rf ${tmpdir}
