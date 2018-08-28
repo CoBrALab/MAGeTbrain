@@ -49,6 +49,13 @@ my @conf = (
 
    { type        => "blur",
      trans       => undef,
+     blur_fwhm   => 8,
+     steps       => [qw/4 4 4/],
+     tolerance   => 0.0001,
+     simplex     => 16 },
+
+   { type        => "blur",
+     trans       => undef,
      blur_fwhm   => 4,
      steps       => [qw/4 4 4/],
      tolerance   => 0.0001,
@@ -319,8 +326,8 @@ for ($i=0; $i<=$#conf; $i++){
 
    # masks (even if the blurred image is masked, it's still preferable
    # to use the mask in minctracc)
-   push(@args, '-source_mask', $opt{source_mask} ) if ($i >= ($#conf - 2)) && defined($opt{source_mask});
-   push(@args, '-model_mask', $opt{target_mask}) if ($i >= ($#conf - 2)) && defined($opt{target_mask});
+   push(@args, '-source_mask', $opt{source_mask} ) if ($i >= ($#conf - 3)) && defined($opt{source_mask});
+   push(@args, '-model_mask', $opt{target_mask}) if ($i >= ($#conf - 3)) && defined($opt{target_mask});
 
    if($tmp_sec_source && $tmp_sec_target )
    {
