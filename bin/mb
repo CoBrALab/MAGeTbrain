@@ -3,22 +3,27 @@
 # Perform MAGeT brain segmentation
 #
 #
+import argparse
+import datetime
+import errno
 import glob
+import logging
 import os
 import os.path
-import argparse
-import sys
-import errno
-import logging
-import tempfile
 import random
+import shutil
 import string
 import subprocess
-import shutil
-import datetime
-from os.path import join, exists, basename, dirname
+import sys
+import tempfile
 from collections import defaultdict
-from itertools import product, chain
+from itertools import chain, product
+from os.path import basename, dirname, exists, join
+
+
+def is_non_zero_file(fpath):
+    return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
+
 
 # Stages
 STAGE_NONE = 'NONE'           # not a stage
@@ -59,7 +64,7 @@ stage_queue_hints = {
     STAGE_REG_TEMPL: {'procs': 20, 'walltime': '4:00:00'},
     STAGE_XFM_JOIN: {'procs': None, 'walltime': '0:10:00'},
     STAGE_RESAMPLE: {'procs': None, 'walltime': '1:00:00'},
-    STAGE_VOTE: {'procs': 5, 'walltime': '6:00:00'},
+    STAGE_VOTE: {'procs': 5, 'walltime': '12:00:00'},
     STAGE_TAR: {'procs': 8, 'walltime': '1:00:00'},
     STAGE_REG_MODEL: {'procs': 20, 'walltime': '6:00:00'},
     STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 24, 'walltime': '0:30:00'},
@@ -117,6 +122,7 @@ class SpecialFormatter(logging.Formatter):
     def format(self, record):
         self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
         return logging.Formatter.format(self, record)
+
 
 hdlr = logging.StreamHandler(sys.stderr)
 hdlr.setFormatter(SpecialFormatter())
@@ -443,7 +449,7 @@ def command_run(options):
             p.stage_register_templates()
         for subject in subjects:
             _, label = p.fused_label_path(subject)
-            if exists(label):
+            if is_non_zero_file(label):
                 continue
             # HACK the command line to run the voting stage next
             commandline = ' '.join(sys.argv)
@@ -535,7 +541,7 @@ def command_check(options):
     error_if_dne(join(options.input_dir, 'model', 'objects'),
                  "{0} folder does not exist.")
     # error_if_dne(join(options.input_dir, 'atlases', 'objects'),
-    #"{0} folder does not exist.")
+    # "{0} folder does not exist.")
 
     # check that atlases exist, and have labels
     atlas_dir = join(options.input_dir, 'atlases')
@@ -783,7 +789,7 @@ class QBatchCommandQueue(CommandQueue):
                 opt_walltime),
             input='\n'.join(commands))
         # self.execute('qbatch {0} {1} - {2} {3}'.format(opt_name, opt_afterok, batchsize, walltime),
-            # input='\n'.join(commands))
+        # input='\n'.join(commands))
         # os.remove(cmdfilename)
 
 # MAGeT Brain Stages
@@ -915,7 +921,7 @@ class MAGeTBrain(object):
                     candidate_labels.append(label)
             command = 'voxel_vote {0} {1}'.format(
                 ' '.join(candidate_labels), fused_lbl)
-            if not exists(fused_lbl):
+            if not is_non_zero_file(fused_lbl):
                 self.queue.append_commands(STAGE_VOTE, [command])
 
     def stage_register_models(self):
@@ -948,7 +954,7 @@ class MAGeTBrain(object):
             crop_model = join(newmodel_dir, "croppedmodel.mnc")
             prep_cmd = 'autocrop -from {0} -isostep 1 {0} {1}'.format(
                 res_model, crop_model)
-            if not os.path.exists(crop_model):
+            if not is_non_zero_file(crop_model):
                 #prep_cmd = 'autocrop -isostep 1 {0} {1}'.format(model.image, res_model)
                 commands.append(prep_cmd)
 
@@ -984,12 +990,12 @@ class MAGeTBrain(object):
             mkdirp(reg_dir)
             # mkdirp(dirname(nuc_subject))
             crop_model = join(newmodel_dir, subject.stem + ".mnc")
-            if not os.path.exists(crop_model):
+            if not is_non_zero_file(crop_model):
                 command = 'crop_model {0} {1} {2}'.format(
                     model.image, subject.image, crop_model)
                 self.queue.append_commands(STAGE_MODELPREP, [command])
 
-            if not os.path.exists(modelsubject):
+            if not is_non_zero_file(modelsubject):
                 prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(
                     subject.image, res_model, transform_file, modelsubject, crop_model)
                 commands.append(prep_cmd)
@@ -1041,12 +1047,12 @@ class MAGeTBrain(object):
             mkdirp(reg_dir)
             # mkdirp(dirname(nuc_template))
             crop_model = join(newmodel_dir, template.stem + ".mnc")
-            if not os.path.exists(crop_model):
+            if not is_non_zero_file(crop_model):
                 command = 'crop_model {0} {1} {2}'.format(
                     model.image, template.image, crop_model)
                 self.queue.append_commands(STAGE_MODELPREP, [command])
 
-            if not os.path.exists(modeltemplate):
+            if not is_non_zero_file(modeltemplate):
                 prep_cmd = 'subj_prep {0} {1} {2} {3} {4}'.format(
                     template.image, res_model, transform_file, modeltemplate, crop_model)
                 commands.append(prep_cmd)
@@ -1124,13 +1130,13 @@ class MAGeTBrain(object):
                     xfms.append(xfm)
 
                     # create concatenated xfm without linear parts
-                    if not os.path.exists(nl_only_xfm):
+                    if not is_non_zero_file(nl_only_xfm):
                         command = 'xfmjoin_morpho --nl-only {0} {1}'.format(
                             ' '.join(xfms), nl_only_xfm)
                         self.queue.append_commands(STAGE_XFMJOIN_M, [command])
 
                     # compute non-lin grid for the entire path
-                    if not os.path.exists(grid):
+                    if not is_non_zero_file(grid):
                         command = 'minc_displacement {0} {1} {2}'.format(
                             croppedmodel, nl_only_xfm, grid)
                         self.queue.append_commands(
@@ -1170,8 +1176,8 @@ class MAGeTBrain(object):
 
                 #self.queue.append_commands(STAGE_XFMJOIN_M, [command])
                 # command = 'autocrop -from {0} -step {1}$(mincinfo -attvalue xspace:step $subject)
-                #{2}$(mincinfo -attvalue yspace:step $subject) {3}$(mincinfo -attvalue zspace:step $subject)
-                #{4} {5}'.format(m.image, xstep, ystep, zstep, m.image, cropmodel)
+                # {2}$(mincinfo -attvalue yspace:step $subject) {3}$(mincinfo -attvalue zspace:step $subject)
+                # {4} {5}'.format(m.image, xstep, ystep, zstep, m.image, cropmodel)
 
                 for a, t in product(self.atlases, self.templates):
                     # create folder for model->atlas->template->subject
@@ -1230,11 +1236,11 @@ class MAGeTBrain(object):
 
                     #stage('model.subject.xfm').command('xfmjoin --nl-only',*(xfms + [out(nl_only_xfm)]))
                     #' '.join(['xfmjoin --nl-only', xfms, nl_only_xfm])
-                    if not os.path.exists(nl_only_xfm):
+                    if not is_non_zero_file(nl_only_xfm):
                         command = 'xfmjoin_morpho --nl-only {0} {1}'.format(
                             ' '.join(xfms), nl_only_xfm)
                         self.queue.append_commands(STAGE_XFMJOIN_M, [command])
-                    if not os.path.exists(lin_xfm):
+                    if not is_non_zero_file(lin_xfm):
                         command = 'xfmjoin_morpho {0} {1}'.format(
                             ' '.join(xfms_native), lin_xfm)
                         self.queue.append_commands(STAGE_XFMJOIN_M, [command])
@@ -1242,7 +1248,7 @@ class MAGeTBrain(object):
                     # compute non-lin grid for the entire path
 
                     # stage('model.subject.displace').command('minc_displacement',model,nl_only_xfm,out(grid))
-                    if not os.path.exists(gridavg):
+                    if not is_non_zero_file(gridavg):
                         command = 'minc_displacement {0} {1} {2}'.format(
                             croppedmodel, nl_only_xfm, grid)
                         #command = 'minc_displacement {0} {1} {2}'.format(m.image, nl_only_xfm, grid)
@@ -1263,10 +1269,10 @@ class MAGeTBrain(object):
                             #object='{0}/{1}.{2}.{3}.{4}.obj'.format(self.temp_dir, a.stem, t.stem, s.stem, kind)
                             # mkdirp(dirname(object))
                             # stage('model.subject.objects.transform').command(
-                            #'transform_objects',o,lin_xfm,object)
+                            # 'transform_objects',o,lin_xfm,object)
                             med = '{0}/{1}/{2}_median.obj'.format(
                                 self.options.output_dir, kind, s.stem)
-                            if not os.path.exists(med):
+                            if not is_non_zero_file(med):
                                 command = 'transform_objects {0} {1} {2}'.format(
                                     o, lin_xfm, object)
                                 self.queue.append_commands(
@@ -1276,7 +1282,7 @@ class MAGeTBrain(object):
                 # compute average grid over all pathways to the subject
                 grids.append(gridavg)
                 # stage('model.subject.gridavg').command('mincaverage',*grids)
-                if not os.path.exists(gridavg):
+                if not is_non_zero_file(gridavg):
                     command = 'mincaverage {0}'.format(' '.join(grids))
                     self.queue.append_commands(
                         STAGE_SUBJECTGRID_AVG, [command])
@@ -1294,7 +1300,7 @@ class MAGeTBrain(object):
                     obj_displace = '{0}/{1}_{2}.txt'.format(
                         displacement_dir, s.stem, ostem)
                     # stage('model.subject.displacement').command('object_volume_dot_product',o,gridavg,out(obj_displace))
-                    if not os.path.exists(obj_displace):
+                    if not is_non_zero_file(obj_displace):
                         command = 'object_volume_dot_product {0} {1} {2}'.format(
                             o, gridavg, obj_displace)
                         self.queue.append_commands(
@@ -1307,7 +1313,7 @@ class MAGeTBrain(object):
                     kernel = ostem.startswith('gp_') and 3 or 5
                     dp_blur = '{0}/{1}_{2}_{3}mm_blur.txt'.format(
                         displacement_dir, s.stem, ostem, kernel)
-                    if not os.path.exists(dp_blur):
+                    if not is_non_zero_file(dp_blur):
                         command = '/project/m/mchakrav/quarantine/CIVET/2.1.0/install/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
                             kernel, obj_displace, ref_obj, dp_blur)
                         self.queue.append_commands(STAGE_BLURDP, [command])
@@ -1332,29 +1338,29 @@ class MAGeTBrain(object):
                         recompute = '{0}/{1}_recomputed.obj'.format(
                             kind_dir, s.stem)
 
-                        if not os.path.exists(medianobj):
+                        if not is_non_zero_file(medianobj):
                             command = 'Rscript $MB_ENV/bin/object_average.R {0} {1}'.format(
                                 medianobj, ' '.join(objects[kind]))
                             self.queue.append_commands(
                                 STAGE_OBJ_MEDIAN, [command])
-                        if not os.path.exists(recompute):
+                        if not is_non_zero_file(recompute):
                             command = 'smooth_normals {0} {1} 0'.format(
                                 medianobj, recompute)
                             self.queue.append_commands(
                                 STAGE_NORMALS, [command])
 
                         # stage('objects.median').command(
-                            #"make_median_surfaces.pl",out(medianobj),*objects[kind])
+                            # "make_median_surfaces.pl",out(medianobj),*objects[kind])
                         # stage('objects.normals').command(
-                            #"recompute_normals",medianobj,medianobj) #fix: not out()
+                            # "recompute_normals",medianobj,medianobj) #fix: not out()
 
                         # if self.config('voronoi'):
                         # voronoi of median surface
                         # stage('objects.voronoi').command(
-                        #'depth_potential', '-area_voronoi',medianobj,out(voronoi))
+                        # 'depth_potential', '-area_voronoi',medianobj,out(voronoi))
                         #ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
                         if self.options.voronoi:
-                            if not os.path.exists(voronoi):
+                            if not is_non_zero_file(voronoi):
                                 command = '/project/m/mchakrav/quarantine/CIVET/2.1.0/install/bin/depth_potential -area_voronoi {0} {1}'.format(
                                     recompute, voronoi)
                                 self.queue.append_commands(
@@ -1363,7 +1369,7 @@ class MAGeTBrain(object):
                             # TODO: need to confirm that it is _rot_vorn.txt thati want
                                 #ref = ''.join('/project/m/mchakrav/atlases/morph_reference/' + kind + '_rot_vorn.txt')
                                 #ref = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot_vorn.txt')
-                            if not os.path.exists(vorn_sa):
+                            if not is_non_zero_file(vorn_sa):
                                 ref = ''.join(
                                     '/project/m/mchakrav/atlases-morpho/morph_reference/' + kind + '_rot_vorn.txt')
                                 command = 'vertstats_math -old_style_file -div {0} {1} {2}'.format(
@@ -1373,7 +1379,7 @@ class MAGeTBrain(object):
                                 # hack: determine the blurring kernal to use:
                                 #kernel = kind.startswith('gp_') and 3 or 5
                                 # vorn_blur = '{kind_dir}/{s.stem}_vorn_SA_{kernel}mm_blur.txt'.format(
-                                #**vars())
+                                # **vars())
                                 # todo: blur surface
                             ref_obj = ''.join(
                                 '/project/m/mchakrav/atlases-morpho/morph_reference/' + kind + '_rot.obj')
@@ -1382,7 +1388,7 @@ class MAGeTBrain(object):
                             #kernel = 5
                             vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(
                                 kind_dir, s.stem, kernel)
-                            if not os.path.exists(vorn_blur):
+                            if not is_non_zero_file(vorn_blur):
                                 command = '/project/m/mchakrav/quarantine/CIVET/2.1.0/install/bin/depth_potential -smooth {0} {1} {2} {3}'.format(
                                     kernel, vorn_sa, ref_obj, vorn_blur)
                                 self.queue.append_commands(
@@ -1415,12 +1421,12 @@ class MAGeTBrain(object):
             "nl_inverse.xfm")
         xfms.append(invert_xfm)
         joined_xfm = join(self.temp_dir, '.'.join(stems) + ".xfm")
-        if not exists(joined_xfm):
+        if not is_non_zero_file(joined_xfm):
             self.queue.append_commands(
                 STAGE_XFM_JOIN, [
                     'xfmjoin {0} {1}'.format(
                         ' '.join(xfms), joined_xfm)])
-        if not exists(output_lbl):
+        if not is_non_zero_file(output_lbl):
             self.queue.append_commands(STAGE_RESAMPLE, [' '.join(
                 ['mb_resample_label', joined_xfm, target.image, source_lbl, output_lbl])])
 
@@ -1447,7 +1453,7 @@ class MAGeTBrain(object):
 
         if check_reg_dir:
             reg_dir, xfm = self.xfm_path(source, target)
-            if exists(xfm):
+            if is_non_zero_file(xfm):
                 return (reg_dir, xfm)
 
         if basedir is None:
@@ -1459,7 +1465,7 @@ class MAGeTBrain(object):
 
     def register_images(self, cmd, source, target, output):
         """Emits a command to register source to target if transform doesn't exist"""
-        if exists(output):  # TODO check complete
+        if is_non_zero_file(output):  # TODO check complete
             return None
         return ' '.join([cmd, source.image, target.image, output])
 
@@ -1533,7 +1539,7 @@ class Template:
             'labels',
             self.stem +
             "_labels.mnc")
-        if not labels and os.path.exists(expected_labels):
+        if not labels and is_non_zero_file(expected_labels):
             self.labels = expected_labels
 
         objects_path = os.path.join(dirname(dirname(image_path)), 'objects')
