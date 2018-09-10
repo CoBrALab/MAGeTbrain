@@ -342,7 +342,12 @@ def main():
     parser_import.set_defaults(func=command_import)
 
     options = parser.parse_args()
-    options.func(options)
+    try:
+      options.func(options)
+    except AttributeError:
+      parser.print_help()
+      sys.exit(2)
+
 
 
 def get_inputs(options):
