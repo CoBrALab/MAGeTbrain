@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Joins together several xfm files, leaving the original displacement volumes
 # where they are.
