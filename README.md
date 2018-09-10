@@ -2,7 +2,7 @@
 
 ---
 
-Looking for the MAGeT Morphology pipeline? Use the `mb_morpho_tmp` branch instead.
+Looking for the MAGeT Morphology pipeline? Use the `morpho-labelmask` branch instead.
     
 ---
 
