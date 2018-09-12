@@ -33,7 +33,7 @@ atlas_res_mask=$output_dir/masklinres.mnc
 
 
 #If input mask exists, assume explicit, use it
-if [[ -s $atlas_mask ]]]; then
+if [[ -s $atlas_mask ]]; then
   ANTS_MASK_ARGS="-x ${atlas_res_mask}"
   BESTLIN_MASK_ARGS="-source_mask ${atlas_mask}"
 else
