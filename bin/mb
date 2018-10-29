@@ -1315,7 +1315,7 @@ class MAGeTBrain(object):
                         '/project/m/mchakrav/atlases-morpho/morph_reference/' +
                         ostem +
                         '_rot.obj')
-                    kernel = ostem.startswith('gp_') and 3 or 5
+                    kernel = (ostem.startswith('5atlas_gp') or ostem.startswith('gp_')) and 3 or 5
                     dp_blur = '{0}/{1}_{2}_{3}mm_blur.txt'.format(
                         displacement_dir, s.stem, ostem, kernel)
                     if not is_non_zero_file(dp_blur):
@@ -1389,7 +1389,7 @@ class MAGeTBrain(object):
                             ref_obj = ''.join(
                                 '/project/m/mchakrav/atlases-morpho/morph_reference/' + kind + '_rot.obj')
                             #ref_obj = ''.join('/home/m/mchakrav/mchakrav/subcortical_models/' + kind + '_rot.obj')
-                            kernel = kind.startswith('gp_') and 3 or 5
+                            kernel = (kind.startswith('5atlas_gp') or kind.startswith('gp_')) and 3 or 5
                             #kernel = 5
                             vorn_blur = '{0}/{1}_vorn_SA_{2}mm_blur.txt'.format(
                                 kind_dir, s.stem, kernel)
