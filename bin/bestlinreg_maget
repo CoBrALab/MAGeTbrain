@@ -308,7 +308,7 @@ for ($i=0; $i<=$#conf; $i++){
    # set up registration
    @args = ('minctracc', '-clobber', '-tricubic',
             ( $i==0 ) ? '-lsq6' :
-            ( ( $i==1 && $opt{lsqtype} ne "-lsq6" ) ?  '-lsq7' : ( ( $i==2 && $opt{lsqtype} ne "-lsq6" && $opt{lsqtype} ne "-lsq7" ) ? '-lsq9' : $opt{lsqtype} ) ),
+            ( ( $i==1 && $opt{lsqtype} ne "-lsq6" ) ?  '-lsq7' : ( ( ($i==2 || $i==3) && $opt{lsqtype} ne "-lsq6" && $opt{lsqtype} ne "-lsq7" ) ? '-lsq9' : $opt{lsqtype} ) ),
             '-step', @{$conf[$i]{steps}}, '-simplex', $conf[$i]{simplex},
             '-tol', $conf[$i]{tolerance});
 
