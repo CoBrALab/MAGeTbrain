@@ -35,6 +35,7 @@ TA_nl_xfm=${output_dir}/TAnl
 AT_nl_xfm=${output_dir}/TAnl1_inverse_NL.xfm
 atlas_label_mask=${output_dir}/labelmask.mnc
 atlas_res_label_mask=${output_dir}/labelmasklinres.mnc
+BESTLIN_MASK_ARGS=""
 
 fixed_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${target} 1)\".split(\"x\")]]))")
 
@@ -61,15 +62,8 @@ fi
 
 # LINEAR
 if [[ ! -s ${AT_lin_xfm} ]]; then
-  #bestlinreg_maget -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} ${atlas} ${target} ${AT_lin_xfm}
-  linearsteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${fixed_minimum_resolution})
-  antsRegistration --dimensionality 3 --verbose --minc \
-    --output ${tmpdir}/affine \
-    --use-histogram-matching 1 \
-    --initial-moving-transform [${target},${atlas},1] \
-    $(eval echo ${linearsteps})
-    cp -f ${tmpdir}/affine0_GenericAffine.xfm ${TA_lin_xfm}
-    xfminvert -clobber ${TA_lin_xfm} ${AT_lin_xfm}
+  bestlinreg_maget -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} ${atlas} ${target} ${AT_lin_xfm}
+  xfminvert -clobber ${AT_lin_xfm} ${TA_lin_xfm}
 fi
 
 if [[ -s ${atlas_label_mask} && ! -s ${atlas_res_label_mask} ]]; then
@@ -89,7 +83,7 @@ if [[ ! -s ${TA_nl_xfm}1_NL.xfm ]]; then
     --use-histogram-matching 0 \
     --output ${TA_nl_xfm} \
     $(eval echo ${nonlinearsteps}) \
-    --masks [NULL,${atlas_label_mask}]
+    --masks [NULL,NULL]
 fi
 
 if [[ ! -s ${output_xfm} ]]; then
