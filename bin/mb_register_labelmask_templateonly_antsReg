@@ -86,7 +86,7 @@ if [[ ! -s ${TA_nl_xfm}1_NL.xfm ]]; then
   antsRegistration -d 3 --collapse-output-transforms 1 --verbose --minc \
     --initial-moving-transform ${TA_lin_xfm} \
     --transform SyN[0.25] --metric CC[${target},${atlas},1,4] \
-    --use-histogram-matching 1 \
+    --use-histogram-matching 0 \
     --output ${TA_nl_xfm} \
     $(eval echo ${nonlinearsteps}) \
     --masks [NULL,${atlas_label_mask}]

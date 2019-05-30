@@ -81,7 +81,7 @@ fi
 if [[ ! -s ${TA_nl_xfm}0_NL.xfm ]]; then
   antsRegistration -d 3 --collapse-output-transforms 1 --verbose --minc \
     --transform SyN[0.25] --metric CC[${target},${atlas_res},4] \
-    --use-histogram-matching 1 \
+    --use-histogram-matching 0 \
     --output ${TA_nl_xfm} \
     --convergence [6400x6400x6400x4670x2649x1502x852x483x274x155x88x50x25,1e-6,10] \
     --shrink-factors 8x7x6x5x4x4x3x3x2x2x2x1x1 \
