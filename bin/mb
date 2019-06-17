@@ -436,6 +436,7 @@ def command_run(options):
     p.set_queue(queue)
 
     if options.stage == "register":
+        p.stage_imageprep()
         p.stage_register_atlases()
     if options.stage == "vote" or (
             options.stage == 'vanilla' and options.queue == 'parallel'):
