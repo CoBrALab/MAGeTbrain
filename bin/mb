@@ -227,13 +227,13 @@ def main():
     group = parser_run.add_argument_group(title="Registration")
     group.add_argument(
         "--register_cmd",
-        default="mb_register_labelmask",
+        default="mb_register_labelmask_antsReg",
         metavar='CMD',
         help="Command to register two images and output a transform. "
         "This command needs to accept the source image, target image "
         "and output transformation file as arguments, in this order.")
     group.add_argument(
-        "--register_cmd_subj", default="mb_subjregister_labelmask", metavar='CMD',
+        "--register_cmd_subj", default="mb_subjregister_labelmask_antsReg", metavar='CMD',
         help="Command to register templates to subjects. deletes nonessential transforms"
         "This command needs to accept the source image, target image "
         "and output transformation file as arguments, in this order.")
