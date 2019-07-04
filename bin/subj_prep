@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+set -x
 
 tmpdir=$(mktemp -d)
 
@@ -9,10 +10,10 @@ xfm=$3
 modelsubject=$4
 cropmodel=$5
 
-if [[ -s $(dirname ${cropmodel})/$(basename ${cropmodel} .mnc)_mask.mnc ]]; then
-  bestlinreg_maget -clobber -nmi -lsq12 -target_mask $(dirname ${cropmodel})/$(basename ${cropmodel} .mnc)_mask.mnc ${subject} ${cropmodel} ${xfm}
-else
-  bestlinreg_maget -clobber -nmi -lsq12 ${subject} ${cropmodel} ${xfm}
+bestlinreg_maget -clobber -nmi -lsq12 ${subject} ${resmodel} ${xfm}
+
+if [[ -s  $(dirname $(dirname ${resmodel}))/mask/mask.mnc ]]; then
+  bestlinreg_maget -close -init_xfm ${xfm} -clobber -nmi -lsq12 -target_mask  $(dirname $(dirname ${resmodel}))/mask/mask.mnc ${subject} ${resmodel} ${xfm}
 fi
 
 xfminvert -clobber ${xfm} $(dirname ${xfm})/$(basename ${xfm} .xfm)_inverse.xfm
