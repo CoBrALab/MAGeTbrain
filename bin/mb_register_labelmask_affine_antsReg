@@ -63,7 +63,7 @@ else
 fi
 
 # LINEAR
-if [[ ! -s ${AT_lin_xfm} ]]; then
+if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
   bestlinreg_maget -clobber -nmi -lsq12 ${atlas} ${target} ${AT_lin_xfm}
   if [[ ! -z "${BESTLIN_MASK_ARGS}" ]]; then 
     bestlinreg_maget -close -init_xfm ${AT_lin_xfm} -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} ${atlas} ${target} ${AT_lin_xfm}
