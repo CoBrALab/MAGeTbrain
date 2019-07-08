@@ -1,0 +1,110 @@
+#!/bin/bash
+#
+# This is the default registration script for MAGeT brain.
+#
+# Currently, it operates on MINC files only.
+#
+# Registers <atlas> to <target> and outputs the resulting xfm to output.xfm
+# Intermediate XFMs and other files to go `dirname output.xfm`
+#
+# if atlas is in grand/parent/atlas.mnc, then grand/mask/atlas-mask.mnc is
+# checked for existence.  If so, it's used as a mask during non-linear
+# registration.
+#
+# usage:
+#      register <atlas.mnc> <target.mnc> <output.xfm>
+#
+set -euo pipefail
+set -x
+
+calc(){ awk "BEGIN { print "$*" }"; }
+
+tmpdir=$(mktemp -d)
+
+atlas=$1
+target=$2
+output_xfm=$3
+
+atlas_wholebrain=$(dirname $(dirname $atlas))/wholebrain/$(basename $atlas)
+template_wholebrain=$(dirname $(dirname $target))/wholebrain/$(basename $target)
+
+atlas_stem=$(basename ${atlas} .mnc)
+target_stem=$(basename ${target} .mnc)
+atlas_labels=$(dirname $(dirname ${atlas}))/labels/${atlas_stem}_labels.mnc
+output_dir=$(dirname ${output_xfm})
+AT_lin_xfm=${output_dir}/ATlin.xfm
+TA_lin_xfm=${output_dir}/ATlin_inverse.xfm
+TA_nl_xfm=${output_dir}/TAnl
+AT_nl_xfm=${output_dir}/TAnl1_inverse_NL.xfm
+atlas_label_mask=${output_dir}/labelmask.mnc
+atlas_res_label_mask=${output_dir}/labelmasklinres.mnc
+BESTLIN_MASK_ARGS=""
+
+fixed_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${target} 1)\".split(\"x\")]]))")
+
+if [[ -s $atlas_labels ]]; then
+  if [[ ! -s ${atlas_label_mask} ]]; then
+    #Construct a mask from the label file input
+    #Dilate the mask
+    moving_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${atlas_labels} 1)\".split(\"x\")]]))")
+    mincmorph -3D26 -clobber -successive B[1:inf:1:0]$(seq $(calc "int(3/${moving_minimum_resolution}+0.5)") | awk -vORS= '{print "D"}')  ${atlas_labels} ${atlas_label_mask}
+  fi
+  fixedmask=NULL
+  movingmask=${atlas_label_mask}
+  BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
+elif [[ -d $(dirname $(dirname $(dirname $(dirname ${atlas}))))/output/templatemasks/$atlas_stem ]]; then
+  if [[ ! -s ${atlas_label_mask}  ]]; then
+    mincmath -byte -unsigned -clobber -labels -or \
+      $(dirname $(dirname $(dirname $(dirname ${atlas}))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
+  fi
+  fixedmask=NULL
+  movingmask=${atlas_label_mask}
+  BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
+else
+  fixedmask=NULL
+  movingmask=NULL
+fi
+
+# Register atlas slab brain to atlas wholebrain
+bestlinreg_maget -clobber -nmi -lsq6 ${atlas} ${atlas_wholebrain} ${tmpdir}/atlas_slab_to_wholebrain.xfm
+# Register target slab brain to target wholebrain 
+bestlinreg_maget -clobber -nmi -lsq6 ${atlas} ${atlas_wholebrain} ${tmpdir}/target_slab_to_wholebrain.xfm
+
+xfminvert -clobber ${tmpdir}/atlas_slab_to_wholebrain.xfm ${tmpdir}/atlas_wholebrain_to_slab.xfm
+xfminvert -clobber ${tmpdir}/target_slab_to_wholebrain.xfm ${tmpdir}/target_wholebrain_to_slab.xfm
+
+# LINEAR
+if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
+  bestlinreg_maget -clobber -nmi -lsq12 ${atlas_wholebrain} ${target_wholebrain} ${AT_lin_xfm}
+  xfmconcat -clobber ${tmpdir}/atlas_slab_to_wholebrain.xfm ${AT_lin_xfm} ${tmpdir}/target_wholebrain_to_slab.xfm ${AT_lin_xfm}
+  if [[  ! -z "${BESTLIN_MASK_ARGS}" ]]; then
+    bestlinreg_maget -close -init_xfm ${AT_lin_xfm} -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} ${atlas} ${target} ${AT_lin_xfm}
+  fi
+  xfminvert -clobber ${AT_lin_xfm} ${TA_lin_xfm}
+fi
+
+if [[ -s ${atlas_label_mask} && ! -s ${atlas_res_label_mask} ]]; then
+  mincresample -clobber -unsigned -byte -keep -near -like $target -transform ${AT_lin_xfm} ${atlas_label_mask} ${atlas_res_label_mask}
+  if [[ -s ${atlas_labels} ]]; then
+    mkdir -p $(dirname $(dirname $(dirname ${output_dir})))/templatemasks/${target_stem}
+    cp ${atlas_res_label_mask} $(dirname $(dirname $(dirname ${output_dir})))/templatemasks/${target_stem}/${atlas_stem}.mnc
+  fi
+fi
+
+# NONLINEAR
+if [[ ! -s ${TA_nl_xfm}1_NL.xfm ]]; then
+  nonlinearsteps=$(mb_generate_iterations_singlestep_resscale.py ${fixed_minimum_resolution})
+  antsRegistration -d 3 --collapse-output-transforms 1 --verbose --minc \
+    --initial-moving-transform ${TA_lin_xfm} \
+    --transform SyN[0.25] --metric CC[${target},${atlas},1,4] \
+    --use-histogram-matching 0 \
+    --output ${TA_nl_xfm} \
+    $(eval echo ${nonlinearsteps}) \
+    --masks [NULL,${movingmask}]
+fi
+
+if [[ ! -s ${output_xfm} ]]; then
+  xfmconcat -clobber ${AT_lin_xfm} ${AT_nl_xfm} ${output_xfm}
+fi
+
+rm -rf ${tmpdir}
