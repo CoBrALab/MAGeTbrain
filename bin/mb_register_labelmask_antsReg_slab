@@ -26,7 +26,7 @@ target=$2
 output_xfm=$3
 
 atlas_wholebrain=$(dirname $(dirname $atlas))/wholebrain/$(basename $atlas)
-template_wholebrain=$(dirname $(dirname $target))/wholebrain/$(basename $target)
+target_wholebrain=$(dirname $(dirname $target))/wholebrain/$(basename $target)
 
 atlas_stem=$(basename ${atlas} .mnc)
 target_stem=$(basename ${target} .mnc)
