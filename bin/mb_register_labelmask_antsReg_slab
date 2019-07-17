@@ -68,7 +68,7 @@ fi
 # Register atlas slab brain to atlas wholebrain
 bestlinreg_maget -clobber -nmi -lsq6 ${atlas} ${atlas_wholebrain} ${tmpdir}/atlas_slab_to_wholebrain.xfm
 # Register target slab brain to target wholebrain 
-bestlinreg_maget -clobber -nmi -lsq6 ${atlas} ${atlas_wholebrain} ${tmpdir}/target_slab_to_wholebrain.xfm
+bestlinreg_maget -clobber -nmi -lsq6 ${target} ${target_wholebrain} ${tmpdir}/target_slab_to_wholebrain.xfm
 
 xfminvert -clobber ${tmpdir}/atlas_slab_to_wholebrain.xfm ${tmpdir}/atlas_wholebrain_to_slab.xfm
 xfminvert -clobber ${tmpdir}/target_slab_to_wholebrain.xfm ${tmpdir}/target_wholebrain_to_slab.xfm
