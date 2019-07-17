@@ -66,7 +66,11 @@ else
 fi
 
 # Register atlas slab brain to atlas wholebrain
-bestlinreg_maget -clobber -nmi -lsq6 ${atlas} ${atlas_wholebrain} ${tmpdir}/atlas_slab_to_wholebrain.xfm
+if [[ "$(basename $(dirname $(dirname $atlas)))" == "atlas" ]]; then
+  param2xfm ${tmpdir}/atlas_slab_to_wholebrain.xfm
+else
+  bestlinreg_maget -clobber -nmi -lsq6 ${atlas} ${atlas_wholebrain} ${tmpdir}/atlas_slab_to_wholebrain.xfm
+fi
 # Register target slab brain to target wholebrain 
 bestlinreg_maget -clobber -nmi -lsq6 ${target} ${target_wholebrain} ${tmpdir}/target_slab_to_wholebrain.xfm
 
