@@ -67,20 +67,20 @@ fi
 
 # Register atlas slab brain to atlas wholebrain
 if [[ "$(basename $(dirname $(dirname $atlas)))" == "atlas" ]]; then
-  param2xfm ${tmpdir}/atlas_slab_to_wholebrain.xfm
+  param2xfm ${output_dir}/atlas_slab_to_wholebrain.xfm
 else
-  bestlinreg_maget -clobber -nmi -lsq6 ${atlas} ${atlas_wholebrain} ${tmpdir}/atlas_slab_to_wholebrain.xfm
+  bestlinreg_maget -clobber -nmi -lsq6 ${atlas} ${atlas_wholebrain} ${output_dir}/atlas_slab_to_wholebrain.xfm
 fi
 # Register target slab brain to target wholebrain 
-bestlinreg_maget -clobber -nmi -lsq6 ${target} ${target_wholebrain} ${tmpdir}/target_slab_to_wholebrain.xfm
+bestlinreg_maget -clobber -nmi -lsq6 ${target} ${target_wholebrain} ${output_dir}/target_slab_to_wholebrain.xfm
 
-xfminvert -clobber ${tmpdir}/atlas_slab_to_wholebrain.xfm ${tmpdir}/atlas_wholebrain_to_slab.xfm
-xfminvert -clobber ${tmpdir}/target_slab_to_wholebrain.xfm ${tmpdir}/target_wholebrain_to_slab.xfm
+xfminvert -clobber ${output_dir}/atlas_slab_to_wholebrain.xfm ${output_dir}/atlas_wholebrain_to_slab.xfm
+xfminvert -clobber ${output_dir}/target_slab_to_wholebrain.xfm ${output_dir}/target_wholebrain_to_slab.xfm
 
 # LINEAR
 if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
   bestlinreg_maget -clobber -nmi -lsq12 ${atlas_wholebrain} ${target_wholebrain} ${AT_lin_xfm}
-  xfmconcat -clobber ${tmpdir}/atlas_slab_to_wholebrain.xfm ${AT_lin_xfm} ${tmpdir}/target_wholebrain_to_slab.xfm ${AT_lin_xfm}
+  xfmconcat -clobber ${output_dir}/atlas_slab_to_wholebrain.xfm ${AT_lin_xfm} ${output_dir}/target_wholebrain_to_slab.xfm ${AT_lin_xfm}
   if [[  ! -z "${BESTLIN_MASK_ARGS}" ]]; then
     bestlinreg_maget -close -init_xfm ${AT_lin_xfm} -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} ${atlas} ${target} ${AT_lin_xfm}
   fi
