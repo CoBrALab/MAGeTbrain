@@ -12,7 +12,7 @@ source_label=$3
 output_file=$4
 
 
-mincresample -clobber -keep -near -unsigned -byte \
+mincresample -clobber -labels -near -unsigned -byte \
   -transform $transform \
   -like $like_image \
   $source_label $output_file
