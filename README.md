@@ -25,11 +25,12 @@ To [cite MAGeTbrain in publications](CITATION), please use:
 ## Dependencies
 
 In order to use MAGeTBrain, you will need to install: 
-- Python 2.7, we recommend you install the [anaconda python 2.7 distribution](https://www.continuum.io/downloads)
-- If you didn't install anaconda, you will need the python packages [NumPy and SciPy](http://www.scipy.org/scipylib/download.html)
-- [minc-toolkit 1.0.07](http://www.bic.mni.mcgill.ca/ServicesSoftware/ServicesSoftwareMincToolKit#1.0.07)
+- Python 3, we recommend you install the [anaconda python 3 distribution](https://www.anaconda.com/distribution/)
+- [minc-toolkit-v2](https://bic-mni.github.io/)
 - [pyminc](https://github.com/Mouse-Imaging-Centre/pyminc)
 - [minc-stuffs](https://github.com/Mouse-Imaging-Centre/minc-stuffs)
+- for cluster integration [qbatch](https://github.com/pipitone/qbatch)
+- [gnu-parallel](https://www.gnu.org/software/parallel/)
 
 or
 
