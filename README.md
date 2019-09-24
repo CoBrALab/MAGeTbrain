@@ -34,7 +34,7 @@ In order to use MAGeTBrain, you will need to install:
 
 or
 
-Just use the pipeline on Scinet.
+Just use the pipeline on Compute Canada's Niagara Cluster.
 
 ## Getting started, for the impatient:
 
@@ -80,9 +80,9 @@ running, `source MAGeTbrain/bin/activate` (revert PATH by typing `deactivate`).
         mb run
 
    This uses the default settings to execute the necessary commands. In
-   particular, it assumes you have access to a PBS batch queuing system, and
-   uses the utility `bin/qbatch` to submit commands in batches.  If you are
-   running this on SciNet, you should no problems.
+   particular, it assumes you have access to a qbatch-enabled batch queuing system, and
+   uses the utility `qbatch` to submit commands in batches.  If you are
+   running this on Niagara, you should have no problems.
 
    If you can also run MAGeT Brain using the GNU parallel on a single machine, 
    like so: 
