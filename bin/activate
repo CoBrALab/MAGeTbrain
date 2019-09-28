@@ -58,3 +58,4 @@ export PYTHONPATH
 if [ -n "$BASH" -o -n "$ZSH_VERSION" ] ; then
     hash -r
 fi
+PS1="(MAGeT) "$PS1
