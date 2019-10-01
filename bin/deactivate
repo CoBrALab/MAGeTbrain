@@ -36,21 +36,16 @@ unload_mb () {
     # Self destruct!
         unset -f unload_mb
     fi
+
+    if [ -n "$_OLD_PS1" ] ; then
+        PS1="$_OLD_PS1"
+        export PS1
+        unset _OLD_PS1
+    fi
 }
 
 # unset irrelavent variables
 unload_mb nondestructive
-
-MB_ENV=$(_script_home)
-export MB_ENV
-
-_OLD_VIRTUAL_PATH="$PATH"
-PATH="$MB_ENV/bin:$PATH"
-export PATH
-
-_OLD_VIRTUAL_PYTHONPATH="$PYTHONPATH"
-PYTHONPATH="$MB_ENV:$PYTHONPATH"
-export PYTHONPATH
 
 # This should detect bash and zsh, which have a hash command that must
 # be called to get it to forget past commands.  Without forgetting
@@ -58,5 +53,3 @@ export PYTHONPATH
 if [ -n "$BASH" -o -n "$ZSH_VERSION" ] ; then
     hash -r
 fi
-_OLD_PS1=$PS1
-PS1="(MAGeT) "$PS1
