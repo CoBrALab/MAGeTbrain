@@ -59,7 +59,7 @@ elif [[ -d $(dirname $(dirname $(dirname $(dirname ${atlas}))))/output/templatem
   fixedmask=NOMASK
   fixedmaskfine=NOMASK
   movingmask=${atlas_label_mask}
-  movingmaskfine=${atlas_label_mask}
+  movingmaskfine=${atlas_label_mask_close}
 else
   fixedmask=NOMASK
   fixedmaskfine=NOMASK
@@ -96,7 +96,7 @@ if [[ ! -s ${TA_nl_xfm}1_NL.xfm ]]; then
     --use-histogram-matching 1 \
     --output ${TA_nl_xfm} \
     $(eval echo ${nonlinearsteps}) \
-    --masks [${atlas_res_label_mask},${movingmask}]
+    --masks [NOMASK,${movingmask}]
 fi
 
 if [[ ! -s ${output_xfm} ]]; then
