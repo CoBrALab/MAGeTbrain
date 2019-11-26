@@ -86,7 +86,7 @@ else
   antsRegistration --dimensionality 3 --verbose --minc \
     --output [ ${tmpdir}/reg ] \
     --use-histogram-matching 0 \
-    --initial-moving-transform [ ${atlas_wholebrain},${atlas},1 ] \
+    --initial-moving-transform [ ${target},${atlas},1 ] \
     $(eval echo ${affinesteps})
   mv -f ${tmpdir}/reg0_GenericAffine.xfm ${output_dir}/atlas_wholebrain_to_slab.xfm
 fi
@@ -98,7 +98,7 @@ atlas=${target}
 antsRegistration --dimensionality 3 --verbose --minc \
     --output [ ${tmpdir}/reg ] \
     --use-histogram-matching 0 \
-    --initial-moving-transform [ ${target_wholebrain},${target},1 ] \
+    --initial-moving-transform [ ${target},${atlas},1 ] \
     $(eval echo ${affinesteps})
 mv -f ${tmpdir}/reg0_GenericAffine.xfm ${output_dir}/target_wholebrain_to_slab.xfm
 
@@ -116,7 +116,7 @@ if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
   antsRegistration --dimensionality 3 --verbose --minc \
     --output [ ${tmpdir}/reg ] \
     --use-histogram-matching 0 \
-    --initial-moving-transform [ ${target_wholebrain},${atlas_wholebrain},1 ] \
+    --initial-moving-transform [ ${target},${atlas},1 ] \
     $(eval echo ${affinesteps})
   mv -f ${tmpdir}/reg0_GenericAffine.xfm ${TA_lin_xfm}
   xfminvert -clobber ${TA_lin_xfm} ${AT_lin_xfm}
