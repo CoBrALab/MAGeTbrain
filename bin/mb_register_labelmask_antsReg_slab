@@ -77,7 +77,7 @@ atlassave=${atlas}
 
 
 # Register atlas slab brain to atlas wholebrain
-if [[ "$(basename $(dirname $(dirname $atlas)))" == "atlas" ]]; then
+if [[ "$(basename $(dirname $(dirname $atlas)))" == "atlases" ]]; then
   param2xfm ${output_dir}/atlas_wholebrain_to_slab.xfm
 else
   affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${fixed_atlaswholebrain_resolution})
