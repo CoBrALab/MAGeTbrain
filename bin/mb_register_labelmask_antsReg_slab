@@ -93,7 +93,7 @@ fi
 
 # Register target slab brain to target wholebrain 
 affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${fixed_targetwholebrain_resolution})
-atlas=${target}
+atlas=${targetsave}
 target=${target_wholebrain}
 antsRegistration --dimensionality 3 --verbose --minc \
     --output [ ${tmpdir}/reg ] \
