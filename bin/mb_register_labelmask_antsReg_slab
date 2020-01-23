@@ -40,16 +40,16 @@ atlas_label_mask=${output_dir}/labelmask.mnc
 atlas_res_label_mask=${output_dir}/labelmasklinres.mnc
 BESTLIN_MASK_ARGS=""
 
-fixed_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${target} 1)\".split(\"x\")]]))")
-fixed_atlaswholebrain_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${atlas_wholebrain} 1)\".split(\"x\")]]))")
-fixed_targetwholebrain_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${target_wholebrain} 1)\".split(\"x\")]]))")
+target_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${target} 1)\".split(\"x\")]]))")
+atlas_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${atlas} 1)\".split(\"x\")]]))")
+target_wholebrain_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${target_wholebrain} 1)\".split(\"x\")]]))")
+atlas_wholebrain_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${atlas_wholebrain} 1)\".split(\"x\")]]))")
 
 if [[ -s $atlas_labels ]]; then
   if [[ ! -s ${atlas_label_mask} ]]; then
     #Construct a mask from the label file input
     #Dilate the mask
-    moving_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${atlas_labels} 1)\".split(\"x\")]]))")
-    mincmorph -3D26 -clobber -successive B[1:inf:1:0]$(seq $(calc "int(3/${moving_minimum_resolution}+0.5)") | awk -vORS= '{print "D"}')  ${atlas_labels} ${atlas_label_mask}
+    mincmorph -3D26 -clobber -successive B[1:inf:1:0]$(seq $(calc "int(3/${atlas_resolution}+0.5)") | awk -vORS= '{print "D"}')  ${atlas_labels} ${atlas_label_mask}
   fi
   fixedmask=NOMASK
   movingmask=${atlas_label_mask}
@@ -80,7 +80,7 @@ atlassave=${atlas}
 if [[ "$(basename $(dirname $(dirname $atlas)))" == "atlases" ]]; then
   param2xfm ${output_dir}/atlas_wholebrain_to_slab.xfm
 else
-  affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${fixed_atlaswholebrain_resolution})
+  affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${atlas_wholebrain_resolution})
   target=${atlas_wholebrain}
   atlas=${atlas}
   antsRegistration --dimensionality 3 --verbose --minc \
@@ -92,7 +92,7 @@ else
 fi
 
 # Register target slab brain to target wholebrain 
-affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${fixed_targetwholebrain_resolution})
+affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${target_wholebrain_resolution})
 atlas=${targetsave}
 target=${target_wholebrain}
 antsRegistration --dimensionality 3 --verbose --minc \
@@ -110,7 +110,7 @@ xfminvert -clobber ${output_dir}/target_wholebrain_to_slab.xfm ${output_dir}/tar
 # LINEAR
 if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
   #Register wholebrain to wholebrain
-  affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${fixed_targetwholebrain_resolution})
+  affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${target_wholebrain_resolution})
   target=${target_wholebrain}
   atlas=${atlas_wholebrain}
   antsRegistration --dimensionality 3 --verbose --minc \
@@ -128,7 +128,7 @@ if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
   movingmask=${masksavemoving}
   target=${targetsave}
   atlas=${atlassave}
-  affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${fixed_minimum_resolution})
+  affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${target_wholebrain_resolution})
   antsRegistration --dimensionality 3 --verbose --minc \
     --output [ ${tmpdir}/reg ] \
     --use-histogram-matching 0 \
