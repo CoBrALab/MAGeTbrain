@@ -44,7 +44,7 @@ if [[ -s $atlas_labels ]]; then
     #Construct a mask from the label file input
     #Dilate the mask
     moving_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${atlas_labels} 1)\".split(\"x\")]]))")
-    mincmorph -3D26 -clobber -successive B[1:inf:1:0]$(seq $(calc "int(3/${moving_minimum_resolution}+0.5)") | awk -vORS= '{print "D"}')  ${atlas_labels} ${atlas_label_mask}
+    mincmorph -3D26 -clobber -successive B[0.5:inf:1:0]$(seq $(calc "int(3/${moving_minimum_resolution}+0.5)") | awk -vORS= '{print "D"}')  ${atlas_labels} ${atlas_label_mask}
   fi
   fixedmask=NULL
   movingmask=${atlas_label_mask}

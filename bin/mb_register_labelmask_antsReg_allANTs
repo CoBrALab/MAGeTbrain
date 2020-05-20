@@ -34,10 +34,11 @@ TA_lin_xfm=${output_dir}/ATlin_inverse.xfm
 TA_nl_xfm=${output_dir}/TAnl
 AT_nl_xfm=${output_dir}/TAnl1_inverse_NL.xfm
 atlas_label_mask=${output_dir}/labelmask.mnc
+atlas_label_mask_close=${output_dir}/labelmask_fine.mnc
 atlas_res_label_mask=${output_dir}/labelmasklinres.mnc
-BESTLIN_MASK_ARGS=""
 
 fixed_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${target} 1)\".split(\"x\")]]))")
+fixed_maximum_resolution=$(python -c "print(max([ a*b for a,b in zip([abs(x) for x in [float(x) for x in \"$(PrintHeader ${target} 1)\".split(\"x\")]],[abs(x) for x in [float(x) for x in \"$(PrintHeader ${target} 2)\".split(\"x\")]])]))")
 
 if [[ -s $atlas_labels ]]; then
   if [[ ! -s ${atlas_label_mask} ]]; then
@@ -45,30 +46,40 @@ if [[ -s $atlas_labels ]]; then
     #Dilate the mask
     moving_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${atlas_labels} 1)\".split(\"x\")]]))")
     mincmorph -3D26 -clobber -successive B[0.5:inf:1:0]$(seq $(calc "int(3/${moving_minimum_resolution}+0.5)") | awk -vORS= '{print "D"}')  ${atlas_labels} ${atlas_label_mask}
+    mincmorph -3D26 -clobber -successive B[0.5:inf:1:0]$(seq $(calc "int(1.5/${moving_minimum_resolution}+0.5)") | awk -vORS= '{print "D"}') ${atlas_labels} ${atlas_label_mask_close}
   fi
-  fixedmask=NULL
+  fixedmask=NOMASK
   movingmask=${atlas_label_mask}
-  BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
+  fixedmaskfine=NOMASK
+  movingmaskfine=${atlas_label_mask_close}
 elif [[ -d $(dirname $(dirname $(dirname $(dirname ${atlas}))))/output/templatemasks/$atlas_stem ]]; then
   if [[ ! -s ${atlas_label_mask}  ]]; then
     mincmath -byte -unsigned -clobber -labels -or \
       $(dirname $(dirname $(dirname $(dirname ${atlas}))))/output/templatemasks/${atlas_stem}/*mnc ${atlas_label_mask}
   fi
-  fixedmask=NULL
+  fixedmask=NOMASK
+  fixedmaskfine=NOMASK
   movingmask=${atlas_label_mask}
-  BESTLIN_MASK_ARGS="-source_mask ${atlas_label_mask}"
+  movingmaskfine=${atlas_label_mask_close}
 else
-  fixedmask=NULL
-  movingmask=NULL
+  fixedmask=NOMASK
+  fixedmaskfine=NOMASK
+  movingmask=NOMASK
+  movingmaskfine=NOMASK
 fi
 
 # LINEAR
 if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
-  bestlinreg_maget -clobber -nmi -lsq12 ${atlas} ${target} ${AT_lin_xfm}
-  if [[ ! -z "${BESTLIN_MASK_ARGS}" ]]; then 
-    bestlinreg_maget -close -init_xfm ${AT_lin_xfm} -clobber -nmi -lsq12 ${BESTLIN_MASK_ARGS} ${atlas} ${target} ${AT_lin_xfm}
-  fi
-  xfminvert -clobber ${AT_lin_xfm} ${TA_lin_xfm} 
+  fixedfile=${target}
+  movingfile=${atlas}
+  affinesteps=$(ants_generate_iterations.py --min ${fixed_minimum_resolution} --max ${fixed_maximum_resolution} --output multilevel-halving)
+  antsRegistration --dimensionality 3 --verbose --minc \
+    --output [ ${tmpdir}/reg ] \
+    --use-histogram-matching 1 \
+    --initial-moving-transform [ ${target},${atlas},1 ] \
+    $(eval echo ${affinesteps})
+  mv -f ${tmpdir}/reg0_GenericAffine.xfm ${TA_lin_xfm}
+  xfminvert -clobber ${TA_lin_xfm} ${AT_lin_xfm}
 fi
 
 if [[ -s ${atlas_label_mask} && ! -s ${atlas_res_label_mask} ]]; then
@@ -81,14 +92,14 @@ fi
 
 # NONLINEAR
 if [[ ! -s ${TA_nl_xfm}1_NL.xfm ]]; then
-  nonlinearsteps=$(mb_generate_iterations_singlestep_resscale.py ${fixed_minimum_resolution})
+  nonlinearsteps=$(ants_generate_iterations.py --min ${fixed_minimum_resolution} --max ${fixed_maximum_resolution})
   antsRegistration -d 3 --collapse-output-transforms 1 --verbose --minc \
     --initial-moving-transform ${TA_lin_xfm} \
     --transform SyN[0.25] --metric CC[${target},${atlas},1,4] \
-    --use-histogram-matching 0 \
+    --use-histogram-matching 1 \
     --output ${TA_nl_xfm} \
     $(eval echo ${nonlinearsteps}) \
-    --masks [NULL,NULL]
+    --masks [NOMASK,${movingmask}]
 fi
 
 if [[ ! -s ${output_xfm} ]]; then
