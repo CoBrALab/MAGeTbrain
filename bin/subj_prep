@@ -10,11 +10,25 @@ xfm=$3
 modelsubject=$4
 cropmodel=$5
 
-bestlinreg_maget -clobber -nmi -lsq12 ${subject} ${resmodel} ${xfm}
+movingfile=${subject}
+fixedfile=${resmodel}
+movingmask=NOMASK
+fixedmask=$(dirname $(dirname ${resmodel}))/mask/mask.mnc
+movingmask=NOMASK
+movingmaskfine=$(dirname $(dirname ${resmodel}))/mask/mask.mnc
 
-if [[ -s  $(dirname $(dirname ${resmodel}))/mask/mask.mnc ]]; then
-  bestlinreg_maget -close -init_xfm ${xfm} -clobber -nmi -lsq12 -target_mask  $(dirname $(dirname ${resmodel}))/mask/mask.mnc ${subject} ${resmodel} ${xfm}
-fi
+fixed_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 1)\".split(\"x\")]]))")
+fixed_maximum_resolution=$(python -c "print(max([ a*b for a,b in zip([abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 1)\".split(\"x\")]],[abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 2)\".split(\"x\")]])]))")
+
+affinesteps=$(ants_generate_iterations.py --min ${fixed_minimum_resolution} --max ${fixed_maximum_resolution} --output multilevel-halving)
+
+antsRegistration --dimensionality 3 --verbose --minc \
+  --output [ ${tmpdir}/reg ] \
+  --use-histogram-matching 1 \
+  --initial-moving-transform [ ${fixedfile},${movingfile},1] \
+  $(eval echo ${affinesteps})
+
+xfminvert -clobber ${tmpdir}/reg0_GenericAffine.xfm ${xfm}
 
 xfminvert -clobber ${xfm} $(dirname ${xfm})/$(basename ${xfm} .xfm)_inverse.xfm
 mincresample -clobber -sinc -like ${cropmodel} -transform ${xfm} ${subject} ${tmpdir}/resample.mnc
