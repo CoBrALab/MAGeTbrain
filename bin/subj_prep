@@ -13,9 +13,12 @@ cropmodel=$5
 movingfile=${subject}
 fixedfile=${resmodel}
 movingmask=NOMASK
+
 fixedmask=$(dirname $(dirname ${resmodel}))/mask/mask.mnc
 movingmask=NOMASK
-movingmaskfine=$(dirname $(dirname ${resmodel}))/mask/mask.mnc
+
+fixedmaskfine=$(dirname $(dirname ${resmodel}))/mask/mask.mnc
+movingmaskfine=NOMASK
 
 fixed_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 1)\".split(\"x\")]]))")
 fixed_maximum_resolution=$(python -c "print(max([ a*b for a,b in zip([abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 1)\".split(\"x\")]],[abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 2)\".split(\"x\")]])]))")
