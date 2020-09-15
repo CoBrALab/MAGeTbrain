@@ -769,7 +769,7 @@ class Template:
     """Represents an MR image with labels, optionally"""
 
     def __init__(self, image, labels=None):
-        image_path = os.path.realpath(image)
+        image_path = os.path.relpath(image)
         self.stem = os.path.basename(os.path.splitext(image_path)[0])
         self.image = image
         self.labels = labels
