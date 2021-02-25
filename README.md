@@ -26,6 +26,7 @@ To [cite MAGeTbrain in publications](CITATION), please use:
 
 In order to use MAGeTBrain, you will need to install: 
 - Python 3, we recommend you install the [anaconda python 3 distribution](https://www.anaconda.com/distribution/)
+- ANTs (with MINC enabled)
 - [minc-toolkit-v2](https://bic-mni.github.io/)
 - [pyminc](https://github.com/Mouse-Imaging-Centre/pyminc)
 - [minc-stuffs](https://github.com/Mouse-Imaging-Centre/minc-stuffs)
