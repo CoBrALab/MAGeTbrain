@@ -72,7 +72,7 @@ fi
 if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
   fixedfile=${target}
   movingfile=${atlas}
-  affinesteps=$(mb_ants_generate_iterations.py --min ${fixed_minimum_resolution} --max ${fixed_maximum_resolution} --output multilevel-halving)
+  affinesteps=$(mb_ants_generate_iterations.py --min ${fixed_minimum_resolution} --max ${fixed_maximum_resolution} --output multilevel-halving --convergence 1e-7)
   antsRegistration --dimensionality 3 --verbose --minc \
     --output [ ${tmpdir}/reg ] \
     --use-histogram-matching 1 \
