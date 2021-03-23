@@ -75,7 +75,7 @@ if [[ ! -s ${AT_lin_xfm} && ! -s ${TA_lin_xfm} ]]; then
   affinesteps=$(mb_ants_generate_iterations.py --min ${fixed_minimum_resolution} --max ${fixed_maximum_resolution} --output multilevel-halving --convergence 1e-7)
   antsRegistration --dimensionality 3 --verbose --minc \
     --output [ ${tmpdir}/reg ] \
-    --use-histogram-matching 1 \
+    --use-histogram-matching 0 \
     --initial-moving-transform [ ${target},${atlas},1 ] \
     $(eval echo ${affinesteps})
   mv -f ${tmpdir}/reg0_GenericAffine.xfm ${TA_lin_xfm}
@@ -96,7 +96,7 @@ if [[ ! -s ${TA_nl_xfm}1_NL.xfm ]]; then
   antsRegistration -d 3 --collapse-output-transforms 1 --verbose --minc \
     --initial-moving-transform ${TA_lin_xfm} \
     --transform SyN[0.25] --metric CC[${target},${atlas},1,4] \
-    --use-histogram-matching 1 \
+    --use-histogram-matching 0 \
     --output ${TA_nl_xfm} \
     $(eval echo ${nonlinearsteps}) \
     --masks [NOMASK,${movingmask}]
