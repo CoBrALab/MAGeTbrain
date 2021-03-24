@@ -60,7 +60,7 @@ if [[ ! -s $TA_nl_xfm ]]; then
   mincANTS 3 -m CC[$target,$atlas_res,1,4] \
     ${ANTS_MASK_ARGS} \
     --continue-affine false \
-    --use-Histogram-Matching 1 \
+    --use-Histogram-Matching 0 \
     -r Gauss[3,0] \
     -t SyN[0.5] \
     -o $TA_nl_xfm \
