@@ -2,6 +2,8 @@
 set -euo pipefail
 set -x
 
+export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${THREADS_PER_COMMAND:-$(nproc)}
+
 tmpdir=$(mktemp -d)
 
 subject=$1
@@ -10,14 +12,38 @@ xfm=$3
 modelsubject=$4
 cropmodel=$5
 
-bestlinreg_maget -clobber -nmi -lsq12 ${subject} ${resmodel} ${xfm}
+movingmask=NOMASK
+fixedfile=${cropmodel}
+movingfile=${subject}
+movingmaskfine=NOMASK
 
-if [[ -s  $(dirname $(dirname ${resmodel}))/mask/mask.mnc ]]; then
-  bestlinreg_maget -close -init_xfm ${xfm} -clobber -nmi -lsq12 -target_mask  $(dirname $(dirname ${resmodel}))/mask/mask.mnc ${subject} ${resmodel} ${xfm}
+if [[ -s $(dirname $(dirname ${resmodel}))/mask/mask.mnc ]]; then
+  antsApplyTransforms -d 3 -i $(dirname $(dirname ${resmodel}))/mask/mask.mnc -o ${tmpdir}/mask.mnc -n GenericLabel -r ${fixedfile} --verbose
+  fixedmask=${tmpdir}/mask.mnc
+else
+  fixedmask=NOMASK
 fi
 
-xfminvert -clobber ${xfm} $(dirname ${xfm})/$(basename ${xfm} .xfm)_inverse.xfm
-mincresample -clobber -sinc -like ${cropmodel} -transform ${xfm} ${subject} ${tmpdir}/resample.mnc
-mincmath -clobber -clamp -const2 0 $(mincstats -quiet -max ${subject}) ${tmpdir}/resample.mnc ${modelsubject}
+fixedmaskfine=${fixedmask}
+
+fixed_minimum_resolution=$(python -c "print(min([abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 1)\".split(\"x\")]]))")
+fixed_maximum_resolution=$(python -c "print(max([ a*b for a,b in zip([abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 1)\".split(\"x\")]],[abs(x) for x in [float(x) for x in \"$(PrintHeader ${fixedfile} 2)\".split(\"x\")]])]))")
+
+affinesteps=$(mb_ants_generate_iterations.py --min ${fixed_minimum_resolution} --max ${fixed_maximum_resolution} --output multilevel-halving --convergence 1e-7)
+
+antsRegistration --dimensionality 3 --verbose --minc \
+  --output [ ${tmpdir}/reg ] \
+  --use-histogram-matching 0 \
+  --initial-moving-transform [ ${fixedfile},${movingfile},1 ] \
+  $(eval echo ${affinesteps})
+
+cp -f ${tmpdir}/reg0_GenericAffine.xfm $(dirname ${xfm})/$(basename ${xfm} .xfm)_inverse.xfm
+xfminvert -clobber ${tmpdir}/reg0_GenericAffine.xfm ${xfm}
+
+antsApplyTransforms -d 3 -i ${subject} \
+  -r ${cropmodel} \
+  -t ${tmpdir}/reg0_GenericAffine.xfm -n BSpline[5] -o ${tmpdir}/resample.mnc
+
+mincmath -clobber -clamp -const2 0 $(mincstats -quiet -max ${tmpdir}/resample.mnc) ${tmpdir}/resample.mnc ${modelsubject}
 
 rm -rf ${tmpdir}

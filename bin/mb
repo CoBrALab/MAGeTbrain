@@ -59,12 +59,12 @@ STAGE_XFMJOIN_NATIVE = 'mb_xfm_native'
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
 stage_queue_hints = {
-    STAGE_IMAGEPREP: {'procs': 5, 'walltime': '00:40:00'},
-    STAGE_REG_ATLAS: {'procs': 20, 'walltime': '4:00:00'},
-    STAGE_REG_TEMPL: {'procs': 20, 'walltime': '4:00:00'},
+    STAGE_IMAGEPREP: {'procs': 3, 'walltime': '00:20:00'},
+    STAGE_REG_ATLAS: {'procs': 4, 'walltime': '2:00:00'},
+    STAGE_REG_TEMPL: {'procs': 4, 'walltime': '4:00:00'},
     STAGE_XFM_JOIN: {'procs': None, 'walltime': '0:10:00'},
     STAGE_RESAMPLE: {'procs': None, 'walltime': '1:00:00'},
-    STAGE_VOTE: {'procs': 5, 'walltime': '12:00:00'},
+    STAGE_VOTE: {'procs': 2, 'walltime': '10:00:00'},
     STAGE_TAR: {'procs': 8, 'walltime': '1:00:00'},
     STAGE_REG_MODEL: {'procs': 20, 'walltime': '6:00:00'},
     STAGE_MODEL_SUBJECT_DISPLACE: {'procs': 24, 'walltime': '0:30:00'},
@@ -227,13 +227,13 @@ def main():
     group = parser_run.add_argument_group(title="Registration")
     group.add_argument(
         "--register_cmd",
-        default="mb_register_labelmask_antsReg",
+        default="mb_register_labelmask_antsReg_allANTs",
         metavar='CMD',
         help="Command to register two images and output a transform. "
         "This command needs to accept the source image, target image "
         "and output transformation file as arguments, in this order.")
     group.add_argument(
-        "--register_cmd_subj", default="mb_subjregister_labelmask_antsReg", metavar='CMD',
+        "--register_cmd_subj", default="mb_subjregister_labelmask_antsReg_allANTs", metavar='CMD',
         help="Command to register templates to subjects. deletes nonessential transforms"
         "This command needs to accept the source image, target image "
         "and output transformation file as arguments, in this order.")
@@ -785,7 +785,7 @@ class QBatchCommandQueue(CommandQueue):
         batchsize = processors
         opt_name = batch_name and '--jobname {0}'.format(batch_name) or ''
         opt_afterok = afterok and '--depend {0}'.format(afterok) or ''
-        opt_batchsize = batchsize and '--chunksize {0}'.format(batchsize) or ''
+        opt_batchsize = batchsize and '--chunksize {0} --cores {0}'.format(batchsize) or ''
         opt_walltime = walltime and '--walltime {0}'.format(walltime) or ''
         self.execute(
             'qbatch {0} {1} {2} {3} -'.format(
