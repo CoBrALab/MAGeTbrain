@@ -59,7 +59,7 @@ STAGE_XFMJOIN_NATIVE = 'mb_xfm_native'
 #   stage -> (max_processors_per_node, walltime)
 # The order also matters, as later stages may depend on earlier stages only.
 stage_queue_hints = {
-    STAGE_IMAGEPREP: {'procs': 3, 'walltime': '00:20:00'},
+    STAGE_IMAGEPREP: {'procs': 3, 'walltime': '01:00:00'},
     STAGE_REG_ATLAS: {'procs': 4, 'walltime': '2:00:00'},
     STAGE_REG_TEMPL: {'procs': 4, 'walltime': '4:00:00'},
     STAGE_XFM_JOIN: {'procs': None, 'walltime': '0:10:00'},
@@ -249,7 +249,7 @@ def main():
         default=False,
         action="store_true",
         help="Dry run. Show what would happen.")
-    group.add_argument("-j", "--processes", default=8,
+    group.add_argument("-j", "--processes", default=4,
                        type=int, metavar='N',
                        help="Number of processes to parallelize over.")
     group.add_argument("--clobber", default=False,
