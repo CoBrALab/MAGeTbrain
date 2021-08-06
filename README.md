@@ -147,7 +147,7 @@ Starts the MAGeT brain pipeline.
 
 ## Tutorials
 
-For an in-depth guideline, follow the [MAGeTbrain](https://github.com/CobraLab/documentation/wiki/MAGeTBrain) and the [MAGeTmorph](https://github.com/CobraLab/documentation/wiki/MAGeT-Morph) tutorials.
+For an in-depth guideline, follow the [MAGeTbrain](https://github.com/CobraLab/documentation/wiki/MAGeTBrain) and the [MAGeTmorph](https://github.com/CobraLab/documentation/wiki/MAGeTBrain#morpho-mode) tutorials.
 
 ---
     http://tinysong.com/y9lO
