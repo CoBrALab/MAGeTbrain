@@ -47,7 +47,7 @@ masks =      ["--masks [NOMASK,NOMASK]",
 
 
 slicestart = 0
-slicesize = int(np.around(len(shrinks) / (len(transforms)) * 1.5))
+slicesize = int(np.floor(len(shrinks) / (len(transforms)) * 1.5))
 
 for transform in transforms:
   print(transform, end=' \\\n')
@@ -55,7 +55,7 @@ for transform in transforms:
   print("\t--convergence [{},1e-6,10]".format("x".join(iterations[slicestart:slicestart+slicesize])), end=' \\\n')
   print("\t--shrink-factors {}".format("x".join(shrinks[slicestart:slicestart+slicesize])), end=' \\\n')
   print("\t--smoothing-sigmas {}mm".format("x".join(blurs[slicestart:slicestart+slicesize])), end=' \\\n')
-  print("\t--masks [NOMASK,NOMASK]", end=' \\\n')    
+  print("\t--masks [NOMASK,NOMASK]", end=' \\\n')
   slicestart += int(np.around(slicesize / 2))
 
 print("--transform Affine[0.1] \\")
