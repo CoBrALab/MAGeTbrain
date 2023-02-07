@@ -78,7 +78,7 @@ atlassave=${atlas}
 
 # Register atlas slab brain to atlas wholebrain
 if [[ "$(basename $(dirname $(dirname $atlas)))" == "atlases" ]]; then
-  param2xfm ${output_dir}/atlas_wholebrain_to_slab.xfm
+  param2xfm -clobber ${output_dir}/atlas_wholebrain_to_slab.xfm
 else
   affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${atlas_wholebrain_resolution})
   target=${atlas_wholebrain}
@@ -91,7 +91,7 @@ else
   mv -f ${tmpdir}/reg0_GenericAffine.xfm ${output_dir}/atlas_wholebrain_to_slab.xfm
 fi
 
-# Register target slab brain to target wholebrain 
+# Register target slab brain to target wholebrain
 affinesteps=$(mb_generate_iterations_singlestep_affine_resscale.py ${target_wholebrain_resolution})
 atlas=${targetsave}
 target=${target_wholebrain}
